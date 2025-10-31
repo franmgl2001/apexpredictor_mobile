@@ -1,9 +1,92 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserProfile, ApexEntity } from '../services/graphql';
+
+/**
+ * Formats a duration in a human-readable format
+ * @param createdAt ISO date string
+ * @returns Human-readable duration string (e.g., "2 months", "1 year", "3 days")
+ */
+function formatMemberDuration(createdAt: string | undefined): string {
+    if (!createdAt) {
+        return 'Recently joined';
+    }
+
+    const now = new Date();
+    const created = new Date(createdAt);
+    const diffInMs = now.getTime() - created.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInDays < 1) {
+        return 'Joined today';
+    } else if (diffInDays === 1) {
+        return 'Joined 1 day ago';
+    } else if (diffInDays < 30) {
+        return `Joined ${diffInDays} days ago`;
+    } else if (diffInDays < 60) {
+        return 'Joined 1 month ago';
+    } else if (diffInDays < 365) {
+        const months = Math.floor(diffInDays / 30);
+        return `Joined ${months} month${months > 1 ? 's' : ''} ago`;
+    } else {
+        const years = Math.floor(diffInDays / 365);
+        const remainingMonths = Math.floor((diffInDays % 365) / 30);
+        if (remainingMonths > 0) {
+            return `Joined ${years} year${years > 1 ? 's' : ''} and ${remainingMonths} month${remainingMonths > 1 ? 's' : ''} ago`;
+        }
+        return `Joined ${years} year${years > 1 ? 's' : ''} ago`;
+    }
+}
+
+/**
+ * Gets initials from a username or email
+ */
+function getInitials(username?: string, email?: string): string {
+    const name = username || email || 'U';
+    const parts = name.split(/[\s@.]/).filter(Boolean);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
+
+/**
+ * Formats date for display
+ */
+function formatDate(dateString?: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+}
 
 export default function ProfileScreen() {
-    const { signOut, user, isLoading } = useAuth();
+    const { signOut, user, isLoading: authLoading } = useAuth();
+    const [profile, setProfile] = useState<ApexEntity | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (user?.userId) {
+            fetchProfile();
+        }
+    }, [user?.userId]);
+
+    const fetchProfile = async () => {
+        if (!user?.userId) return;
+
+        setProfileLoading(true);
+        setProfileError(null);
+        try {
+            const profileData = await getUserProfile(user.userId);
+            setProfile(profileData);
+        } catch (error: any) {
+            console.error('Error fetching profile:', error);
+            setProfileError(error.message || 'Failed to load profile');
+        } finally {
+            setProfileLoading(false);
+        }
+    };
 
     const handleSignOut = async () => {
         Alert.alert(
@@ -30,27 +113,91 @@ export default function ProfileScreen() {
         );
     };
 
+    const handleEmailPress = () => {
+        Linking.openURL('mailto:apexprediction@gmail.com');
+    };
+
+    const handlePhonePress = () => {
+        Linking.openURL('tel:+525576583376');
+    };
+
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Profile</Text>
-
-            {user && (
-                <View style={styles.userInfo}>
-                    {user.username && (
-                        <Text style={styles.userEmail}>{user.username}</Text>
-                    )}
-                    {user.userId && (
-                        <Text style={styles.userId}>ID: {user.userId}</Text>
-                    )}
+            {profileLoading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#dc2626" />
                 </View>
+            )}
+
+            {profileError && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{profileError}</Text>
+                </View>
+            )}
+
+            {profile && !profileLoading && (
+                <>
+                    {/* Profile Card */}
+                    <View style={styles.profileCard}>
+                        <View style={styles.avatarSection}>
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>
+                                    {getInitials(profile.username, profile.email)}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.infoSection}>
+                            {profile.username && (
+                                <Text style={styles.nameText}>
+                                    {profile.username}
+                                </Text>
+                            )}
+                            {profile.email && (
+                                <Text style={styles.emailText}>
+                                    {profile.email}
+                                </Text>
+                            )}
+                            {profile.createdAt && (
+                                <Text style={styles.dateText}>
+                                    Member since {formatDate(profile.createdAt)}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+
+                    {/* Contact Section */}
+                    <View style={styles.contactSection}>
+                        <Text style={styles.sectionTitle}>Need Help?</Text>
+                        <Text style={styles.sectionSubtitle}>Get in touch with us</Text>
+
+                        <TouchableOpacity
+                            style={styles.contactItem}
+                            onPress={handleEmailPress}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.contactLabel}>Email</Text>
+                            <Text style={styles.contactValue}>apexprediction@gmail.com</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.contactItem}
+                            onPress={handlePhonePress}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.contactLabel}>Phone</Text>
+                            <Text style={styles.contactValue}>+52 5576583376</Text>
+                        </TouchableOpacity>
+                    </View>
+                </>
             )}
 
             <View style={styles.signOutContainer}>
                 <TouchableOpacity
-                    style={[styles.signOutButton, isLoading && styles.signOutButtonDisabled]}
+                    style={[styles.signOutButton, authLoading && styles.signOutButtonDisabled]}
                     onPress={handleSignOut}
-                    disabled={isLoading}
-                    activeOpacity={0.8}
+                    disabled={authLoading}
+                    activeOpacity={0.6}
                 >
                     <Text style={styles.signOutText}>Sign Out</Text>
                 </TouchableOpacity>
@@ -62,54 +209,131 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
+        padding: 24,
         paddingBottom: 76,
+        backgroundColor: '#ffffff',
     },
-    title: {
-        fontSize: 20,
-        fontWeight: '600',
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 64,
+    },
+    errorContainer: {
+        backgroundColor: '#fef2f2',
+        padding: 16,
+        borderRadius: 12,
         marginBottom: 24,
     },
-    userInfo: {
-        marginBottom: 32,
-        paddingBottom: 24,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e7eb',
-    },
-    userEmail: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-    },
-    userId: {
+    errorText: {
+        color: '#dc2626',
         fontSize: 14,
-        color: '#6b7280',
+        textAlign: 'center',
+    },
+    // Profile Card - Minimalist Design
+    profileCard: {
+        marginBottom: 48,
+        alignItems: 'center',
+    },
+    avatarSection: {
+        marginBottom: 32,
+    },
+    avatar: {
+        width: 120,
+        height: 120,
+        borderRadius: 120 / 2,
+        backgroundColor: '#dc2626',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: {
+        fontSize: 42,
+        fontWeight: '300',
+        color: '#ffffff',
+        letterSpacing: 1,
+    },
+    infoSection: {
+        alignItems: 'center',
+        width: '100%',
+    },
+    nameText: {
+        fontSize: 32,
+        fontWeight: '300',
+        color: '#dc2626',
+        marginBottom: 8,
+        letterSpacing: -0.5,
+    },
+    emailText: {
+        fontSize: 17,
+        fontWeight: '400',
+        color: '#666666',
+        marginBottom: 12,
+        letterSpacing: -0.2,
+    },
+    dateText: {
+        fontSize: 15,
+        fontWeight: '300',
+        color: '#999999',
+        letterSpacing: -0.1,
+    },
+    // Contact Section
+    contactSection: {
+        marginBottom: 32,
+    },
+    sectionTitle: {
+        fontSize: 24,
+        fontWeight: '300',
+        color: '#dc2626',
+        marginBottom: 6,
+        letterSpacing: -0.5,
+    },
+    sectionSubtitle: {
+        fontSize: 15,
+        fontWeight: '300',
+        color: '#666666',
+        marginBottom: 32,
+        letterSpacing: -0.1,
+    },
+    contactItem: {
+        paddingVertical: 20,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#f3f4f6',
+    },
+    contactLabel: {
+        fontSize: 13,
+        fontWeight: '400',
+        color: '#999999',
+        marginBottom: 6,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    contactValue: {
+        fontSize: 17,
+        fontWeight: '400',
+        color: '#dc2626',
+        letterSpacing: -0.2,
     },
     signOutContainer: {
         marginTop: 'auto',
-        paddingTop: 24,
+        paddingTop: 32,
     },
     signOutButton: {
-        backgroundColor: '#dc2626',
-        paddingHorizontal: 24,
-        paddingVertical: 14,
-        borderRadius: 12,
+        backgroundColor: 'transparent',
+        paddingVertical: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#dc2626',
+        borderRadius: 0,
     },
     signOutButtonDisabled: {
-        opacity: 0.6,
+        opacity: 0.4,
     },
     signOutText: {
-        color: '#ffffff',
-        fontWeight: '700',
-        fontSize: 16,
+        color: '#dc2626',
+        fontWeight: '400',
+        fontSize: 17,
+        letterSpacing: -0.2,
     },
 });
 

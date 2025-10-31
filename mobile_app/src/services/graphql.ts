@@ -1,0 +1,137 @@
+import { generateClient } from 'aws-amplify/api';
+import type { GraphQLResult } from '@aws-amplify/api-graphql';
+
+export interface ApexEntity {
+    PK: string;
+    SK: string;
+    entityType?: string;
+    user_id?: string;
+    username?: string;
+    email?: string;
+    race_id?: string;
+    race_name?: string;
+    season?: string;
+    qualy_date?: string;
+    race_date?: string;
+    category?: string;
+    circuit?: string;
+    country?: string;
+    status?: string;
+    has_sprint?: boolean;
+    predictions?: string;
+    points_earned?: number;
+    results?: string;
+    driver_id?: string;
+    name?: string;
+    team?: string;
+    number?: number;
+    imageUrl?: string;
+    teamColor?: string;
+    isActive?: boolean;
+    nationality?: string;
+    birthDate?: string;
+    league_id?: string;
+    league_name?: string;
+    description?: string;
+    creator_id?: string;
+    is_private?: boolean;
+    join_code?: string;
+    max_members?: number;
+    member_count?: number;
+    role?: string;
+    points?: number;
+    races?: number;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface GetApexEntityResponse {
+    getApexEntity: ApexEntity | null;
+}
+
+const GET_APEX_ENTITY = `
+  query GetApexEntity($PK: String!, $SK: String!) {
+    getApexEntity(PK: $PK, SK: $SK) {
+      PK
+      SK
+      entityType
+      user_id
+      username
+      email
+      race_id
+      race_name
+      season
+      qualy_date
+      race_date
+      category
+      circuit
+      country
+      status
+      has_sprint
+      predictions
+      points_earned
+      results
+      driver_id
+      name
+      team
+      number
+      imageUrl
+      teamColor
+      isActive
+      nationality
+      birthDate
+      league_id
+      league_name
+      description
+      creator_id
+      is_private
+      join_code
+      max_members
+      member_count
+      role
+      points
+      races
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const client = generateClient();
+
+/**
+ * Fetches an Apex Entity from the GraphQL API
+ * @param PK Primary key (e.g., "user#61cbf510-20d1-7047-5006-b3ae8d8fb6e5")
+ * @param SK Sort key (e.g., "PROFILE")
+ * @returns The Apex Entity or null if not found
+ */
+export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity | null> {
+    try {
+        const result = await client.graphql({
+            query: GET_APEX_ENTITY,
+            variables: { PK, SK },
+        }) as GraphQLResult<GetApexEntityResponse>;
+
+        if (result.errors && result.errors.length > 0) {
+            console.error('GraphQL errors:', result.errors);
+            throw new Error(result.errors[0].message || 'Failed to fetch entity');
+        }
+
+        return result.data?.getApexEntity || null;
+    } catch (error: any) {
+        console.error('Error fetching Apex Entity:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetches user profile from the GraphQL API
+ * @param userId The Cognito user ID (without the "user#" prefix)
+ * @returns The user profile or null if not found
+ */
+export async function getUserProfile(userId: string): Promise<ApexEntity | null> {
+    const PK = `user#${userId}`;
+    const SK = 'PROFILE';
+    return getApexEntity(PK, SK);
+}
+
