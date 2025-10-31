@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 
-export type RouteKey = 'myteam' | 'leaderboard' | 'profile';
+export type RouteKey = 'myteam' | 'leaderboard' | 'leagues';
 
 type NavItem = {
     key: RouteKey;
@@ -12,7 +12,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
     { key: 'myteam', label: 'My Team', emoji: '🏢' },
     { key: 'leaderboard', label: 'Leaderboard', emoji: '📊' },
-    { key: 'profile', label: 'Profile', emoji: '👤' },
+    { key: 'leagues', label: 'Leagues', emoji: '🏆' },
 ];
 
 export default function MobileBottomNav({

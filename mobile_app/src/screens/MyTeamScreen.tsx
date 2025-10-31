@@ -3,15 +3,21 @@ import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator
 import RaceCarousel from '../components/race_details/RaceCarousel';
 import RulesScoringButton from '../components/rules_modal/RulesScoringButton';
 import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
+import AppHeader from '../components/AppHeader';
 import { useData } from '../contexts/DataContext';
 
-export default function MyTeamScreen() {
+type MyTeamScreenProps = {
+    onProfilePress: () => void;
+};
+
+export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [isClosed, setIsClosed] = useState(false);
     const [showRulesModal, setShowRulesModal] = useState(false);
     const { races, isLoading, racesError, refetchRaces } = useData();
 
     return (
         <View style={{ flex: 1 }}>
+            <AppHeader onProfilePress={onProfilePress} />
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.content}

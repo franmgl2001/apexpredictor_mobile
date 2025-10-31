@@ -3,6 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Lin
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 
+type ProfileScreenProps = {
+    onClose?: () => void;
+};
+
 /**
  * Formats a duration in a human-readable format
  * @param createdAt ISO date string
@@ -60,7 +64,7 @@ function formatDate(dateString?: string): string {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
 }
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
     const { signOut, isLoading: authLoading } = useAuth();
     const { profile, isLoading: profileLoading, profileError, refetchProfile } = useData();
 
@@ -99,6 +103,17 @@ export default function ProfileScreen() {
 
     return (
         <View style={styles.container}>
+            {onClose && (
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={onClose}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.closeButtonText}>✕</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
             {profileLoading && (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color="#dc2626" />
@@ -188,6 +203,24 @@ const styles = StyleSheet.create({
         padding: 24,
         paddingBottom: 76,
         backgroundColor: '#ffffff',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginBottom: 16,
+    },
+    closeButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f3f4f6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closeButtonText: {
+        fontSize: 18,
+        color: '#374151',
+        fontWeight: '300',
     },
     loadingContainer: {
         flex: 1,

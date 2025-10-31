@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Modal } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -22,6 +22,7 @@ Amplify.configure(amplifyconfig);
 import MobileBottomNav, { RouteKey } from './src/components/MobileBottomNav';
 import MyTeamScreen from './src/screens/MyTeamScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
+import LeaguesScreen from './src/screens/LeaguesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -50,6 +51,7 @@ function AppContent() {
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
   const [pendingEmail, setPendingEmail] = useState<string>('');
   const [pendingPassword, setPendingPassword] = useState<string>('');
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Show loading spinner while checking auth status
   if (isLoading && !isAuthenticated) {
@@ -139,17 +141,27 @@ function AppContent() {
   // Show main app if authenticated
   let Screen: React.ReactElement;
   if (route === 'myteam') {
-    Screen = <MyTeamScreen />;
+    Screen = <MyTeamScreen onProfilePress={() => setShowProfileModal(true)} />;
   } else if (route === 'leaderboard') {
-    Screen = <LeaderboardScreen />;
+    Screen = <LeaderboardScreen onProfilePress={() => setShowProfileModal(true)} />;
   } else {
-    Screen = <ProfileScreen />;
+    Screen = <LeaguesScreen onProfilePress={() => setShowProfileModal(true)} />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>{Screen}</View>
       <MobileBottomNav currentRoute={route} onNavigate={setRoute} />
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowProfileModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <ProfileScreen onClose={() => setShowProfileModal(false)} />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -166,6 +178,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  modalContainer: {
+    flex: 1,
     backgroundColor: '#ffffff',
   },
 });

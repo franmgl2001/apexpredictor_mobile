@@ -10,6 +10,11 @@ import {
     type LeaderboardEntryData,
 } from '../components/leaderboard';
 import PredictionsModal from '../components/leaderboard/PredictionsModal';
+import AppHeader from '../components/AppHeader';
+
+type LeaderboardScreenProps = {
+    onProfilePress: () => void;
+};
 
 // Get available race IDs from race leaderboard data
 function getAvailableRaceIds(): string[] {
@@ -31,7 +36,7 @@ function getLatestRaceId(): string | null {
     return raceIds.length > 0 ? raceIds[0] : null;
 }
 
-export default function LeaderboardScreen() {
+export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenProps) {
     const [filterType, setFilterType] = useState<FilterType>('global');
     const [timeFilter, setTimeFilter] = useState<TimeFilterType>('season');
     const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
@@ -104,6 +109,7 @@ export default function LeaderboardScreen() {
 
     return (
         <View style={styles.container}>
+            <AppHeader onProfilePress={onProfilePress} />
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
