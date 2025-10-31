@@ -10,9 +10,15 @@
     "test": "jest"
   },
   "dependencies": {
+    "@aws-amplify/api-graphql": "^4.8.0",
+    "@aws-amplify/auth": "^6.16.0",
+    "@aws-amplify/react-native": "^1.2.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native/new-app-screen": "0.82.1",
+    "aws-amplify": "^6.15.7",
     "react": "19.1.1",
     "react-native": "0.82.1",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-svg": "^15.14.0",
     "react-native-svg-transformer": "^1.5.1",
