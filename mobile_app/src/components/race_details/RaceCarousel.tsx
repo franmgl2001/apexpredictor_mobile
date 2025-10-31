@@ -32,10 +32,31 @@ function getTimeLeft(targetIso: string): TimeLeft {
     return { days, hours, minutes, seconds };
 }
 
-export default function RaceCarousel({ onIsClosedChange }: { onIsClosedChange?: (isClosed: boolean) => void }) {
-    const races = useMemo(() => loadRaces(), []);
+export default function RaceCarousel({
+    races: racesProp,
+    onIsClosedChange
+}: {
+    races?: RaceEntity[];
+    onIsClosedChange?: (isClosed: boolean) => void;
+}) {
+    // Use provided races or fall back to loading from mocks
+    const races = useMemo(() => {
+        if (racesProp && racesProp.length > 0) {
+            return racesProp;
+        }
+        return loadRaces();
+    }, [racesProp]);
+
     const [index, setIndex] = useState(() => getInitialIndex(races));
     const race = races[index];
+
+    // Reset index when races change
+    useEffect(() => {
+        if (races.length > 0) {
+            const newIndex = getInitialIndex(races);
+            setIndex(newIndex);
+        }
+    }, [races]);
 
     const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => (race ? getTimeLeft(race.qualy_date) : { days: 0, hours: 0, minutes: 0, seconds: 0 }));
     const [isClosed, setIsClosed] = useState(() => race ? Date.now() >= Date.parse(race.qualy_date) : false);
