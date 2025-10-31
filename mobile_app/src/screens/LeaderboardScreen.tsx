@@ -88,7 +88,10 @@ export default function LeaderboardScreen() {
     };
 
     const handleEntryPress = (entry: LeaderboardEntryData) => {
-        if (timeFilter === 'race' && entry.predictions) {
+        if (timeFilter === 'race') {
+            // Open modal for any entry in race mode
+            // Modal will handle displaying predictions or showing "No predictions available"
+            console.log('Entry pressed:', entry.username, 'Has predictions:', !!entry.predictions);
             setSelectedEntry(entry);
             setShowPredictionsModal(true);
         }
@@ -101,7 +104,11 @@ export default function LeaderboardScreen() {
 
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+            >
                 {/* Filters */}
                 <LeaderboardFilters
                     filterType={filterType}
@@ -115,15 +122,13 @@ export default function LeaderboardScreen() {
                 <LeaderboardList entries={entries} onEntryPress={handleEntryPress} />
             </ScrollView>
 
-            {/* Predictions Modal */}
-            {selectedEntry && (
-                <PredictionsModal
-                    visible={showPredictionsModal}
-                    onClose={handleCloseModal}
-                    username={selectedEntry.username}
-                    predictionsJson={selectedEntry.predictions || null}
-                />
-            )}
+            {/* Predictions Modal - Always render, control visibility with visible prop */}
+            <PredictionsModal
+                visible={showPredictionsModal}
+                onClose={handleCloseModal}
+                username={selectedEntry?.username || ''}
+                predictionsJson={selectedEntry?.predictions || null}
+            />
         </View>
     );
 }

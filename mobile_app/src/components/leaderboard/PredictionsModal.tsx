@@ -41,18 +41,27 @@ function loadDrivers(): Driver[] {
 }
 
 function getDriverByNumber(drivers: Driver[], number: number | null): Driver | null {
-    if (number === null) return null;
-    return drivers.find((d) => d.number === number) || null;
+    if (number === null || number === undefined) return null;
+    // Ensure we compare numbers correctly (handle string to number conversions)
+    const numValue = typeof number === 'number' ? number : Number(number);
+    if (isNaN(numValue)) return null;
+    return drivers.find((d) => d.number === numValue) || null;
 }
 
 export default function PredictionsModal({ visible, onClose, username, predictionsJson }: PredictionsModalProps) {
     const drivers = useMemo(() => loadDrivers(), []);
 
     const predictions: PredictionData | null = useMemo(() => {
-        if (!predictionsJson) return null;
+        if (!predictionsJson) {
+            console.log('No predictionsJson provided');
+            return null;
+        }
         try {
-            return JSON.parse(predictionsJson);
-        } catch {
+            const parsed = JSON.parse(predictionsJson);
+            console.log('Parsed predictions:', parsed);
+            return parsed;
+        } catch (error) {
+            console.error('Error parsing predictions JSON:', error);
             return null;
         }
     }, [predictionsJson]);
@@ -147,29 +156,118 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                             predictions.additionalPredictions.pole !== undefined && (
                                                 <View style={styles.additionalRow}>
                                                     <Text style={styles.additionalLabel}>Pole Position:</Text>
-                                                    <Text style={styles.additionalValue}>
-                                                        {getDriverName(predictions.additionalPredictions.pole)}
-                                                    </Text>
+                                                    <View style={styles.additionalValueContainer}>
+                                                        {(() => {
+                                                            const driver = getDriverByNumber(
+                                                                drivers,
+                                                                predictions.additionalPredictions.pole
+                                                            );
+                                                            return driver ? (
+                                                                <View style={styles.driverInfo}>
+                                                                    <View style={styles.driverNameRow}>
+                                                                        <Text style={styles.additionalValue}>
+                                                                            {driver.name}
+                                                                        </Text>
+                                                                        {driver.teamColor && (
+                                                                            <View
+                                                                                style={[
+                                                                                    styles.teamDot,
+                                                                                    { backgroundColor: driver.teamColor },
+                                                                                ]}
+                                                                            />
+                                                                        )}
+                                                                        <Text style={styles.driverNumber}>
+                                                                            #{driver.number}
+                                                                        </Text>
+                                                                    </View>
+                                                                </View>
+                                                            ) : (
+                                                                <Text style={styles.additionalValue}>
+                                                                    {getDriverName(predictions.additionalPredictions.pole)}
+                                                                </Text>
+                                                            );
+                                                        })()}
+                                                    </View>
                                                 </View>
                                             )}
                                         {predictions.additionalPredictions.fastestLap !== null &&
                                             predictions.additionalPredictions.fastestLap !== undefined && (
                                                 <View style={styles.additionalRow}>
                                                     <Text style={styles.additionalLabel}>Fastest Lap:</Text>
-                                                    <Text style={styles.additionalValue}>
-                                                        {getDriverName(predictions.additionalPredictions.fastestLap)}
-                                                    </Text>
+                                                    <View style={styles.additionalValueContainer}>
+                                                        {(() => {
+                                                            const driver = getDriverByNumber(
+                                                                drivers,
+                                                                predictions.additionalPredictions.fastestLap
+                                                            );
+                                                            return driver ? (
+                                                                <View style={styles.driverInfo}>
+                                                                    <View style={styles.driverNameRow}>
+                                                                        <Text style={styles.additionalValue}>
+                                                                            {driver.name}
+                                                                        </Text>
+                                                                        {driver.teamColor && (
+                                                                            <View
+                                                                                style={[
+                                                                                    styles.teamDot,
+                                                                                    { backgroundColor: driver.teamColor },
+                                                                                ]}
+                                                                            />
+                                                                        )}
+                                                                        <Text style={styles.driverNumber}>
+                                                                            #{driver.number}
+                                                                        </Text>
+                                                                    </View>
+                                                                </View>
+                                                            ) : (
+                                                                <Text style={styles.additionalValue}>
+                                                                    {getDriverName(
+                                                                        predictions.additionalPredictions.fastestLap
+                                                                    )}
+                                                                </Text>
+                                                            );
+                                                        })()}
+                                                    </View>
                                                 </View>
                                             )}
                                         {predictions.additionalPredictions.positionsGained !== null &&
                                             predictions.additionalPredictions.positionsGained !== undefined && (
                                                 <View style={styles.additionalRow}>
                                                     <Text style={styles.additionalLabel}>Most Positions Gained:</Text>
-                                                    <Text style={styles.additionalValue}>
-                                                        {getDriverName(
-                                                            predictions.additionalPredictions.positionsGained
-                                                        )}
-                                                    </Text>
+                                                    <View style={styles.additionalValueContainer}>
+                                                        {(() => {
+                                                            const driver = getDriverByNumber(
+                                                                drivers,
+                                                                predictions.additionalPredictions.positionsGained
+                                                            );
+                                                            return driver ? (
+                                                                <View style={styles.driverInfo}>
+                                                                    <View style={styles.driverNameRow}>
+                                                                        <Text style={styles.additionalValue}>
+                                                                            {driver.name}
+                                                                        </Text>
+                                                                        {driver.teamColor && (
+                                                                            <View
+                                                                                style={[
+                                                                                    styles.teamDot,
+                                                                                    { backgroundColor: driver.teamColor },
+                                                                                ]}
+                                                                            />
+                                                                        )}
+                                                                        <Text style={styles.driverNumber}>
+                                                                            #{driver.number}
+                                                                        </Text>
+                                                                    </View>
+                                                                </View>
+                                                            ) : (
+                                                                <Text style={styles.additionalValue}>
+                                                                    {getDriverName(
+                                                                        predictions.additionalPredictions.positionsGained
+                                                                    )}
+                                                                </Text>
+                                                            );
+                                                        })()}
+                                                    </View>
                                                 </View>
                                             )}
                                     </View>
@@ -327,6 +425,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#111827',
+    },
+    additionalValueContainer: {
+        flex: 1,
+        alignItems: 'flex-end',
     },
     emptyText: {
         textAlign: 'center',
