@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile, ApexEntity } from '../services/graphql';
+import { useData } from '../contexts/DataContext';
 
 /**
  * Formats a duration in a human-readable format
@@ -61,32 +61,8 @@ function formatDate(dateString?: string): string {
 }
 
 export default function ProfileScreen() {
-    const { signOut, user, isLoading: authLoading } = useAuth();
-    const [profile, setProfile] = useState<ApexEntity | null>(null);
-    const [profileLoading, setProfileLoading] = useState(false);
-    const [profileError, setProfileError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (user?.userId) {
-            fetchProfile();
-        }
-    }, [user?.userId]);
-
-    const fetchProfile = async () => {
-        if (!user?.userId) return;
-
-        setProfileLoading(true);
-        setProfileError(null);
-        try {
-            const profileData = await getUserProfile(user.userId);
-            setProfile(profileData);
-        } catch (error: any) {
-            console.error('Error fetching profile:', error);
-            setProfileError(error.message || 'Failed to load profile');
-        } finally {
-            setProfileLoading(false);
-        }
-    };
+    const { signOut, isLoading: authLoading } = useAuth();
+    const { profile, isLoading: profileLoading, profileError, refetchProfile } = useData();
 
     const handleSignOut = async () => {
         Alert.alert(

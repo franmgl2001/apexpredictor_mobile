@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { Amplify } from 'aws-amplify';
 import amplifyconfig from './amplify_outputs.json';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { DataProvider } from './src/contexts/DataContext';
 
 // Configure Amplify with the outputs
 // @aws-amplify/react-native automatically sets up AsyncStorage for React Native
@@ -33,7 +34,9 @@ function App() {
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <AuthProvider>
-        <AppContent />
+        <DataProvider>
+          <AppContent />
+        </DataProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

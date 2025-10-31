@@ -1,40 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity } from 'react-native';
+import { useData, Driver } from '../../contexts/DataContext';
 
-export type Driver = {
-    id: string;
-    name: string;
-    team: string;
-    number: number;
-    nationality?: string;
-    teamColor?: string;
-};
-
-function loadDrivers(): Driver[] {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const json: any = require('../../mocks/drivers.json');
-    const items: any[] = json?.data?.listApexEntities?.items ?? [];
-    const drivers = items
-        .filter((it) => it?.entityType === 'DRIVER')
-        .map((it) => ({
-            id: String(it.driver_id ?? it.PK ?? it.name),
-            name: String(it.name),
-            team: String(it.team),
-            number: Number(it.number),
-            nationality: it.nationality ?? undefined,
-            teamColor: it.teamColor ?? undefined,
-        }));
-    // Sort by team, then by name within team
-    return drivers.sort((a, b) => {
-        if (a.team !== b.team) {
-            return a.team.localeCompare(b.team);
-        }
-        return a.name.localeCompare(b.name);
-    });
-}
+export type { Driver };
 
 export default function DriverPickerModal({ visible, onClose, onPick }: { visible: boolean; onClose: () => void; onPick: (driver: Driver) => void }) {
-    const allDrivers = useMemo(() => loadDrivers(), []);
+    const { drivers: allDrivers } = useData();
     const [query, setQuery] = useState('');
 
     const filteredDrivers = useMemo(() => {

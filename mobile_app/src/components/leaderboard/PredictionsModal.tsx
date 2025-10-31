@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useData, Driver as ContextDriver } from '../../contexts/DataContext';
 
 type PredictionData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
@@ -25,21 +26,6 @@ interface PredictionsModalProps {
     predictionsJson: string | null;
 }
 
-function loadDrivers(): Driver[] {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const json: any = require('../../mocks/drivers.json');
-    const items: any[] = json?.data?.listApexEntities?.items ?? [];
-    const drivers = items
-        .filter((it) => it?.entityType === 'DRIVER')
-        .map((it) => ({
-            number: Number(it.number),
-            name: String(it.name),
-            team: String(it.team),
-            teamColor: it.teamColor ?? undefined,
-        }));
-    return drivers;
-}
-
 function getDriverByNumber(drivers: Driver[], number: number | null): Driver | null {
     if (number === null || number === undefined) return null;
     // Ensure we compare numbers correctly (handle string to number conversions)
@@ -49,7 +35,16 @@ function getDriverByNumber(drivers: Driver[], number: number | null): Driver | n
 }
 
 export default function PredictionsModal({ visible, onClose, username, predictionsJson }: PredictionsModalProps) {
-    const drivers = useMemo(() => loadDrivers(), []);
+    const { drivers: contextDrivers } = useData();
+    // Map context drivers to the format expected by this component
+    const drivers = useMemo(() => {
+        return contextDrivers.map((d: ContextDriver) => ({
+            number: d.number,
+            name: d.name,
+            team: d.team,
+            teamColor: d.teamColor,
+        }));
+    }, [contextDrivers]);
 
     const predictions: PredictionData | null = useMemo(() => {
         if (!predictionsJson) {

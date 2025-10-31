@@ -1,54 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import RaceCarousel from '../components/race_details/RaceCarousel';
 import RulesScoringButton from '../components/rules_modal/RulesScoringButton';
 import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
-import { getRaceDetails, ApexEntity } from '../services/graphql';
-import { RaceEntity } from '../components/race_details/RaceDetailsCard';
+import { useData } from '../contexts/DataContext';
 
 export default function MyTeamScreen() {
     const [isClosed, setIsClosed] = useState(false);
     const [showRulesModal, setShowRulesModal] = useState(false);
-    const [races, setRaces] = useState<RaceEntity[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        fetchRaces();
-    }, []);
-
-    const fetchRaces = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const raceData = await getRaceDetails();
-            // Filter and map ApexEntity to RaceEntity
-            const raceEntities: RaceEntity[] = raceData
-                .filter((item): item is ApexEntity & { entityType: 'RACE' } => item.entityType === 'RACE')
-                .map((item) => ({
-                    entityType: 'RACE' as const,
-                    race_id: item.race_id || '',
-                    race_name: item.race_name || '',
-                    season: item.season || '',
-                    qualy_date: item.qualy_date || '',
-                    race_date: item.race_date || '',
-                    category: item.category || '',
-                    circuit: item.circuit || '',
-                    country: item.country || '',
-                    status: item.status || 'upcoming',
-                    has_sprint: item.has_sprint || false,
-                }))
-                // Sort by qualy_date ascending
-                .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
-
-            setRaces(raceEntities);
-        } catch (err: any) {
-            console.error('Error fetching races:', err);
-            setError(err.message || 'Failed to load races');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const { races, isLoading, racesError, refetchRaces } = useData();
 
     return (
         <View style={{ flex: 1 }}>
@@ -65,23 +25,23 @@ export default function MyTeamScreen() {
                     </View>
                 )}
 
-                {error && (
+                {racesError && (
                     <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>{error}</Text>
-                        <TouchableOpacity onPress={fetchRaces} style={styles.retryButton}>
+                        <Text style={styles.errorText}>{racesError}</Text>
+                        <TouchableOpacity onPress={refetchRaces} style={styles.retryButton}>
                             <Text style={styles.retryText}>Retry</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {!isLoading && !error && races.length > 0 && (
+                {!isLoading && !racesError && races.length > 0 && (
                     <>
                         <RaceCarousel races={races} onIsClosedChange={setIsClosed} />
                         <View style={{ height: 16 }} />
                     </>
                 )}
 
-                {!isLoading && !error && races.length === 0 && (
+                {!isLoading && !racesError && races.length === 0 && (
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyText}>No races available</Text>
                     </View>

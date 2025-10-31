@@ -71,6 +71,9 @@ export interface ModelApexEntityFilterInput {
     entityType?: {
         eq?: string;
     };
+    isActive?: {
+        eq?: boolean;
+    };
     [key: string]: any;
 }
 
@@ -257,6 +260,48 @@ export async function getRaceDetails(limit: number = 1000): Promise<ApexEntity[]
         return result.data?.listApexEntities.items || [];
     } catch (error: any) {
         console.error('Error fetching race details:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetches all active drivers for a season from the GraphQL API
+ * This is an atomic function specifically for fetching driver entities with:
+ * - PK beginning with "driver#"
+ * - SK beginning with "SEASON#2025" (or specified season)
+ * - isActive equal to true
+ * @param season Season year (default: "2025")
+ * @param limit Optional limit (default: 1000)
+ * @returns Array of driver entities
+ */
+export async function getDrivers(season: string = '2025', limit: number = 1000): Promise<ApexEntity[]> {
+    try {
+        const result = await client.graphql({
+            query: LIST_APEX_ENTITIES,
+            variables: {
+                filter: {
+                    PK: {
+                        beginsWith: 'driver#',
+                    },
+                    SK: {
+                        beginsWith: `SEASON#${season}`,
+                    },
+                    isActive: {
+                        eq: true,
+                    },
+                },
+                limit,
+            },
+        }) as GraphQLResult<ListApexEntitiesResponse>;
+
+        if (result.errors && result.errors.length > 0) {
+            console.error('GraphQL errors:', result.errors);
+            throw new Error(result.errors[0].message || 'Failed to fetch drivers');
+        }
+
+        return result.data?.listApexEntities.items || [];
+    } catch (error: any) {
+        console.error('Error fetching drivers:', error);
         throw error;
     }
 }
