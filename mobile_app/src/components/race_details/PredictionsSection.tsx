@@ -5,6 +5,9 @@ import TimeBox from './TimeBox';
 import PredictedGridRow, { DriverSummary } from '../drivers/PredictedGridRow';
 import DriverPickerModal, { Driver } from '../drivers/DriverPickerModal';
 import DriverPickRow from '../drivers/DriverPickRow';
+import { getUserPredictions } from '../../services/graphql';
+import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 
 type TimeLeft = { days: number; hours: number; minutes: number; seconds: number };
 
@@ -16,9 +19,23 @@ type RacePredictions = {
     most: DriverSummary | null;
 };
 
+type ApiPredictionsData = {
+    gridOrder: Array<{ position: number; driverNumber: number | null }>;
+    sprintPositions: Array<{ position?: number; driverNumber: number | null }>;
+    additionalPredictions: {
+        pole?: number | null;
+        fastestLap?: number | null;
+        positionsGained?: number | null;
+    };
+};
+
 export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean }) {
+    const { user } = useAuth();
+    const { drivers } = useData();
+
     // Store predictions per race
     const [predictionsByRace, setPredictionsByRace] = useState<Map<string, RacePredictions>>(() => new Map());
+    const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
 
     // Get current race predictions or initialize empty
     function getRacePredictions(racePredictions: Map<string, RacePredictions>): RacePredictions {
@@ -58,21 +75,178 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
     const [openSprintFor, setOpenSprintFor] = useState<number | null>(null);
     const [openPickerFor, setOpenPickerFor] = useState<'pole' | 'fastest' | 'most' | null>(null);
 
-    // Load predictions when race changes
+    // Fetch predictions from GraphQL when race changes
     useEffect(() => {
-        setPredictionsByRace((prev) => {
-            const racePredictions = getRacePredictions(prev);
-            setGrid(racePredictions.grid);
-            setSprintPodium(racePredictions.sprintPodium);
-            setPole(racePredictions.pole);
-            setFastest(racePredictions.fastest);
-            setMost(racePredictions.most);
-            return prev; // Return unchanged to avoid triggering save effect
-        });
+        if (!user?.userId || !raceId) {
+            // Reset to empty if no user or raceId
+            const empty = {
+                grid: new Array(10).fill(null),
+                sprintPodium: new Array(3).fill(null),
+                pole: null,
+                fastest: null,
+                most: null,
+            };
+            setGrid(empty.grid);
+            setSprintPodium(empty.sprintPodium);
+            setPole(empty.pole);
+            setFastest(empty.fastest);
+            setMost(empty.most);
+            return;
+        }
+
+        // Helper to get driver by number
+        const getDriverByNumber = (driverNumber: number | null): DriverSummary | null => {
+            if (driverNumber === null || driverNumber === undefined) return null;
+            const driver = drivers.find((d) => d.number === driverNumber);
+            if (!driver) return null;
+            return {
+                id: driver.id,
+                name: driver.name,
+                team: driver.team,
+                number: driver.number,
+                teamColor: driver.teamColor,
+            };
+        };
+
+        // Convert API predictions format to component format
+        const convertApiPredictionsToRacePredictions = (apiData: ApiPredictionsData | null): RacePredictions => {
+            if (!apiData) {
+                return {
+                    grid: new Array(10).fill(null),
+                    sprintPodium: new Array(3).fill(null),
+                    pole: null,
+                    fastest: null,
+                    most: null,
+                };
+            }
+
+            // Convert gridOrder to grid array
+            const grid: GridSelection = new Array(10).fill(null);
+            if (apiData.gridOrder) {
+                apiData.gridOrder.forEach((item) => {
+                    const positionIndex = item.position - 1; // Convert 1-based to 0-based
+                    if (positionIndex >= 0 && positionIndex < 10) {
+                        grid[positionIndex] = getDriverByNumber(item.driverNumber);
+                    }
+                });
+            }
+
+            // Convert sprintPositions to sprintPodium array
+            const sprintPodium: Array<DriverSummary | null> = new Array(3).fill(null);
+            if (apiData.sprintPositions && Array.isArray(apiData.sprintPositions)) {
+                apiData.sprintPositions.forEach((item, idx) => {
+                    if (idx < 3) {
+                        sprintPodium[idx] = getDriverByNumber(item.driverNumber);
+                    }
+                });
+            }
+
+            // Convert additional predictions
+            const additional = apiData.additionalPredictions || {};
+            const pole = getDriverByNumber(additional.pole ?? null);
+            const fastest = getDriverByNumber(additional.fastestLap ?? null);
+            const most = getDriverByNumber(additional.positionsGained ?? null);
+
+            return {
+                grid,
+                sprintPodium,
+                pole,
+                fastest,
+                most,
+            };
+        };
+
+        const fetchPredictions = async () => {
+            setIsLoadingPredictions(true);
+
+            // Helper to set empty state
+            const setEmptyState = () => {
+                const empty = {
+                    grid: new Array(10).fill(null),
+                    sprintPodium: new Array(3).fill(null),
+                    pole: null,
+                    fastest: null,
+                    most: null,
+                };
+                setGrid(empty.grid);
+                setSprintPodium(empty.sprintPodium);
+                setPole(empty.pole);
+                setFastest(empty.fastest);
+                setMost(empty.most);
+            };
+
+            try {
+                const predictionEntity = await getUserPredictions(user.userId, raceId);
+
+                // No entity returned - predictions don't exist yet (normal case)
+                if (!predictionEntity) {
+                    setEmptyState();
+                    return;
+                }
+
+                // Entity exists but predictions field is null/empty (normal case)
+                if (!predictionEntity.predictions || predictionEntity.predictions.trim() === '') {
+                    setEmptyState();
+                    return;
+                }
+
+                // Try to parse and load predictions
+                try {
+                    const apiData: ApiPredictionsData = JSON.parse(predictionEntity.predictions);
+                    const racePredictions = convertApiPredictionsToRacePredictions(apiData);
+
+                    // Update local state
+                    setGrid(racePredictions.grid);
+                    setSprintPodium(racePredictions.sprintPodium);
+                    setPole(racePredictions.pole);
+                    setFastest(racePredictions.fastest);
+                    setMost(racePredictions.most);
+
+                    // Store in predictionsByRace
+                    setPredictionsByRace((prev) => {
+                        const next = new Map(prev);
+                        next.set(raceId, racePredictions);
+                        return next;
+                    });
+                } catch (parseError) {
+                    // JSON parsing failed - log as error but use empty state
+                    console.error('Error parsing predictions JSON:', parseError);
+                    setEmptyState();
+                }
+            } catch (error: any) {
+                // Only log real errors (network, GraphQL query failures, etc.)
+                // Don't log if it's just that entity doesn't exist (null response)
+                const errorMessage = String(error?.message || error || '');
+                const errorString = JSON.stringify(error || '');
+
+                // Check if this is just a "not found" or "null" response
+                const isExpectedCase =
+                    errorMessage.includes('not found') ||
+                    errorMessage.includes('does not exist') ||
+                    errorMessage.includes('null') ||
+                    errorString.includes('null') ||
+                    error === null ||
+                    error === undefined ||
+                    (error && typeof error === 'object' && error.data && !error.errors);
+
+                if (!isExpectedCase) {
+                    // This is a real error worth logging
+                    console.error('Error fetching predictions:', error);
+                }
+
+                // Always set empty state on any error
+                setEmptyState();
+            } finally {
+                setIsLoadingPredictions(false);
+            }
+        };
+
+        fetchPredictions();
+
         // Close any open modals when switching races
         setOpenSprintFor(null);
         setOpenPickerFor(null);
-    }, [raceId]);
+    }, [raceId, user?.userId, drivers]);
 
     // Close modals when race becomes closed
     useEffect(() => {

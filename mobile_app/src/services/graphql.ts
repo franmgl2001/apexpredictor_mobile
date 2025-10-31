@@ -207,12 +207,23 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
         }) as GraphQLResult<GetApexEntityResponse>;
 
         if (result.errors && result.errors.length > 0) {
+            // Check if the error is because entity doesn't exist (expected case)
+            const errorMessage = result.errors[0].message || '';
+            if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+                // Entity doesn't exist - return null (not an error)
+                return null;
+            }
+            // For other errors, log and throw
             console.error('GraphQL errors:', result.errors);
             throw new Error(result.errors[0].message || 'Failed to fetch entity');
         }
 
         return result.data?.getApexEntity || null;
     } catch (error: any) {
+        // Check if error is due to entity not existing (expected case for predictions)
+        if (error?.message && (error.message.includes('not found') || error.message.includes('does not exist'))) {
+            return null;
+        }
         console.error('Error fetching Apex Entity:', error);
         throw error;
     }
@@ -304,5 +315,20 @@ export async function getDrivers(season: string = '2025', limit: number = 1000):
         console.error('Error fetching drivers:', error);
         throw error;
     }
+}
+
+/**
+ * Fetches user predictions for a specific race from the GraphQL API
+ * This is an atomic function specifically for fetching prediction entities with:
+ * - PK: "prediction#<userId>#<raceId>"
+ * - SK: "RACEPREDICTION"
+ * @param userId The Cognito user ID (without any prefix)
+ * @param raceId The race ID (e.g., "mexico2025")
+ * @returns The prediction entity or null if not found
+ */
+export async function getUserPredictions(userId: string, raceId: string): Promise<ApexEntity | null> {
+    const PK = `prediction#${userId}#${raceId}`;
+    const SK = 'RACEPREDICTION';
+    return getApexEntity(PK, SK);
 }
 
