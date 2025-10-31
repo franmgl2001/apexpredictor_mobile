@@ -21,7 +21,7 @@ Amplify.configure(amplifyconfig);
 import MobileBottomNav, { RouteKey } from './src/components/MobileBottomNav';
 import MyTeamScreen from './src/screens/MyTeamScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
-import LeaguesScreen from './src/screens/LeaguesScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 
@@ -105,7 +105,7 @@ function AppContent() {
   } else if (route === 'leaderboard') {
     Screen = <LeaderboardScreen />;
   } else {
-    Screen = <LeaguesScreen />;
+    Screen = <ProfileScreen />;
   }
 
   return (
