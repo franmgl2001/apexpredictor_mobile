@@ -24,6 +24,7 @@ import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import VerificationCodeScreen from './src/screens/VerificationCodeScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -38,12 +39,14 @@ function App() {
   );
 }
 
-type AuthScreen = 'signin' | 'signup';
+type AuthScreen = 'signin' | 'signup' | 'verification';
 
 function AppContent() {
-  const { isAuthenticated, isLoading, signIn, signUp } = useAuth();
+  const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode } = useAuth();
   const [route, setRoute] = useState<RouteKey>('myteam');
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
+  const [pendingEmail, setPendingEmail] = useState<string>('');
+  const [pendingPassword, setPendingPassword] = useState<string>('');
 
   // Show loading spinner while checking auth status
   if (isLoading && !isAuthenticated) {
@@ -58,6 +61,37 @@ function AppContent() {
 
   // Show authentication screens if not authenticated
   if (!isAuthenticated) {
+    if (authScreen === 'verification') {
+      return (
+        <SafeAreaView style={styles.container}>
+          <VerificationCodeScreen
+            email={pendingEmail}
+            password={pendingPassword}
+            onVerify={async (email, code, password) => {
+              try {
+                await confirmSignUp(email, code, password);
+                // After successful verification, user will be automatically signed in
+                // The auth state will update and show the main app
+              } catch (error: any) {
+                // Error handling is done in the screen component
+                throw error;
+              }
+            }}
+            onResendCode={async () => {
+              try {
+                await resendSignUpCode(pendingEmail);
+              } catch (error: any) {
+                // Error handling is done in the screen component
+                throw error;
+              }
+            }}
+            onNavigateToSignIn={() => setAuthScreen('signin')}
+            isLoading={isLoading}
+          />
+        </SafeAreaView>
+      );
+    }
+
     if (authScreen === 'signup') {
       return (
         <SafeAreaView style={styles.container}>
@@ -65,9 +99,10 @@ function AppContent() {
             onSignUp={async (email, password) => {
               try {
                 await signUp(email, password);
-                // After successful signup, navigate to sign in
-                // TODO: Handle email verification flow
-                setAuthScreen('signin');
+                // After successful signup, navigate to verification screen
+                setPendingEmail(email);
+                setPendingPassword(password);
+                setAuthScreen('verification');
               } catch (error: any) {
                 // Error handling is done in the screen component
                 throw error;

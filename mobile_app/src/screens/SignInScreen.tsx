@@ -62,7 +62,7 @@ export default function SignInScreen({
                     {/* Logo */}
                     <View style={styles.logoContainer}>
                         <Image
-                            source={require('../assets/apex_predictions.png')}
+                            source={require('../assets/logo.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { signIn as amplifySignIn, signUp as amplifySignUp, signOut as amplifySignOut, getCurrentUser } from 'aws-amplify/auth';
+import { signIn as amplifySignIn, signUp as amplifySignUp, signOut as amplifySignOut, getCurrentUser, confirmSignUp as amplifyConfirmSignUp, resendSignUpCode as amplifyResendSignUpCode } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 
 interface AuthContextType {
@@ -8,6 +8,8 @@ interface AuthContextType {
     user: any | null;
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
+    confirmSignUp: (email: string, code: string, password: string) => Promise<void>;
+    resendSignUpCode: (email: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
 
@@ -124,6 +126,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const confirmSignUp = async (email: string, code: string, password: string) => {
+        setIsLoading(true);
+        try {
+            // Confirm the sign up with the verification code
+            const { isSignUpComplete } = await amplifyConfirmSignUp({
+                username: email,
+                confirmationCode: code,
+            });
+
+            if (isSignUpComplete) {
+                // After successful confirmation, automatically sign the user in
+                await amplifySignIn({
+                    username: email,
+                    password: password,
+                });
+
+                // Get the current user and update state
+                const currentUser = await getCurrentUser();
+                setUser(currentUser);
+                setIsAuthenticated(true);
+            }
+        } catch (error: any) {
+            console.error('Confirm sign up error:', error);
+            // Transform Amplify errors to user-friendly messages
+            let errorMessage = 'Invalid verification code. Please try again.';
+            if (error.name === 'CodeMismatchException') {
+                errorMessage = 'Invalid verification code. Please check and try again.';
+            } else if (error.name === 'ExpiredCodeException') {
+                errorMessage = 'Verification code has expired. Please request a new one.';
+            } else if (error.name === 'LimitExceededException') {
+                errorMessage = 'Too many attempts. Please try again later.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            throw new Error(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const resendSignUpCode = async (email: string) => {
+        setIsLoading(true);
+        try {
+            await amplifyResendSignUpCode({
+                username: email,
+            });
+        } catch (error: any) {
+            console.error('Resend sign up code error:', error);
+            // Transform Amplify errors to user-friendly messages
+            let errorMessage = 'Failed to resend code. Please try again.';
+            if (error.name === 'LimitExceededException') {
+                errorMessage = 'Too many attempts. Please try again later.';
+            } else if (error.name === 'InvalidParameterException') {
+                errorMessage = 'Invalid email address.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            throw new Error(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const signOut = async () => {
         setIsLoading(true);
         try {
@@ -149,6 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 user,
                 signIn,
                 signUp,
+                confirmSignUp,
+                resendSignUpCode,
                 signOut,
             }}
         >
