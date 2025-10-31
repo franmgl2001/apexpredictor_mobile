@@ -1,30 +1,102 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import leaderboardData from '../mocks/leaderboard.json';
+import raceLeaderboardData from '../mocks/raceleaderboard.json';
 import {
-    LeaderboardHeader,
     LeaderboardFilters,
     LeaderboardList,
     type FilterType,
     type TimeFilterType,
     type LeaderboardEntryData,
 } from '../components/leaderboard';
+import PredictionsModal from '../components/leaderboard/PredictionsModal';
+
+// Get available race IDs from race leaderboard data
+function getAvailableRaceIds(): string[] {
+    const items = raceLeaderboardData.data.listApexEntities.items;
+    const raceIds = new Set<string>();
+    items.forEach((item) => {
+        if (item.race_id && item.entityType === 'PREDICTION') {
+            raceIds.add(item.race_id);
+        }
+    });
+    return Array.from(raceIds);
+}
+
+// Get the latest race ID (mexico2025 based on the data)
+function getLatestRaceId(): string | null {
+    const raceIds = getAvailableRaceIds();
+    // For now, return the first available race ID (in production, this would be the latest)
+    // Since all entries in raceleaderboard.json are for mexico2025, return that
+    return raceIds.length > 0 ? raceIds[0] : null;
+}
 
 export default function LeaderboardScreen() {
     const [filterType, setFilterType] = useState<FilterType>('global');
     const [timeFilter, setTimeFilter] = useState<TimeFilterType>('season');
     const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
+    const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntryData | null>(null);
+    const [showPredictionsModal, setShowPredictionsModal] = useState(false);
 
-    // Extract leaderboard entries from mock data
-    const entries: LeaderboardEntryData[] = leaderboardData.data.leaderboardByPoints.items.map((item) => ({
-        username: item.username,
-        points: item.points,
-        races: item.races,
-    }));
+    // When switching to race mode, automatically select the latest race immediately
+    React.useEffect(() => {
+        if (timeFilter === 'race') {
+            // Always set to latest race when switching to race mode to ensure entries load immediately
+            const latestRaceId = getLatestRaceId();
+            if (latestRaceId) {
+                setSelectedRaceId(latestRaceId);
+            }
+        } else {
+            // Reset selected race when switching back to season
+            setSelectedRaceId(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeFilter]);
+
+    // Extract leaderboard entries based on filter type
+    const entries: LeaderboardEntryData[] = useMemo(() => {
+        if (timeFilter === 'race') {
+            // Load race-specific leaderboard
+            const items = raceLeaderboardData.data.listApexEntities.items;
+            const raceIdToUse = selectedRaceId || getLatestRaceId();
+
+            if (raceIdToUse) {
+                const raceEntries = items
+                    .filter((item) => item.race_id === raceIdToUse && item.entityType === 'PREDICTION')
+                    .map((item) => ({
+                        username: item.username,
+                        points: item.points || 0,
+                        predictions: item.predictions,
+                    }))
+                    .sort((a, b) => b.points - a.points); // Sort by points descending
+
+                return raceEntries;
+            }
+            return [];
+        } else {
+            // Load season leaderboard
+            return leaderboardData.data.leaderboardByPoints.items.map((item) => ({
+                username: item.username,
+                points: item.points,
+                races: item.races,
+            }));
+        }
+    }, [timeFilter, selectedRaceId]);
 
     const handleRaceChange = (raceId: string) => {
         setSelectedRaceId(raceId);
-        // TODO: Filter leaderboard entries by race when race filter is implemented
+    };
+
+    const handleEntryPress = (entry: LeaderboardEntryData) => {
+        if (timeFilter === 'race' && entry.predictions) {
+            setSelectedEntry(entry);
+            setShowPredictionsModal(true);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowPredictionsModal(false);
+        setSelectedEntry(null);
     };
 
     return (
@@ -40,8 +112,18 @@ export default function LeaderboardScreen() {
                 />
 
                 {/* Leaderboard List */}
-                <LeaderboardList entries={entries} />
+                <LeaderboardList entries={entries} onEntryPress={handleEntryPress} />
             </ScrollView>
+
+            {/* Predictions Modal */}
+            {selectedEntry && (
+                <PredictionsModal
+                    visible={showPredictionsModal}
+                    onClose={handleCloseModal}
+                    username={selectedEntry.username}
+                    predictionsJson={selectedEntry.predictions || null}
+                />
+            )}
         </View>
     );
 }

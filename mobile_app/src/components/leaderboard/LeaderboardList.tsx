@@ -4,9 +4,10 @@ import LeaderboardEntry, { LeaderboardEntryData } from './LeaderboardEntry';
 
 interface LeaderboardListProps {
     entries: LeaderboardEntryData[];
+    onEntryPress?: (entry: LeaderboardEntryData) => void;
 }
 
-export default function LeaderboardList({ entries }: LeaderboardListProps) {
+export default function LeaderboardList({ entries, onEntryPress }: LeaderboardListProps) {
     return (
         <View style={styles.listContainer}>
             {entries.map((entry, index) => (
@@ -15,6 +16,7 @@ export default function LeaderboardList({ entries }: LeaderboardListProps) {
                     entry={entry}
                     rank={index + 1}
                     showSeparator={index > 0}
+                    onPress={onEntryPress ? () => onEntryPress(entry) : undefined}
                 />
             ))}
         </View>

@@ -1,19 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 export type LeaderboardEntryData = {
     username: string;
     points: number;
-    races: number;
+    races?: number;
+    predictions?: string | null;
 };
 
 interface LeaderboardEntryProps {
     entry: LeaderboardEntryData;
     rank: number;
     showSeparator: boolean;
+    onPress?: () => void;
 }
 
-export default function LeaderboardEntry({ entry, rank, showSeparator }: LeaderboardEntryProps) {
+export default function LeaderboardEntry({ entry, rank, showSeparator, onPress }: LeaderboardEntryProps) {
     const getRankBadgeStyle = (rank: number) => {
         if (rank === 1) {
             return { backgroundColor: '#fbbf24', color: '#ffffff' }; // yellow-400
@@ -28,22 +30,36 @@ export default function LeaderboardEntry({ entry, rank, showSeparator }: Leaderb
 
     const badgeStyle = getRankBadgeStyle(rank);
 
+    const EntryContent = (
+        <View style={styles.entry}>
+            <View style={[styles.rankBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
+                <Text style={[styles.rankNumber, { color: badgeStyle.color }]}>{rank}</Text>
+            </View>
+            <View style={styles.userInfo}>
+                <Text style={[styles.username, entry.races !== undefined && styles.usernameWithSubtext]}>
+                    {entry.username}
+                </Text>
+                {entry.races !== undefined && (
+                    <Text style={styles.raceCount}>{entry.races} races</Text>
+                )}
+            </View>
+            <View style={styles.pointsContainer}>
+                <Text style={styles.points}>{entry.points}</Text>
+                <Text style={styles.pointsLabel}>points</Text>
+            </View>
+        </View>
+    );
+
     return (
         <View>
             {showSeparator && <View style={styles.separator} />}
-            <View style={styles.entry}>
-                <View style={[styles.rankBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
-                    <Text style={[styles.rankNumber, { color: badgeStyle.color }]}>{rank}</Text>
-                </View>
-                <View style={styles.userInfo}>
-                    <Text style={styles.username}>{entry.username}</Text>
-                    <Text style={styles.raceCount}>{entry.races} races</Text>
-                </View>
-                <View style={styles.pointsContainer}>
-                    <Text style={styles.points}>{entry.points}</Text>
-                    <Text style={styles.pointsLabel}>points</Text>
-                </View>
-            </View>
+            {onPress ? (
+                <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+                    {EntryContent}
+                </TouchableOpacity>
+            ) : (
+                EntryContent
+            )}
         </View>
     );
 }
@@ -69,11 +85,14 @@ const styles = StyleSheet.create({
     },
     userInfo: {
         flex: 1,
+        justifyContent: 'center',
     },
     username: {
         fontSize: 16,
         fontWeight: '700',
         color: '#111827',
+    },
+    usernameWithSubtext: {
         marginBottom: 2,
     },
     raceCount: {
