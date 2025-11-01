@@ -9,7 +9,7 @@ import {
 } from '../components/leaderboard';
 import PredictionsModal from '../components/leaderboard/PredictionsModal';
 import AppHeader from '../components/AppHeader';
-import { getLeaderboard, listApexEntities, type ApexEntity } from '../services/graphql';
+import { getLeaderboard, getLeaderboardPredictions, type ApexEntity } from '../services/graphql';
 
 type LeaderboardScreenProps = {
     onProfilePress: () => void;
@@ -24,7 +24,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
 
     // Data state
     const [seasonLeaderboard, setSeasonLeaderboard] = useState<ApexEntity[]>([]);
-    const [raceLeaderboard, setRaceLeaderboard] = useState<ApexEntity[]>([]);
+    const [raceLeaderboard, setRaceLeaderboard] = useState<LeaderboardEntryData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -48,17 +48,31 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
         try {
             setIsLoading(true);
             setError(null);
-            // Use listApexEntities with filter for race_id
-            const data = await listApexEntities({
-                filter: {
-                    entityType: { eq: 'PREDICTION' },
-                    race_id: { eq: raceId },
-                } as any,
-            });
-            setRaceLeaderboard(data);
+            // Use getLeaderboardPredictions which only fetches necessary fields (excludes createdAt/updatedAt)
+            const data = await getLeaderboardPredictions(raceId, 1000);
+            // Transform data immediately to only include needed fields
+            if (Array.isArray(data)) {
+                const transformedData: LeaderboardEntryData[] = data
+                    .map((item) => {
+                        // Extract only what we need: username, points, and predictions (for gridOrder)
+                        return {
+                            username: item.username || 'Unknown',
+                            points: item.points ?? 0,
+                            predictions: item.predictions, // Keep as string JSON for modal
+                        };
+                    })
+                    .sort((a, b) => b.points - a.points); // Sort by points descending
+                setRaceLeaderboard(transformedData);
+            } else {
+                console.warn('Race leaderboard data is not an array:', data);
+                setRaceLeaderboard([]);
+            }
         } catch (err: any) {
             console.error('Error fetching race leaderboard:', err);
-            setError(err.message || 'Failed to load race leaderboard');
+            // Extract error message more carefully
+            const errorMessage = err?.message || err?.errors?.[0]?.message || 'Failed to load race leaderboard';
+            setError(errorMessage);
+            setRaceLeaderboard([]);
         } finally {
             setIsLoading(false);
         }
@@ -81,17 +95,11 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     // Extract leaderboard entries based on filter type
     const entries: LeaderboardEntryData[] = useMemo(() => {
         if (timeFilter === 'race') {
-            // Load race-specific leaderboard
+            // Race leaderboard is already transformed and sorted
             if (!selectedRaceId || raceLeaderboard.length === 0) {
                 return [];
             }
-            return raceLeaderboard
-                .map((item) => ({
-                    username: item.username || 'Unknown',
-                    points: item.points || item.points_earned || 0,
-                    predictions: item.predictions,
-                }))
-                .sort((a, b) => b.points - a.points); // Sort by points descending
+            return raceLeaderboard;
         } else {
             // Load season leaderboard
             return seasonLeaderboard.map((item) => ({

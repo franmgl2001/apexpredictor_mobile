@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import racesData from '../../mocks/listApexEntities.json';
+import { useData } from '../../contexts/DataContext';
+import type { RaceEntity } from '../race_details/RaceDetailsCard';
 
 type RaceItem = {
     race_id: string;
@@ -8,15 +9,14 @@ type RaceItem = {
     race_date: string;
 };
 
-function loadRaces(): RaceItem[] {
-    const items: any[] = racesData?.data?.listApexEntities?.items ?? [];
-    const races: RaceItem[] = items
-        .filter((it) => it?.entityType === 'RACE')
+function loadRacesFromContext(racesFromContext: RaceEntity[]): RaceItem[] {
+    const races: RaceItem[] = racesFromContext
         .map((race) => ({
             race_id: race.race_id,
             race_name: race.race_name,
             race_date: race.race_date,
-        }));
+        }))
+        .filter((race) => race.race_id && race.race_name && race.race_date);
     // Sort by race_date ascending (earliest first, latest last)
     races.sort((a, b) => Date.parse(a.race_date) - Date.parse(b.race_date));
     return races;
@@ -37,13 +37,14 @@ interface RaceFilterCarouselProps {
 }
 
 export default function RaceFilterCarousel({ onRaceChange }: RaceFilterCarouselProps) {
-    const races = useMemo(() => loadRaces(), []);
-    const [index, setIndex] = useState(() => (races.length > 0 ? races.length - 1 : 0));
+    const { racesWithResults } = useData();
+    const races = useMemo(() => loadRacesFromContext(racesWithResults), [racesWithResults]);
+    const [index, setIndex] = useState(0);
 
     const race = races[index];
     const total = races.length;
 
-    // Trigger initial race selection on mount with latest race (last index after ascending sort)
+    // Trigger initial race selection with latest race (last index after ascending sort)
     useEffect(() => {
         if (races.length > 0) {
             const lastIndex = races.length - 1;
@@ -51,7 +52,7 @@ export default function RaceFilterCarousel({ onRaceChange }: RaceFilterCarouselP
             onRaceChange?.(races[lastIndex].race_id);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only on mount
+    }, [races.length]); // Update when races are loaded or change
 
     function prev() {
         const newIndex = (index - 1 + total) % total;

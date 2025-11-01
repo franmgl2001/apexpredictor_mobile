@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getRaceDetails, getDrivers, getUserProfile, ApexEntity } from '../services/graphql';
+import { getRaceDetails, getRaceResults, getDrivers, getUserProfile, ApexEntity } from '../services/graphql';
 import { RaceEntity } from '../components/race_details/RaceDetailsCard';
 import { useAuth } from './AuthContext';
 
@@ -15,6 +15,7 @@ export type Driver = {
 interface DataContextType {
     drivers: Driver[];
     races: RaceEntity[];
+    racesWithResults: RaceEntity[];
     profile: ApexEntity | null;
     isLoading: boolean;
     driversError: string | null;
@@ -31,6 +32,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { user, isAuthenticated } = useAuth();
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [races, setRaces] = useState<RaceEntity[]>([]);
+    const [racesWithResults, setRacesWithResults] = useState<RaceEntity[]>([]);
     const [profile, setProfile] = useState<ApexEntity | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [driversError, setDriversError] = useState<string | null>(null);
@@ -72,8 +74,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchRaces = async () => {
         try {
             setRacesError(null);
-            const raceData = await getRaceDetails();
-            const raceEntities: RaceEntity[] = raceData
+            // Fetch both race details and race results in parallel
+            const [raceData, raceResultsData] = await Promise.all([
+                getRaceDetails(),
+                getRaceResults(),
+            ]);
+
+            // Extract race_ids from race results to filter races
+            const raceIdsWithResults = new Set(
+                raceResultsData
+                    .map((result) => {
+                        // Try race_id field first, then extract from PK if needed
+                        if (result.race_id) {
+                            return result.race_id;
+                        }
+                        // PK format is "race#race_id", extract race_id
+                        if (result.PK && result.PK.startsWith('race#')) {
+                            return result.PK.replace('race#', '');
+                        }
+                        return null;
+                    })
+                    .filter((id): id is string => !!id)
+            );
+
+            // Map all race data to RaceEntity format
+            const allRaceEntities: RaceEntity[] = raceData
                 .filter((item): item is ApexEntity & { entityType: 'RACE' } => item.entityType === 'RACE')
                 .map((item) => ({
                     entityType: 'RACE' as const,
@@ -90,11 +115,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 }))
                 // Sort by qualy_date ascending
                 .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
-            setRaces(raceEntities);
+
+            // Store all races (unfiltered)
+            setRaces(allRaceEntities);
+
+            // Filter races to only include those with results
+            const racesWithResultsFiltered = allRaceEntities.filter((race) => {
+                const raceId = race.race_id || '';
+                return raceIdsWithResults.has(raceId);
+            });
+            setRacesWithResults(racesWithResultsFiltered);
         } catch (err: any) {
             console.error('Error fetching races:', err);
             setRacesError(err.message || 'Failed to load races');
             setRaces([]);
+            setRacesWithResults([]);
         }
     };
 
@@ -131,6 +166,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             // Clear data when not authenticated
             setDrivers([]);
             setRaces([]);
+            setRacesWithResults([]);
             setProfile(null);
             setIsLoading(false);
         }
@@ -150,6 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             value={{
                 drivers,
                 races,
+                racesWithResults,
                 profile,
                 isLoading,
                 driversError,

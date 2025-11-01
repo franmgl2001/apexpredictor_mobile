@@ -108,14 +108,28 @@ export async function listApexEntities(variables?: {
       variables: variables || {},
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
-    if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch entities');
+    // If we have data, return it even if there are some errors (partial success)
+    if (result.data?.listApexEntities?.items) {
+      if (result.errors && result.errors.length > 0) {
+        // Log warnings for non-fatal errors but still return data
+        console.warn('GraphQL warnings (non-fatal):', result.errors);
+      }
+      return result.data.listApexEntities.items;
     }
 
-    return result.data?.listApexEntities.items || [];
+    // If we have errors but no data, throw
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message || 'Failed to fetch entities';
+      console.error('GraphQL errors:', result.errors);
+      throw new Error(errorMessage);
+    }
+
+    // No data and no errors - return empty array
+    return [];
   } catch (error: any) {
-    console.error('Error fetching entities:', error);
+    // Only log error message, not the entire error object which might contain data
+    const errorMessage = error?.message || 'Failed to fetch entities';
+    console.error('Error fetching entities:', errorMessage);
     throw error;
   }
 }

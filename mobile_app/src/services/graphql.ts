@@ -22,13 +22,10 @@ export { getApexEntity, listApexEntities } from './graphql/entities';
 export { getUserProfile, getUserPredictions } from './graphql/users';
 
 // Re-export race queries
-export { getRaceDetails } from './graphql/races';
+export { getRaceDetails, getRaceResults } from './graphql/races';
 
 // Re-export driver queries
 export { getDrivers } from './graphql/drivers';
 
 // Re-export leaderboard queries
-export { getLeaderboard } from './graphql/leaderboard';
-
-// Re-export league queries
-export { getLeagues, getUserLeagues } from './graphql/leagues';
+export { getLeaderboard, getLeaderboardPredictions } from './graphql/leaderboard';

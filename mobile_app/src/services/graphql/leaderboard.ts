@@ -8,8 +8,10 @@ import { client, APEX_ENTITY_FIELDS } from './client';
 import type {
   ApexEntity,
   LeaderboardByPointsResponse,
+  ListApexEntitiesResponse,
   ModelSortDirection,
   ModelIntKeyConditionInput,
+  ModelStringKeyConditionInput,
   ModelApexEntityFilterInput,
 } from './types';
 
@@ -81,6 +83,96 @@ export async function getLeaderboard(
     return result.data?.leaderboardByPoints.items || [];
   } catch (error: any) {
     console.error('Error fetching leaderboard:', error);
+    throw error;
+  }
+}
+
+/**
+ * GraphQL query for fetching leaderboard predictions - only includes necessary fields
+ * Excludes createdAt and updatedAt to avoid serialization errors
+ */
+const LIST_LEADERBOARD_PREDICTIONS = `
+  query ListLeaderboardPredictions(
+    $PK: String
+    $sortDirection: ModelSortDirection
+    $SK: ModelStringKeyConditionInput
+    $filter: ModelApexEntityFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listApexEntities(
+      PK: $PK
+      sortDirection: $sortDirection
+      SK: $SK
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        PK
+        SK
+        entityType
+        user_id
+        username
+        race_id
+        predictions
+        points
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
+/**
+ * Fetches leaderboard predictions for a specific race
+ * Only fetches username, predictions, and points fields to avoid DateTime serialization issues
+ * @param raceId The race ID to fetch predictions for
+ * @param limit Optional limit (default: 1000)
+ * @returns Array of prediction entities with only necessary fields
+ */
+export async function getLeaderboardPredictions(
+  raceId: string,
+  limit: number = 1000
+): Promise<ApexEntity[]> {
+  const timestamp = new Date().toISOString();
+  console.log(`[GraphQL] getLeaderboardPredictions executed at ${timestamp} - raceId: ${raceId}, limit: ${limit}`);
+
+  try {
+    const result = await client.graphql({
+      query: LIST_LEADERBOARD_PREDICTIONS,
+      variables: {
+        filter: {
+          PK: { beginsWith: 'prediction#' },
+          entityType: { eq: 'PREDICTION' },
+          race_id: { eq: raceId },
+        },
+        limit,
+      },
+    }) as GraphQLResult<ListApexEntitiesResponse>;
+
+    // If we have data, return it even if there are some errors (partial success)
+    if (result.data?.listApexEntities?.items) {
+      if (result.errors && result.errors.length > 0) {
+        // Log warnings for non-fatal errors but still return data
+        console.warn('GraphQL warnings (non-fatal):', result.errors);
+      }
+      return result.data.listApexEntities.items;
+    }
+
+    // If we have errors but no data, throw
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message || 'Failed to fetch leaderboard predictions';
+      console.error('GraphQL errors:', result.errors);
+      throw new Error(errorMessage);
+    }
+
+    // No data and no errors - return empty array
+    return [];
+  } catch (error: any) {
+    // Only log error message, not the entire error object which might contain data
+    const errorMessage = error?.message || 'Failed to fetch leaderboard predictions';
+    console.error('Error fetching leaderboard predictions:', errorMessage);
     throw error;
   }
 }
