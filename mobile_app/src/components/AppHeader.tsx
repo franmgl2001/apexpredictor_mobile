@@ -37,7 +37,7 @@ export default function AppHeader({ onProfilePress }: AppHeaderProps) {
                 {/* Logo text */}
                 <View style={styles.logoTextContainer}>
                     <Text style={styles.logoApex}>APEX</Text>
-                    <Text style={styles.logoPredictions}>PREDICTIONS</Text>
+                    <Text style={styles.logoPredictions}>PREDICTOR</Text>
                 </View>
             </View>
             <TouchableOpacity

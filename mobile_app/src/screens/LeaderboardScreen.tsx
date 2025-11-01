@@ -1,7 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import leaderboardData from '../mocks/leaderboard.json';
-import raceLeaderboardData from '../mocks/raceleaderboard.json';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import {
     LeaderboardFilters,
     LeaderboardList,
@@ -11,30 +9,11 @@ import {
 } from '../components/leaderboard';
 import PredictionsModal from '../components/leaderboard/PredictionsModal';
 import AppHeader from '../components/AppHeader';
+import { getLeaderboard, listApexEntities, type ApexEntity } from '../services/graphql';
 
 type LeaderboardScreenProps = {
     onProfilePress: () => void;
 };
-
-// Get available race IDs from race leaderboard data
-function getAvailableRaceIds(): string[] {
-    const items = raceLeaderboardData.data.listApexEntities.items;
-    const raceIds = new Set<string>();
-    items.forEach((item) => {
-        if (item.race_id && item.entityType === 'PREDICTION') {
-            raceIds.add(item.race_id);
-        }
-    });
-    return Array.from(raceIds);
-}
-
-// Get the latest race ID (mexico2025 based on the data)
-function getLatestRaceId(): string | null {
-    const raceIds = getAvailableRaceIds();
-    // For now, return the first available race ID (in production, this would be the latest)
-    // Since all entries in raceleaderboard.json are for mexico2025, return that
-    return raceIds.length > 0 ? raceIds[0] : null;
-}
 
 export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenProps) {
     const [filterType, setFilterType] = useState<FilterType>('global');
@@ -43,50 +22,85 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntryData | null>(null);
     const [showPredictionsModal, setShowPredictionsModal] = useState(false);
 
-    // When switching to race mode, automatically select the latest race immediately
-    React.useEffect(() => {
-        if (timeFilter === 'race') {
-            // Always set to latest race when switching to race mode to ensure entries load immediately
-            const latestRaceId = getLatestRaceId();
-            if (latestRaceId) {
-                setSelectedRaceId(latestRaceId);
-            }
-        } else {
-            // Reset selected race when switching back to season
-            setSelectedRaceId(null);
+    // Data state
+    const [seasonLeaderboard, setSeasonLeaderboard] = useState<ApexEntity[]>([]);
+    const [raceLeaderboard, setRaceLeaderboard] = useState<ApexEntity[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch season leaderboard
+    const fetchSeasonLeaderboard = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const data = await getLeaderboard('LEADERBOARD', 'DESC', 1000);
+            setSeasonLeaderboard(data);
+        } catch (err: any) {
+            console.error('Error fetching season leaderboard:', err);
+            setError(err.message || 'Failed to load leaderboard');
+        } finally {
+            setIsLoading(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [timeFilter]);
+    };
+
+    // Fetch race-specific leaderboard
+    const fetchRaceLeaderboard = async (raceId: string) => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            // Use listApexEntities with filter for race_id
+            const data = await listApexEntities({
+                filter: {
+                    entityType: { eq: 'PREDICTION' },
+                    race_id: { eq: raceId },
+                } as any,
+            });
+            setRaceLeaderboard(data);
+        } catch (err: any) {
+            console.error('Error fetching race leaderboard:', err);
+            setError(err.message || 'Failed to load race leaderboard');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Fetch season leaderboard on mount
+    useEffect(() => {
+        fetchSeasonLeaderboard();
+    }, []);
+
+    // Fetch race leaderboard when race is selected
+    useEffect(() => {
+        if (timeFilter === 'race' && selectedRaceId) {
+            fetchRaceLeaderboard(selectedRaceId);
+        } else if (timeFilter === 'season') {
+            setRaceLeaderboard([]);
+        }
+    }, [timeFilter, selectedRaceId]);
 
     // Extract leaderboard entries based on filter type
     const entries: LeaderboardEntryData[] = useMemo(() => {
         if (timeFilter === 'race') {
             // Load race-specific leaderboard
-            const items = raceLeaderboardData.data.listApexEntities.items;
-            const raceIdToUse = selectedRaceId || getLatestRaceId();
-
-            if (raceIdToUse) {
-                const raceEntries = items
-                    .filter((item) => item.race_id === raceIdToUse && item.entityType === 'PREDICTION')
-                    .map((item) => ({
-                        username: item.username,
-                        points: item.points || 0,
-                        predictions: item.predictions,
-                    }))
-                    .sort((a, b) => b.points - a.points); // Sort by points descending
-
-                return raceEntries;
+            if (!selectedRaceId || raceLeaderboard.length === 0) {
+                return [];
             }
-            return [];
+            return raceLeaderboard
+                .map((item) => ({
+                    username: item.username || 'Unknown',
+                    points: item.points || item.points_earned || 0,
+                    predictions: item.predictions,
+                }))
+                .sort((a, b) => b.points - a.points); // Sort by points descending
         } else {
             // Load season leaderboard
-            return leaderboardData.data.leaderboardByPoints.items.map((item) => ({
-                username: item.username,
-                points: item.points,
+            return seasonLeaderboard.map((item) => ({
+                username: item.username || 'Unknown',
+                points: item.points || 0,
                 races: item.races,
             }));
         }
-    }, [timeFilter, selectedRaceId]);
+    }, [timeFilter, selectedRaceId, seasonLeaderboard, raceLeaderboard]);
 
     const handleRaceChange = (raceId: string) => {
         setSelectedRaceId(raceId);
@@ -124,8 +138,37 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
                     onRaceChange={handleRaceChange}
                 />
 
+                {/* Loading State */}
+                {isLoading && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#dc2626" />
+                        <Text style={styles.loadingText}>Loading leaderboard...</Text>
+                    </View>
+                )}
+
+                {/* Error State */}
+                {error && !isLoading && (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                        <TouchableOpacity
+                            style={styles.retryButton}
+                            onPress={() => {
+                                if (timeFilter === 'season') {
+                                    fetchSeasonLeaderboard();
+                                } else if (selectedRaceId) {
+                                    fetchRaceLeaderboard(selectedRaceId);
+                                }
+                            }}
+                        >
+                            <Text style={styles.retryText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 {/* Leaderboard List */}
-                <LeaderboardList entries={entries} onEntryPress={handleEntryPress} />
+                {!isLoading && !error && (
+                    <LeaderboardList entries={entries} onEntryPress={handleEntryPress} />
+                )}
             </ScrollView>
 
             {/* Predictions Modal - Always render, control visibility with visible prop */}
@@ -150,6 +193,40 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: 16,
         paddingBottom: 96,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 48,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#6b7280',
+    },
+    errorContainer: {
+        backgroundColor: '#fef2f2',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 16,
+        alignItems: 'center',
+    },
+    errorText: {
+        color: '#dc2626',
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    retryButton: {
+        backgroundColor: '#dc2626',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    retryText: {
+        color: '#ffffff',
+        fontWeight: '600',
+        fontSize: 14,
     },
     title: {
         fontSize: 32,

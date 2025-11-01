@@ -77,6 +77,25 @@ export interface ModelApexEntityFilterInput {
     [key: string]: any;
 }
 
+export interface ModelIntKeyConditionInput {
+    eq?: number;
+    between?: [number, number];
+    le?: number;
+    lt?: number;
+    ge?: number;
+    gt?: number;
+}
+
+export type ModelSortDirection = 'ASC' | 'DESC';
+
+export interface LeaderboardByPointsResponse {
+    leaderboardByPoints: {
+        items: ApexEntity[];
+        nextToken: string | null;
+        __typename?: string;
+    };
+}
+
 const GET_APEX_ENTITY = `
   query GetApexEntity($PK: String!, $SK: String!) {
     getApexEntity(PK: $PK, SK: $SK) {
@@ -139,6 +158,72 @@ const LIST_APEX_ENTITIES = `
       sortDirection: $sortDirection
       SK: $SK
       filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        PK
+        SK
+        entityType
+        user_id
+        username
+        email
+        race_id
+        race_name
+        season
+        qualy_date
+        race_date
+        category
+        circuit
+        country
+        status
+        has_sprint
+        predictions
+        points_earned
+        results
+        driver_id
+        name
+        team
+        number
+        imageUrl
+        teamColor
+        isActive
+        nationality
+        birthDate
+        league_id
+        league_name
+        description
+        creator_id
+        is_private
+        join_code
+        max_members
+        member_count
+        role
+        points
+        races
+        createdAt
+        updatedAt
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
+const LEADERBOARD_BY_POINTS = `
+  query LeaderboardByPoints(
+    $entityType: String!
+    $points: ModelIntKeyConditionInput
+    $filter: ModelApexEntityFilterInput
+    $sortDirection: ModelSortDirection
+    $limit: Int
+    $nextToken: String
+  ) {
+    leaderboardByPoints(
+      entityType: $entityType
+      points: $points
+      filter: $filter
+      sortDirection: $sortDirection
       limit: $limit
       nextToken: $nextToken
     ) {
@@ -330,5 +415,79 @@ export async function getUserPredictions(userId: string, raceId: string): Promis
     const PK = `prediction#${userId}#${raceId}`;
     const SK = 'RACEPREDICTION';
     return getApexEntity(PK, SK);
+}
+
+/**
+ * Lists Apex Entities from the GraphQL API
+ * @param variables Query variables
+ * @returns Array of Apex entities
+ */
+export async function listApexEntities(variables?: {
+    PK?: string;
+    sortDirection?: ModelSortDirection;
+    SK?: ModelStringKeyConditionInput;
+    filter?: ModelApexEntityFilterInput;
+    limit?: number;
+    nextToken?: string;
+}): Promise<ApexEntity[]> {
+    try {
+        const result = await client.graphql({
+            query: LIST_APEX_ENTITIES,
+            variables: variables || {},
+        }) as GraphQLResult<ListApexEntitiesResponse>;
+
+        if (result.errors && result.errors.length > 0) {
+            console.error('GraphQL errors:', result.errors);
+            throw new Error(result.errors[0].message || 'Failed to fetch entities');
+        }
+
+        return result.data?.listApexEntities.items || [];
+    } catch (error: any) {
+        console.error('Error fetching entities:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetches the leaderboard data from the GraphQL API
+ * @param entityType The entity type filter (default: "LEADERBOARD")
+ * @param sortDirection Sort direction (default: "DESC")
+ * @param limit Optional limit (default: 1000)
+ * @param points Optional points key condition input
+ * @param filter Optional additional filter
+ * @param nextToken Optional pagination token
+ * @returns Array of leaderboard entities
+ */
+export async function getLeaderboard(
+    entityType: string = 'LEADERBOARD',
+    sortDirection: ModelSortDirection = 'DESC',
+    limit: number = 1000,
+    points?: ModelIntKeyConditionInput,
+    filter?: ModelApexEntityFilterInput,
+    nextToken?: string
+): Promise<ApexEntity[]> {
+    try {
+        const result = await client.graphql({
+            query: LEADERBOARD_BY_POINTS,
+            variables: {
+                entityType,
+                sortDirection,
+                limit,
+                points,
+                filter,
+                nextToken,
+            },
+        }) as GraphQLResult<LeaderboardByPointsResponse>;
+
+        if (result.errors && result.errors.length > 0) {
+            console.error('GraphQL errors:', result.errors);
+            throw new Error(result.errors[0].message || 'Failed to fetch leaderboard');
+        }
+
+        return result.data?.leaderboardByPoints.items || [];
+    } catch (error: any) {
+        console.error('Error fetching leaderboard:', error);
+        throw error;
+    }
 }
 
