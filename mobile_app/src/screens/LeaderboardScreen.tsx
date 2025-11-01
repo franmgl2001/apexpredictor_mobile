@@ -190,6 +190,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
                 onClose={handleCloseModal}
                 username={selectedEntry?.username || ''}
                 predictionsJson={selectedEntry?.predictions || null}
+                raceId={timeFilter === 'race' ? selectedRaceId : null}
             />
         </View>
     );

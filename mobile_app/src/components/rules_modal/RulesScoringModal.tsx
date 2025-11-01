@@ -56,7 +56,7 @@ export default function RulesScoringModal({ visible, onClose }: RulesScoringModa
                                 <Text style={styles.pointsText}>+30 points</Text>
                             </View>
                             <View style={styles.ruleRow}>
-                                <Text style={styles.ruleText}>Top 6 prediction</Text>
+                                <Text style={styles.ruleText}>6 predictions correct</Text>
                                 <Text style={styles.pointsText}>+60 points</Text>
                             </View>
                             <View style={styles.ruleRow}>

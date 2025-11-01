@@ -165,6 +165,85 @@ export function calculateDriverPoints(
 }
 
 /**
+ * Calculate bonus points based on race performance predictions
+ * Returns an object with earned bonus points and their status
+ */
+export type BonusPoints = {
+    winner: { earned: boolean; points: number };
+    podium: { earned: boolean; points: number };
+    top6: { earned: boolean; points: number };
+    allCorrect: { earned: boolean; points: number };
+    total: number;
+};
+
+export function calculateBonusPoints(
+    predictions: PredictionData,
+    raceResults: RaceResultsData
+): BonusPoints {
+    const bonus: BonusPoints = {
+        winner: { earned: false, points: 0 },
+        podium: { earned: false, points: 0 },
+        top6: { earned: false, points: 0 },
+        allCorrect: { earned: false, points: 0 },
+        total: 0,
+    };
+
+    // Helper function to check if a predicted position matches actual position
+    const isPositionCorrect = (predictedPosition: number): boolean => {
+        const prediction = predictions.gridOrder.find((p) => p.position === predictedPosition);
+        if (!prediction || prediction.driverNumber === null) return false;
+
+        const actualResult = raceResults.gridOrder.find((r) => r.driverNumber === prediction.driverNumber);
+        if (!actualResult) return false;
+
+        return actualResult.position === predictedPosition;
+    };
+
+    // Winner (position 1)
+    if (isPositionCorrect(1)) {
+        bonus.winner = { earned: true, points: 10 };
+    }
+
+    // Podium (positions 1, 2, 3)
+    const podiumCorrect = isPositionCorrect(1) && isPositionCorrect(2) && isPositionCorrect(3);
+    if (podiumCorrect) {
+        bonus.podium = { earned: true, points: 30 };
+    }
+
+    // Top 6 (any 6 predictions correct)
+    let correctCount = 0;
+    for (let position = 1; position <= 10; position++) {
+        if (isPositionCorrect(position)) {
+            correctCount++;
+        }
+    }
+    if (correctCount >= 6) {
+        bonus.top6 = { earned: true, points: 60 };
+    }
+
+    // All drivers correct (positions 1-10)
+    const allCorrect =
+        isPositionCorrect(1) &&
+        isPositionCorrect(2) &&
+        isPositionCorrect(3) &&
+        isPositionCorrect(4) &&
+        isPositionCorrect(5) &&
+        isPositionCorrect(6) &&
+        isPositionCorrect(7) &&
+        isPositionCorrect(8) &&
+        isPositionCorrect(9) &&
+        isPositionCorrect(10);
+    if (allCorrect) {
+        bonus.allCorrect = { earned: true, points: 100 };
+    }
+
+    // Calculate total bonus points (only count earned bonuses)
+    bonus.total = bonus.winner.points + bonus.podium.points + bonus.top6.points + bonus.allCorrect.points;
+
+    return bonus;
+}
+
+/**
  * Calculate total points for a driver across all races with results
  */
 export function calculateDriverTotalPoints(
