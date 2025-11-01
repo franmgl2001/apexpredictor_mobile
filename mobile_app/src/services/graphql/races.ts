@@ -1,0 +1,73 @@
+/**
+ * Race-related GraphQL queries
+ * Functions for fetching race details and information
+ */
+
+import type { GraphQLResult } from '@aws-amplify/api-graphql';
+import { client, APEX_ENTITY_FIELDS } from './client';
+import type { ApexEntity, ListApexEntitiesResponse } from './types';
+
+const LIST_APEX_ENTITIES = `
+  query ListApexEntities(
+    $PK: String
+    $sortDirection: ModelSortDirection
+    $SK: ModelStringKeyConditionInput
+    $filter: ModelApexEntityFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listApexEntities(
+      PK: $PK
+      sortDirection: $sortDirection
+      SK: $SK
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        ${APEX_ENTITY_FIELDS}
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
+/**
+ * Fetches all race details from the GraphQL API
+ * Fetches race entities with PK beginning with "race#" and SK equal to "DETAILS"
+ * @param limit Optional limit (default: 1000)
+ * @returns Array of race detail entities
+ */
+export async function getRaceDetails(limit: number = 1000): Promise<ApexEntity[]> {
+  const timestamp = new Date().toISOString();
+  console.log(`[GraphQL] getRaceDetails executed at ${timestamp} - limit: ${limit}`);
+
+  try {
+    const result = await client.graphql({
+      query: LIST_APEX_ENTITIES,
+      variables: {
+        filter: {
+          PK: {
+            beginsWith: 'race#',
+          },
+          SK: {
+            eq: 'DETAILS',
+          },
+        },
+        limit,
+      },
+    }) as GraphQLResult<ListApexEntitiesResponse>;
+
+    if (result.errors && result.errors.length > 0) {
+      console.error('GraphQL errors:', result.errors);
+      throw new Error(result.errors[0].message || 'Failed to fetch race details');
+    }
+
+    return result.data?.listApexEntities.items || [];
+  } catch (error: any) {
+    console.error('Error fetching race details:', error);
+    throw error;
+  }
+}
+
