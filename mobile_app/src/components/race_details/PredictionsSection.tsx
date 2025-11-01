@@ -364,7 +364,11 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
 
     return (
         <View style={[styles.container, isClosed && styles.containerClosed]}>
-            <Text style={[styles.sectionLabel, isClosed && styles.sectionLabelClosed]}>PREDICTIONS CLOSE</Text>
+            <Text style={[
+                styles.sectionLabel,
+                isClosed && styles.sectionLabelClosed,
+                !hasResults && !isClosed && styles.sectionLabelNoPoints
+            ]}>PREDICTIONS CLOSE</Text>
             {isClosed ? (
                 <View style={styles.closedRow}>
                     <Text style={styles.lock}>🔒</Text>
@@ -390,7 +394,9 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 </View>
             )}
             {hasResults && totalPoints > 0 && <View style={{ height: 16 }} />}
-            <PredictedGridSelector value={grid} onChange={setGrid} disabled={isClosed} driverPointsMap={hasResults ? driverPointsMap : undefined} />
+            <View style={styles.gridSelectorWrapper}>
+                <PredictedGridSelector value={grid} onChange={setGrid} disabled={isClosed} driverPointsMap={hasResults ? driverPointsMap : undefined} />
+            </View>
 
             {hasSprint ? (
                 <View>
@@ -498,9 +504,15 @@ const styles = StyleSheet.create({
     sectionLabelClosed: {
         color: '#9ca3af',
     },
+    sectionLabelNoPoints: {
+        marginBottom: 8,
+    },
     countdownRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+    },
+    gridSelectorWrapper: {
+        marginTop: 24,
     },
     title: {
         fontSize: 20,
