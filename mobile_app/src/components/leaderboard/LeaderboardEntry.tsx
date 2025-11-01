@@ -47,6 +47,9 @@ export default function LeaderboardEntry({ entry, rank, showSeparator, onPress }
                 <Text style={styles.points}>{entry.points}</Text>
                 <Text style={styles.pointsLabel}>points</Text>
             </View>
+            {onPress && (
+                <Text style={styles.chevron}>›</Text>
+            )}
         </View>
     );
 
@@ -111,6 +114,12 @@ const styles = StyleSheet.create({
     pointsLabel: {
         fontSize: 14,
         color: '#6b7280',
+    },
+    chevron: {
+        fontSize: 24,
+        color: '#9ca3af',
+        marginLeft: 8,
+        fontWeight: '300',
     },
     separator: {
         height: 1,

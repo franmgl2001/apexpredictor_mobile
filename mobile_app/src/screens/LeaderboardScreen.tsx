@@ -115,12 +115,17 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     };
 
     const handleEntryPress = (entry: LeaderboardEntryData) => {
+        // Open modal for race filter - show predictions
+        // For season filter, modal could also be opened but may not have predictions
         if (timeFilter === 'race') {
-            // Open modal for any entry in race mode
-            // Modal will handle displaying predictions or showing "No predictions available"
+            // Open modal to show user's predictions
             console.log('Entry pressed:', entry.username, 'Has predictions:', !!entry.predictions);
             setSelectedEntry(entry);
             setShowPredictionsModal(true);
+        } else {
+            // For season leaderboard, we could also show predictions if available
+            // But typically season leaderboard doesn't have per-race predictions
+            console.log('Entry pressed (season mode):', entry.username);
         }
     };
 
