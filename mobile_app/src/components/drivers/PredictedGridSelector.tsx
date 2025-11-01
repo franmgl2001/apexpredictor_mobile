@@ -5,7 +5,14 @@ import DriverPickerModal, { Driver } from './DriverPickerModal';
 
 export type GridSelection = Array<DriverSummary | null>;
 
-export default function PredictedGridSelector({ value, onChange, disabled }: { value?: GridSelection; onChange?: (grid: GridSelection) => void; disabled?: boolean }) {
+interface PredictedGridSelectorProps {
+    value?: GridSelection;
+    onChange?: (grid: GridSelection) => void;
+    disabled?: boolean;
+    driverPointsMap?: Map<number, { points: number; breakdown: any }>;
+}
+
+export default function PredictedGridSelector({ value, onChange, disabled, driverPointsMap }: PredictedGridSelectorProps) {
     const [grid, setGrid] = useState<GridSelection>(() => value ?? new Array(10).fill(null));
     const [openFor, setOpenFor] = useState<number | null>(null);
 
@@ -45,9 +52,21 @@ export default function PredictedGridSelector({ value, onChange, disabled }: { v
         <View>
             <Text style={styles.title}>Predicted Grid Order (Top 10)</Text>
             <View style={{ height: 8 }} />
-            {rows.map((position, idx) => (
-                <PredictedGridRow key={position} position={position} driver={grid[idx]} onPress={() => !disabled && setOpenFor(idx)} disabled={disabled} />
-            ))}
+            {rows.map((position, idx) => {
+                const driver = grid[idx];
+                const points = driver?.number && driverPointsMap ? driverPointsMap.get(driver.number) : null;
+                const gridPoints = points?.breakdown?.gridPosition || 0;
+                return (
+                    <PredictedGridRow
+                        key={position}
+                        position={position}
+                        driver={driver}
+                        onPress={() => !disabled && setOpenFor(idx)}
+                        disabled={disabled}
+                        points={gridPoints > 0 ? gridPoints : undefined}
+                    />
+                );
+            })}
 
             <DriverPickerModal
                 visible={openFor !== null && !disabled}

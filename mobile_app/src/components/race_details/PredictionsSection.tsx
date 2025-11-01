@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import PredictedGridSelector, { GridSelection } from '../drivers/PredictedGridSelector';
 import TimeBox from './TimeBox';
@@ -8,6 +8,7 @@ import DriverPickRow from '../drivers/DriverPickRow';
 import { getUserPredictions } from '../../services/graphql';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { calculateDriverPoints, calculateBonusPoints, type PredictionData as PointsPredictionData } from '../../utils/pointsCalculator';
 
 type TimeLeft = { days: number; hours: number; minutes: number; seconds: number };
 
@@ -31,7 +32,7 @@ type ApiPredictionsData = {
 
 export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean }) {
     const { user } = useAuth();
-    const { drivers } = useData();
+    const { drivers, raceResultsByRaceId } = useData();
 
     // Store predictions per race
     const [predictionsByRace, setPredictionsByRace] = useState<Map<string, RacePredictions>>(() => new Map());
@@ -74,6 +75,11 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
 
     const [openSprintFor, setOpenSprintFor] = useState<number | null>(null);
     const [openPickerFor, setOpenPickerFor] = useState<'pole' | 'fastest' | 'most' | null>(null);
+
+    // Points calculation state
+    const [totalPoints, setTotalPoints] = useState<number>(0);
+    const [bonusPoints, setBonusPoints] = useState<{ total: number; earned: boolean }>({ total: 0, earned: false });
+    const [driverPointsMap, setDriverPointsMap] = useState<Map<number, { points: number; breakdown: any }>>(new Map());
 
     // Fetch predictions from GraphQL when race changes
     useEffect(() => {
@@ -271,6 +277,73 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
         });
     }, [grid, sprintPodium, pole, fastest, most, raceId]);
 
+    // Calculate points when race has results and predictions are loaded
+    useEffect(() => {
+        const raceResults = raceResultsByRaceId.get(raceId);
+        if (!raceResults || !user?.userId) {
+            setTotalPoints(0);
+            setBonusPoints({ total: 0, earned: false });
+            return;
+        }
+
+        // Check if we have any predictions (grid is not all null)
+        const hasPredictions = grid.some((driver) => driver !== null);
+        if (!hasPredictions) {
+            setTotalPoints(0);
+            setBonusPoints({ total: 0, earned: false });
+            return;
+        }
+
+        try {
+            // Convert current local state predictions to PointsPredictionData format
+            const predictionsForPoints: PointsPredictionData = {
+                gridOrder: grid.map((driver, index) => ({
+                    position: index + 1,
+                    driverNumber: driver?.number || null,
+                })),
+                sprintPositions: sprintPodium.map((driver, index) => ({
+                    position: index + 1,
+                    driverNumber: driver?.number || null,
+                })),
+                additionalPredictions: {
+                    pole: pole?.number || null,
+                    fastestLap: fastest?.number || null,
+                    positionsGained: most?.number || null,
+                },
+            };
+
+            // Calculate driver points
+            const calculatedDriverPointsMap = calculateDriverPoints(predictionsForPoints, raceResults, hasSprint || false);
+
+            // Calculate bonus points
+            const bonus = calculateBonusPoints(predictionsForPoints, raceResults);
+
+            // Calculate total points
+            let total = 0;
+            calculatedDriverPointsMap.forEach((driverPoints) => {
+                total += driverPoints.points;
+            });
+            total += bonus.total;
+
+            // Store driver points breakdown
+            const pointsMap = new Map<number, { points: number; breakdown: any }>();
+            calculatedDriverPointsMap.forEach((driverPoints, driverNumber) => {
+                pointsMap.set(driverNumber, {
+                    points: driverPoints.points,
+                    breakdown: driverPoints.breakdown,
+                });
+            });
+
+            setDriverPointsMap(pointsMap);
+            setTotalPoints(total);
+            setBonusPoints({ total: bonus.total, earned: bonus.total > 0 });
+        } catch (error) {
+            console.error('[PredictionsSection] Error calculating points:', error);
+            setTotalPoints(0);
+            setBonusPoints({ total: 0, earned: false });
+        }
+    }, [raceId, raceResultsByRaceId, grid, sprintPodium, pole, fastest, most, hasSprint, user?.userId]);
+
     function handleSprintPick(positionIndex: number, d: Driver) {
         const existingIndex = sprintPodium.findIndex((g) => g?.id === d.id);
         const next = [...sprintPodium];
@@ -285,6 +358,9 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
     function summaryFrom(d: Driver): DriverSummary {
         return { id: d.id, name: d.name, team: d.team, number: d.number, teamColor: d.teamColor };
     }
+
+    // Check if race has results
+    const hasResults = useMemo(() => raceResultsByRaceId.has(raceId), [raceId, raceResultsByRaceId]);
 
     return (
         <View style={[styles.container, isClosed && styles.containerClosed]}>
@@ -302,18 +378,40 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                     <TimeBox label="SECONDS" value={timeLeft.seconds} highlight />
                 </View>
             )}
-            <View style={{ height: 16 }} />
-            <PredictedGridSelector value={grid} onChange={setGrid} disabled={isClosed} />
+            {hasResults && totalPoints > 0 && (
+                <View style={styles.pointsContainer}>
+                    <View style={styles.pointsRow}>
+                        <Text style={styles.pointsLabel}>Your Points:</Text>
+                        <Text style={styles.pointsValue}>{totalPoints}</Text>
+                    </View>
+                    {bonusPoints.earned && bonusPoints.total > 0 && (
+                        <Text style={styles.bonusPointsText}>+{bonusPoints.total} bonus</Text>
+                    )}
+                </View>
+            )}
+            {hasResults && totalPoints > 0 && <View style={{ height: 16 }} />}
+            <PredictedGridSelector value={grid} onChange={setGrid} disabled={isClosed} driverPointsMap={hasResults ? driverPointsMap : undefined} />
 
             {hasSprint ? (
                 <View>
                     <View style={{ height: 24 }} />
                     <Text style={[styles.title, isClosed && styles.titleClosed]}>Sprint Race Podium</Text>
                     <View style={{ height: 8 }} />
-                    {[1, 2, 3].map((pos, idx) => (
-                        <PredictedGridRow key={`sprint-${pos}`} position={pos} driver={sprintPodium[idx]}
-                            onPress={() => !isClosed && setOpenSprintFor(idx)} disabled={isClosed} />
-                    ))}
+                    {[1, 2, 3].map((pos, idx) => {
+                        const driver = sprintPodium[idx];
+                        const points = driver?.number ? driverPointsMap.get(driver.number) : null;
+                        const sprintPoints = points?.breakdown?.sprintPosition || 0;
+                        return (
+                            <PredictedGridRow
+                                key={`sprint-${pos}`}
+                                position={pos}
+                                driver={driver}
+                                onPress={() => !isClosed && setOpenSprintFor(idx)}
+                                disabled={isClosed}
+                                points={sprintPoints > 0 ? sprintPoints : undefined}
+                            />
+                        );
+                    })}
 
                     <DriverPickerModal
                         visible={openSprintFor !== null && !isClosed}
@@ -335,6 +433,11 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 driver={pole}
                 onPress={() => !isClosed && setOpenPickerFor('pole')}
                 disabled={isClosed}
+                rightAddon={pole?.number && driverPointsMap.get(pole.number)?.breakdown?.pole ? (
+                    <View style={styles.pointsBadge}>
+                        <Text style={styles.pointsText}>+{driverPointsMap.get(pole.number)!.breakdown.pole}</Text>
+                    </View>
+                ) : undefined}
             />
             <DriverPickRow
                 left={<Text style={styles.emoji}>⚡️</Text>}
@@ -342,6 +445,11 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 driver={fastest}
                 onPress={() => !isClosed && setOpenPickerFor('fastest')}
                 disabled={isClosed}
+                rightAddon={fastest?.number && driverPointsMap.get(fastest.number)?.breakdown?.fastestLap ? (
+                    <View style={styles.pointsBadge}>
+                        <Text style={styles.pointsText}>+{driverPointsMap.get(fastest.number)!.breakdown.fastestLap}</Text>
+                    </View>
+                ) : undefined}
             />
             <DriverPickRow
                 left={<Text style={styles.emoji}>📈</Text>}
@@ -349,6 +457,11 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 driver={most}
                 onPress={() => !isClosed && setOpenPickerFor('most')}
                 disabled={isClosed}
+                rightAddon={most?.number && driverPointsMap.get(most.number)?.breakdown?.positionsGained ? (
+                    <View style={styles.pointsBadge}>
+                        <Text style={styles.pointsText}>+{driverPointsMap.get(most.number)!.breakdown.positionsGained}</Text>
+                    </View>
+                ) : undefined}
             />
 
             <DriverPickerModal
@@ -415,5 +528,47 @@ const styles = StyleSheet.create({
     },
     emoji: {
         fontSize: 26,
+    },
+    pointsContainer: {
+        marginTop: 16,
+        padding: 12,
+        backgroundColor: '#f0fdf4',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#10b981',
+    },
+    pointsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    pointsLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#111827',
+        marginRight: 8,
+    },
+    pointsValue: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#10b981',
+    },
+    bonusPointsText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#059669',
+        textAlign: 'center',
+    },
+    pointsBadge: {
+        backgroundColor: '#10b981',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    pointsText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#ffffff',
     },
 });

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { getRaceDetails, getRaceResults, getDrivers, getUserProfile, ApexEntity } from '../services/graphql';
 import { RaceEntity } from '../components/race_details/RaceDetailsCard';
 import { useAuth } from './AuthContext';
+import { RaceResultsData } from '../utils/pointsCalculator';
 
 export type Driver = {
     id: string;
@@ -16,6 +17,7 @@ interface DataContextType {
     drivers: Driver[];
     races: RaceEntity[];
     racesWithResults: RaceEntity[];
+    raceResultsByRaceId: Map<string, RaceResultsData>;
     profile: ApexEntity | null;
     isLoading: boolean;
     driversError: string | null;
@@ -33,6 +35,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [races, setRaces] = useState<RaceEntity[]>([]);
     const [racesWithResults, setRacesWithResults] = useState<RaceEntity[]>([]);
+    const [raceResultsByRaceId, setRaceResultsByRaceId] = useState<Map<string, RaceResultsData>>(new Map());
     const [profile, setProfile] = useState<ApexEntity | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [driversError, setDriversError] = useState<string | null>(null);
@@ -125,11 +128,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 return raceIdsWithResults.has(raceId);
             });
             setRacesWithResults(racesWithResultsFiltered);
+
+            // Parse and store race results by race ID
+            const resultsMap = new Map<string, RaceResultsData>();
+            raceResultsData.forEach((result) => {
+                const resultRaceId = result.race_id || (result.PK?.startsWith('race#') ? result.PK.replace('race#', '') : null);
+                if (resultRaceId && result.results) {
+                    try {
+                        const parsedResults = JSON.parse(result.results) as RaceResultsData;
+                        resultsMap.set(resultRaceId, parsedResults);
+                    } catch (error) {
+                        console.error(`Error parsing race results for ${resultRaceId}:`, error);
+                    }
+                }
+            });
+            setRaceResultsByRaceId(resultsMap);
         } catch (err: any) {
             console.error('Error fetching races:', err);
             setRacesError(err.message || 'Failed to load races');
             setRaces([]);
             setRacesWithResults([]);
+            setRaceResultsByRaceId(new Map());
         }
     };
 
@@ -167,6 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setDrivers([]);
             setRaces([]);
             setRacesWithResults([]);
+            setRaceResultsByRaceId(new Map());
             setProfile(null);
             setIsLoading(false);
         }
@@ -187,6 +207,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 drivers,
                 races,
                 racesWithResults,
+                raceResultsByRaceId,
                 profile,
                 isLoading,
                 driversError,

@@ -9,7 +9,15 @@ export type DriverSummary = {
     teamColor?: string;
 };
 
-export default function PredictedGridRow({ position, driver, onPress, disabled }: { position: number; driver?: DriverSummary | null; onPress: () => void; disabled?: boolean }) {
+interface PredictedGridRowProps {
+    position: number;
+    driver?: DriverSummary | null;
+    onPress: () => void;
+    disabled?: boolean;
+    points?: number;
+}
+
+export default function PredictedGridRow({ position, driver, onPress, disabled, points }: PredictedGridRowProps) {
     const positionBg = position === 1 ? '#f59e0b' : position === 2 ? '#9ca3af' : position === 3 ? '#fb923c' : '#e5e7eb';
     const positionColor = position <= 3 ? '#ffffff' : '#6b7280';
 
@@ -32,6 +40,11 @@ export default function PredictedGridRow({ position, driver, onPress, disabled }
                     <Text style={styles.placeholder}>Select Driver</Text>
                 )}
             </View>
+            {points !== undefined && points > 0 && (
+                <View style={styles.pointsBadge}>
+                    <Text style={styles.pointsText}>+{points}</Text>
+                </View>
+            )}
             <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
     );
@@ -108,6 +121,18 @@ const styles = StyleSheet.create({
         opacity: 0.6,
         backgroundColor: '#f3f4f6',
         borderColor: '#d1d5db',
+    },
+    pointsBadge: {
+        backgroundColor: '#10b981',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginRight: 8,
+    },
+    pointsText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#ffffff',
     },
 });
 
