@@ -18,8 +18,8 @@ export type {
 // Re-export entity queries
 export { getApexEntity, listApexEntities } from './graphql/entities';
 
-// Re-export user queries
-export { getUserProfile, getUserPredictions } from './graphql/users';
+// Re-export user queries and mutations
+export { getUserProfile, getUserPredictions, saveUserPredictions } from './graphql/users';
 
 // Re-export race queries
 export { getRaceDetails, getRaceResults } from './graphql/races';

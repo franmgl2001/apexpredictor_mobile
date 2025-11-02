@@ -34,10 +34,14 @@ function getTimeLeft(targetIso: string): TimeLeft {
 
 export default function RaceCarousel({
     races: racesProp,
-    onIsClosedChange
+    onIsClosedChange,
+    onCurrentRaceChange,
+    onPredictionsChange,
 }: {
     races?: RaceEntity[];
     onIsClosedChange?: (isClosed: boolean) => void;
+    onCurrentRaceChange?: (raceId: string) => void;
+    onPredictionsChange?: (predictions: string | null) => void;
 }) {
     // Use provided races or fall back to loading from mocks
     const races = useMemo(() => {
@@ -57,6 +61,13 @@ export default function RaceCarousel({
             setIndex(newIndex);
         }
     }, [races]);
+
+    // Notify parent of current race change
+    useEffect(() => {
+        if (race?.race_id && onCurrentRaceChange) {
+            onCurrentRaceChange(race.race_id);
+        }
+    }, [race?.race_id, onCurrentRaceChange]);
 
     const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => (race ? getTimeLeft(race.qualy_date) : { days: 0, hours: 0, minutes: 0, seconds: 0 }));
     const [isClosed, setIsClosed] = useState(() => race ? Date.now() >= Date.parse(race.qualy_date) : false);
@@ -116,7 +127,7 @@ export default function RaceCarousel({
 
             <View style={{ height: 12 }} />
 
-            <RaceDetailsCard race={race} timeLeft={timeLeft} />
+            <RaceDetailsCard race={race} timeLeft={timeLeft} onPredictionsChange={onPredictionsChange} />
         </View>
     );
 }

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
 import RaceCarousel from '../components/race_details/RaceCarousel';
 import RulesScoringButton from '../components/rules_modal/RulesScoringButton';
 import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { saveUserPredictions } from '../services/graphql';
 
 type MyTeamScreenProps = {
     onProfilePress: () => void;
@@ -13,7 +15,34 @@ type MyTeamScreenProps = {
 export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [isClosed, setIsClosed] = useState(false);
     const [showRulesModal, setShowRulesModal] = useState(false);
-    const { races, isLoading, racesError, refetchRaces } = useData();
+    const [isSaving, setIsSaving] = useState(false);
+    const [currentRaceId, setCurrentRaceId] = useState<string | null>(null);
+    const [currentPredictions, setCurrentPredictions] = useState<string | null>(null);
+    const { races, isLoading, racesError, refetchRaces, profile } = useData();
+    const { user } = useAuth();
+
+    const handleSave = async () => {
+        if (!user?.userId || !currentRaceId || !currentPredictions) {
+            Alert.alert('Error', 'Please make predictions before saving.');
+            return;
+        }
+
+        if (!profile?.username) {
+            Alert.alert('Error', 'Username not available.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await saveUserPredictions(user.userId, profile.username, currentRaceId, currentPredictions);
+            Alert.alert('Success', 'Predictions saved successfully!');
+        } catch (error: any) {
+            console.error('Error saving predictions:', error);
+            Alert.alert('Error', error?.message || 'Failed to save predictions. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <View style={{ flex: 1 }}>
@@ -42,7 +71,12 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
 
                 {!isLoading && !racesError && races.length > 0 && (
                     <>
-                        <RaceCarousel races={races} onIsClosedChange={setIsClosed} />
+                        <RaceCarousel
+                            races={races}
+                            onIsClosedChange={setIsClosed}
+                            onCurrentRaceChange={setCurrentRaceId}
+                            onPredictionsChange={setCurrentPredictions}
+                        />
                         <View style={{ height: 16 }} />
                     </>
                 )}
@@ -60,8 +94,17 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
             </ScrollView>
 
             <View style={styles.saveWrap}>
-                <TouchableOpacity style={[styles.saveBtn, isClosed && styles.saveBtnDisabled]} activeOpacity={0.85} disabled={isClosed}>
-                    <Text style={[styles.saveText, isClosed && styles.saveTextDisabled]}>Save Team</Text>
+                <TouchableOpacity
+                    style={[styles.saveBtn, (isClosed || isSaving || !currentPredictions) && styles.saveBtnDisabled]}
+                    activeOpacity={0.85}
+                    disabled={isClosed || isSaving || !currentPredictions}
+                    onPress={handleSave}
+                >
+                    {isSaving ? (
+                        <ActivityIndicator size="small" color="#9ca3af" />
+                    ) : (
+                        <Text style={[styles.saveText, (isClosed || !currentPredictions) && styles.saveTextDisabled]}>Save Team</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 

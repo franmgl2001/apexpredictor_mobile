@@ -30,7 +30,7 @@ type ApiPredictionsData = {
     };
 };
 
-export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean }) {
+export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint, onPredictionsChange }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean; onPredictionsChange?: (predictions: string | null) => void }) {
     const { user } = useAuth();
     const { drivers, raceResultsByRaceId } = useData();
 
@@ -264,18 +264,49 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
 
     // Save predictions when they change
     useEffect(() => {
+        const racePredictions = {
+            grid,
+            sprintPodium,
+            pole,
+            fastest,
+            most,
+        };
         setPredictionsByRace((prev) => {
             const next = new Map(prev);
-            next.set(raceId, {
-                grid,
-                sprintPodium,
-                pole,
-                fastest,
-                most,
-            });
+            next.set(raceId, racePredictions);
             return next;
         });
-    }, [grid, sprintPodium, pole, fastest, most, raceId]);
+
+        // Convert to API format and notify parent
+        if (onPredictionsChange) {
+            const hasAnyPredictions = grid.some((d) => d !== null) ||
+                sprintPodium.some((d) => d !== null) ||
+                pole !== null ||
+                fastest !== null ||
+                most !== null;
+
+            if (hasAnyPredictions) {
+                const apiFormat = {
+                    gridOrder: grid.map((driver, index) => ({
+                        position: index + 1,
+                        driverNumber: driver?.number || null,
+                    })),
+                    sprintPositions: sprintPodium.map((driver, index) => ({
+                        position: index + 1,
+                        driverNumber: driver?.number || null,
+                    })),
+                    additionalPredictions: {
+                        pole: pole?.number || null,
+                        fastestLap: fastest?.number || null,
+                        positionsGained: most?.number || null,
+                    },
+                };
+                onPredictionsChange(JSON.stringify(apiFormat));
+            } else {
+                onPredictionsChange(null);
+            }
+        }
+    }, [grid, sprintPodium, pole, fastest, most, raceId, onPredictionsChange]);
 
     // Calculate points when race has results and predictions are loaded
     useEffect(() => {

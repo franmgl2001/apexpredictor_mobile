@@ -31,7 +31,7 @@ function formatTarget(dateIso: string): string {
 
 type TimeLeft = { days: number; hours: number; minutes: number; seconds: number };
 
-export default function RaceDetailsCard({ race, timeLeft }: { race: RaceEntity; timeLeft: TimeLeft }) {
+export default function RaceDetailsCard({ race, timeLeft, onPredictionsChange }: { race: RaceEntity; timeLeft: TimeLeft; onPredictionsChange?: (predictions: string | null) => void }) {
     const isClosed = useMemo(() => Date.now() >= Date.parse(race.qualy_date), [race.qualy_date]);
 
     return (
@@ -45,7 +45,7 @@ export default function RaceDetailsCard({ race, timeLeft }: { race: RaceEntity; 
 
             <View style={{ height: 16 }} />
 
-            <PredictionsSection raceId={race.race_id} timeLeft={timeLeft} isClosed={isClosed} hasSprint={race.has_sprint} />
+            <PredictionsSection raceId={race.race_id} timeLeft={timeLeft} isClosed={isClosed} hasSprint={race.has_sprint} onPredictionsChange={onPredictionsChange} />
         </View>
     );
 }
