@@ -10,11 +10,13 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
+import { fetchUserAttributes } from 'aws-amplify/auth';
 import amplifyconfig from './amplify_outputs.json';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { DataProvider } from './src/contexts/DataContext';
+import { DataProvider, useData } from './src/contexts/DataContext';
+import { saveUserProfile, saveUserLeaderboardEntry } from './src/services/graphql/users';
 
 // Configure Amplify with the outputs
 // @aws-amplify/react-native automatically sets up AsyncStorage for React Native
@@ -27,6 +29,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import VerificationCodeScreen from './src/screens/VerificationCodeScreen';
+import UsernamePromptModal from './src/components/UsernamePromptModal';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -46,12 +49,64 @@ function App() {
 type AuthScreen = 'signin' | 'signup' | 'verification';
 
 function AppContent() {
-  const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode } = useAuth();
+  const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode, user } = useAuth();
+  const { profile, isLoading: profileLoading, refetchProfile } = useData();
   const [route, setRoute] = useState<RouteKey>('myteam');
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
   const [pendingEmail, setPendingEmail] = useState<string>('');
   const [pendingPassword, setPendingPassword] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+
+  // Check if username is empty and show modal
+  useEffect(() => {
+    if (isAuthenticated && !profileLoading && profile !== undefined) {
+      // Check if profile exists and username is empty/null
+      if (profile === null || !profile.username) {
+        setShowUsernameModal(true);
+      }
+    }
+  }, [isAuthenticated, profileLoading, profile]);
+
+  const handleSaveUsername = async (username: string) => {
+    if (!user?.userId) {
+      throw new Error('User not authenticated');
+    }
+
+    setIsSavingUsername(true);
+    try {
+      // Get user email from profile or fetch from attributes
+      let email = profile?.email;
+      if (!email) {
+        try {
+          const attributes = await fetchUserAttributes();
+          email = attributes.email || user.username || '';
+        } catch (error) {
+          // Fallback to username if fetch fails
+          email = user.username || '';
+        }
+      }
+
+      if (!email) {
+        throw new Error('Unable to retrieve user email');
+      }
+
+      // Create both profile and leaderboard entry
+      await Promise.all([
+        saveUserProfile(user.userId, username, email),
+        saveUserLeaderboardEntry(user.userId, username),
+      ]);
+
+      await refetchProfile();
+      setShowUsernameModal(false);
+    } catch (error: any) {
+      console.error('Error saving username:', error);
+      throw error;
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
 
   // Show loading spinner while checking auth status
   if (isLoading && !isAuthenticated) {
@@ -162,6 +217,11 @@ function AppContent() {
           <ProfileScreen onClose={() => setShowProfileModal(false)} />
         </SafeAreaView>
       </Modal>
+      <UsernamePromptModal
+        visible={showUsernameModal}
+        onSave={handleSaveUsername}
+        isLoading={isSavingUsername}
+      />
     </SafeAreaView>
   );
 }

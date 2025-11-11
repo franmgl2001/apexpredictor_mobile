@@ -127,6 +127,7 @@ export default function SignUpScreen({
                                 secureTextEntry
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                textContentType="none"
                                 editable={!isLoading}
                             />
                         </View>
@@ -143,6 +144,7 @@ export default function SignUpScreen({
                                 secureTextEntry
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                textContentType="none"
                                 editable={!isLoading}
                             />
                         </View>
