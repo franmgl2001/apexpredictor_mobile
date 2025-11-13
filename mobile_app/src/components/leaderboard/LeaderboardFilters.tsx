@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import RaceFilterCarousel from './RaceFilterCarousel';
+import LeagueSelector from './LeagueSelector';
+import type { ApexEntity } from '../../services/graphql';
 
 export type FilterType = 'global' | 'league';
 export type TimeFilterType = 'season' | 'race';
@@ -11,6 +13,10 @@ interface LeaderboardFiltersProps {
     onFilterTypeChange: (type: FilterType) => void;
     onTimeFilterChange: (type: TimeFilterType) => void;
     onRaceChange?: (raceId: string) => void;
+    leagues?: ApexEntity[];
+    selectedLeagueId?: string | null;
+    onLeagueChange?: (leagueId: string) => void;
+    isLoadingLeagues?: boolean;
 }
 
 export default function LeaderboardFilters({
@@ -19,6 +25,10 @@ export default function LeaderboardFilters({
     onFilterTypeChange,
     onTimeFilterChange,
     onRaceChange,
+    leagues = [],
+    selectedLeagueId = null,
+    onLeagueChange,
+    isLoadingLeagues = false,
 }: LeaderboardFiltersProps) {
     return (
         <>
@@ -59,6 +69,16 @@ export default function LeaderboardFilters({
                     </Text>
                 </TouchableOpacity>
             </View>
+
+            {/* League Selector - Only show when League filter is active */}
+            {filterType === 'league' && onLeagueChange && (
+                <LeagueSelector
+                    leagues={leagues}
+                    selectedLeagueId={selectedLeagueId}
+                    onLeagueChange={onLeagueChange}
+                    isLoading={isLoadingLeagues}
+                />
+            )}
 
             {/* Filter Buttons - Season/Race */}
             <View style={styles.filterRow}>

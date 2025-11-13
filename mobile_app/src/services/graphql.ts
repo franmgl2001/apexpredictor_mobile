@@ -29,3 +29,6 @@ export { getDrivers } from './graphql/drivers';
 
 // Re-export leaderboard queries
 export { getLeaderboard, getLeaderboardPredictions } from './graphql/leaderboard';
+
+// Re-export league queries
+export { getUserLeagues, getLeagues, getLeagueMembers, getLeagueLeaderboard, getLeagueRacePredictions } from './graphql/leagues';

@@ -60,11 +60,18 @@ function AppContent() {
   const [isSavingUsername, setIsSavingUsername] = useState(false);
 
   // Check if username is empty and show modal
+  // Only show modal if profile request came back empty (null)
+  // If profile request returns a profile object, don't show modal regardless of username
   useEffect(() => {
-    if (isAuthenticated && !profileLoading && profile !== undefined) {
-      // Check if profile exists and username is empty/null
-      if (profile === null || !profile.username) {
+    if (isAuthenticated && !profileLoading) {
+      // Only show modal if profile request came back empty (null)
+      // If profile exists (even without username), don't show modal
+      if (profile === null) {
+        // Profile request came back empty - show modal
         setShowUsernameModal(true);
+      } else {
+        // Profile request returned a profile object - hide modal
+        setShowUsernameModal(false);
       }
     }
   }, [isAuthenticated, profileLoading, profile]);
