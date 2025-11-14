@@ -70,16 +70,6 @@ export default function LeaderboardFilters({
                 </TouchableOpacity>
             </View>
 
-            {/* League Selector - Only show when League filter is active */}
-            {filterType === 'league' && onLeagueChange && (
-                <LeagueSelector
-                    leagues={leagues}
-                    selectedLeagueId={selectedLeagueId}
-                    onLeagueChange={onLeagueChange}
-                    isLoading={isLoadingLeagues}
-                />
-            )}
-
             {/* Filter Buttons - Season/Race */}
             <View style={styles.filterRow}>
                 <TouchableOpacity
@@ -99,6 +89,16 @@ export default function LeaderboardFilters({
                     <Text style={[styles.filterText, timeFilter === 'race' && styles.filterTextActive]}>Race</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* League Selector - Only show when League filter is active, positioned after Season/Race */}
+            {filterType === 'league' && onLeagueChange && (
+                <LeagueSelector
+                    leagues={leagues}
+                    selectedLeagueId={selectedLeagueId}
+                    onLeagueChange={onLeagueChange}
+                    isLoading={isLoadingLeagues}
+                />
+            )}
 
             {/* Race Carousel - Only show when Race filter is selected */}
             {timeFilter === 'race' && <RaceFilterCarousel onRaceChange={onRaceChange} />}

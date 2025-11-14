@@ -34,22 +34,51 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
       limit: 1000,
     });
 
-    // Extract unique league_ids
-    const leagueIds = new Set<string>();
-    memberEntities.forEach((member) => {
-      if (member.league_id) {
-        leagueIds.add(member.league_id);
-      }
-    });
-
-    if (leagueIds.size === 0) {
+    if (memberEntities.length === 0) {
+      console.log('[getUserLeagues] No member entities found for user:', userId);
       return [];
     }
 
-    // Fetch league details for each league_id
+    console.log(`[getUserLeagues] Found ${memberEntities.length} member entities`);
+    
+    // Extract unique league_ids and build league map with data from member entities
+    const leagueMap = new Map<string, { leagueId: string; role?: string; league_name?: string }>();
+    
+    memberEntities.forEach((member) => {
+      if (member.league_id) {
+        const leagueId = member.league_id;
+        
+        // Store league_id, role, and league_name from member entity (denormalized)
+        if (!leagueMap.has(leagueId)) {
+          console.log(`[getUserLeagues] Processing league ${leagueId}, league_name from member:`, member.league_name);
+          leagueMap.set(leagueId, { 
+            leagueId, 
+            role: member.role,
+            league_name: member.league_name, // Use league_name from member entity
+          });
+        } else {
+          // Update role if admin (higher priority), and league_name if missing
+          const existing = leagueMap.get(leagueId)!;
+          if (member.role === 'admin' || (!existing.role && member.role)) {
+            existing.role = member.role;
+          }
+          if (!existing.league_name && member.league_name) {
+            existing.league_name = member.league_name;
+          }
+        }
+      } else {
+        console.warn('[getUserLeagues] Member entity missing league_id:', member);
+      }
+    });
+
+    console.log(`[getUserLeagues] Extracted ${leagueMap.size} unique leagues`);
+
+    // Fetch full league details for all leagues (to get member_count, is_private, description, etc.)
+    // But use league_name from member entities (denormalized) if available
     const leagues: ApexEntity[] = [];
-    for (const leagueId of leagueIds) {
+    for (const { leagueId, role, league_name } of leagueMap.values()) {
       try {
+        console.log(`[getUserLeagues] Fetching details for league ${leagueId}, has league_name from member:`, !!league_name);
         const leagueDetails = await listApexEntities({
           filter: {
             PK: { eq: `league#${leagueId}` },
@@ -60,19 +89,45 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
         });
 
         if (leagueDetails.length > 0) {
-          // Merge member info (role) with league details
-          const memberInfo = memberEntities.find((m) => m.league_id === leagueId);
-          const league = { ...leagueDetails[0] };
-          if (memberInfo?.role) {
-            league.role = memberInfo.role;
-          }
+          // Merge league details with member role and use league_name from member entity
+          const finalLeagueName = league_name || leagueDetails[0].league_name;
+          console.log(`[getUserLeagues] League ${leagueId} - Using league_name:`, finalLeagueName, `(from member: ${!!league_name}, from LEAGUE: ${!!leagueDetails[0].league_name})`);
+          const league: ApexEntity = {
+            ...leagueDetails[0],
+            role, // Add role from member
+            league_name: finalLeagueName, // Prefer league_name from member entity
+          };
+          leagues.push(league);
+        } else {
+          // If LEAGUE details don't exist, create a minimal league object from member data
+          // This handles cases where LEAGUE entity might be missing but member exists
+          console.warn(`[getUserLeagues] LEAGUE details not found for ${leagueId}, using member data only. league_name from member:`, league_name);
+          const league: ApexEntity = {
+            PK: `league#${leagueId}`,
+            SK: 'DETAILS',
+            entityType: 'LEAGUE',
+            league_id: leagueId,
+            league_name: league_name || 'Unnamed League', // Use league_name from member or default
+            role,
+          };
           leagues.push(league);
         }
       } catch (err) {
-        console.error(`Error fetching league ${leagueId}:`, err);
+        console.error(`[getUserLeagues] Error fetching league ${leagueId}:`, err);
+        // Even if fetch fails, create a minimal league object from member data
+        const league: ApexEntity = {
+          PK: `league#${leagueId}`,
+          SK: 'DETAILS',
+          entityType: 'LEAGUE',
+          league_id: leagueId,
+          league_name: league_name || 'Unnamed League',
+          role,
+        };
+        leagues.push(league);
       }
     }
 
+    console.log(`[getUserLeagues] Returning ${leagues.length} leagues`);
     return leagues;
   } catch (error: any) {
     console.error('Error fetching user leagues:', error);
