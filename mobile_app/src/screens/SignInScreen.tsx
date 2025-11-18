@@ -41,6 +41,8 @@ export default function SignInScreen({
         try {
             await onSignIn(email.trim(), password);
         } catch (error: any) {
+            // Clear password on error but keep email
+            setPassword('');
             Alert.alert(
                 'Sign In Failed',
                 error.message || 'Invalid email or password. Please try again.'

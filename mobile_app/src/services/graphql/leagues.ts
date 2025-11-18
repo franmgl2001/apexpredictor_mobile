@@ -18,9 +18,12 @@ import type {
  * @param userId The user ID
  * @returns Array of league entities (LEAGUE_MEMBER entities with league details)
  */
-export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getUserLeagues executed at ${timestamp} - userId: ${userId}`);
+type GetUserLeaguesOptions = {
+  includeDetails?: boolean;
+};
+
+export async function getUserLeagues(userId: string, options?: GetUserLeaguesOptions): Promise<ApexEntity[]> {
+  const { includeDetails = true } = options || {};
 
   try {
     // Query LEAGUE_MEMBER entities by entityType and user_id
@@ -35,11 +38,8 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
     });
 
     if (memberEntities.length === 0) {
-      console.log('[getUserLeagues] No member entities found for user:', userId);
       return [];
     }
-
-    console.log(`[getUserLeagues] Found ${memberEntities.length} member entities`);
     
     // Extract unique league_ids and build league map with data from member entities
     const leagueMap = new Map<string, { leagueId: string; role?: string; league_name?: string }>();
@@ -50,7 +50,6 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
         
         // Store league_id, role, and league_name from member entity (denormalized)
         if (!leagueMap.has(leagueId)) {
-          console.log(`[getUserLeagues] Processing league ${leagueId}, league_name from member:`, member.league_name);
           leagueMap.set(leagueId, { 
             leagueId, 
             role: member.role,
@@ -66,19 +65,27 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
             existing.league_name = member.league_name;
           }
         }
-      } else {
-        console.warn('[getUserLeagues] Member entity missing league_id:', member);
       }
     });
 
-    console.log(`[getUserLeagues] Extracted ${leagueMap.size} unique leagues`);
+    // If details aren't needed, return basic league info from member entities
+    if (!includeDetails) {
+      const basicLeagues: ApexEntity[] = Array.from(leagueMap.values()).map(({ leagueId, role, league_name }) => ({
+        PK: `league#${leagueId}`,
+        SK: 'DETAILS',
+        entityType: 'LEAGUE',
+        league_id: leagueId,
+        league_name: league_name || 'Unnamed League',
+        role,
+      }));
+      return basicLeagues;
+    }
 
     // Fetch full league details for all leagues (to get member_count, is_private, description, etc.)
     // But use league_name from member entities (denormalized) if available
     const leagues: ApexEntity[] = [];
     for (const { leagueId, role, league_name } of leagueMap.values()) {
       try {
-        console.log(`[getUserLeagues] Fetching details for league ${leagueId}, has league_name from member:`, !!league_name);
         const leagueDetails = await listApexEntities({
           filter: {
             PK: { eq: `league#${leagueId}` },
@@ -91,7 +98,6 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
         if (leagueDetails.length > 0) {
           // Merge league details with member role and use league_name from member entity
           const finalLeagueName = league_name || leagueDetails[0].league_name;
-          console.log(`[getUserLeagues] League ${leagueId} - Using league_name:`, finalLeagueName, `(from member: ${!!league_name}, from LEAGUE: ${!!leagueDetails[0].league_name})`);
           const league: ApexEntity = {
             ...leagueDetails[0],
             role, // Add role from member
@@ -101,7 +107,6 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
         } else {
           // If LEAGUE details don't exist, create a minimal league object from member data
           // This handles cases where LEAGUE entity might be missing but member exists
-          console.warn(`[getUserLeagues] LEAGUE details not found for ${leagueId}, using member data only. league_name from member:`, league_name);
           const league: ApexEntity = {
             PK: `league#${leagueId}`,
             SK: 'DETAILS',
@@ -127,7 +132,6 @@ export async function getUserLeagues(userId: string): Promise<ApexEntity[]> {
       }
     }
 
-    console.log(`[getUserLeagues] Returning ${leagues.length} leagues`);
     return leagues;
   } catch (error: any) {
     console.error('Error fetching user leagues:', error);

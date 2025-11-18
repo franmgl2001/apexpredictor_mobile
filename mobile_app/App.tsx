@@ -50,7 +50,7 @@ type AuthScreen = 'signin' | 'signup' | 'verification';
 
 function AppContent() {
   const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode, user } = useAuth();
-  const { profile, isLoading: profileLoading, refetchProfile } = useData();
+  const { profile, profileLoading, refetchProfile } = useData();
   const [route, setRoute] = useState<RouteKey>('myteam');
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
   const [pendingEmail, setPendingEmail] = useState<string>('');
@@ -58,21 +58,33 @@ function AppContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [initialAuthCheckComplete, setInitialAuthCheckComplete] = useState(false);
 
-  // Check if username is empty and show modal
-  // Only show modal if profile request came back empty (null)
-  // If profile request returns a profile object, don't show modal regardless of username
+  // Track when initial auth check is complete
   useEffect(() => {
+    if (!isLoading) {
+      setInitialAuthCheckComplete(true);
+    }
+  }, [isLoading]);
+
+  // Check if profile exists after loading completes
+  // Only show username modal if profile is null AFTER profile has finished loading
+  // If profile exists, user goes directly to my team screen
+  useEffect(() => {
+    // Wait for profile to finish loading before making decision
     if (isAuthenticated && !profileLoading) {
-      // Only show modal if profile request came back empty (null)
-      // If profile exists (even without username), don't show modal
+      // Profile loading is complete - check if profile exists
       if (profile === null) {
-        // Profile request came back empty - show modal
+        // No profile found - show username prompt modal
         setShowUsernameModal(true);
       } else {
-        // Profile request returned a profile object - hide modal
+        // Profile exists - hide modal and show my team screen
         setShowUsernameModal(false);
       }
+    } else {
+      // Hide modal while profile is still loading or not authenticated
+      setShowUsernameModal(false);
     }
   }, [isAuthenticated, profileLoading, profile]);
 
@@ -115,8 +127,8 @@ function AppContent() {
     }
   };
 
-  // Show loading spinner while checking auth status
-  if (isLoading && !isAuthenticated) {
+  // Show loading spinner only during initial auth check (not during sign-in attempts)
+  if (!initialAuthCheckComplete && isLoading && !isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -186,15 +198,20 @@ function AppContent() {
       <SafeAreaView style={styles.container}>
         <SignInScreen
           onSignIn={async (email, password) => {
+            setIsSigningIn(true);
             try {
               await signIn(email, password);
             } catch (error: any) {
               console.error('Sign in error:', error);
-              // Error handling is done in the screen component if needed
+              // Error handling is done in the screen component
+              // Re-throw so SignInScreen can show the alert
+              throw error;
+            } finally {
+              setIsSigningIn(false);
             }
           }}
           onNavigateToSignUp={() => setAuthScreen('signup')}
-          isLoading={isLoading}
+          isLoading={isSigningIn}
         />
       </SafeAreaView>
     );

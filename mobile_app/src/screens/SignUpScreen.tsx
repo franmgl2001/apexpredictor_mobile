@@ -26,6 +26,7 @@ export default function SignUpScreen({
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [emailConsent, setEmailConsent] = useState(false);
 
     const handleSignUp = async () => {
         if (!email.trim()) {
@@ -149,6 +150,23 @@ export default function SignUpScreen({
                             />
                         </View>
 
+                        {/* Terms and Conditions with Email Consent */}
+                        <View style={styles.termsContainer}>
+                            <TouchableOpacity
+                                style={styles.checkboxContainer}
+                                onPress={() => setEmailConsent(!emailConsent)}
+                                disabled={isLoading}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.checkbox, emailConsent && styles.checkboxChecked]}>
+                                    {emailConsent && <Text style={styles.checkmark}>✓</Text>}
+                                </View>
+                                <Text style={styles.termsText}>
+                                    I agree to receive emails about updates and promotions
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
                         {/* Create Account Button */}
                         <TouchableOpacity
                             style={[styles.createAccountButton, isLoading && styles.buttonDisabled]}
@@ -263,5 +281,39 @@ const styles = StyleSheet.create({
         color: '#dc2626',
         fontWeight: '700',
         textDecorationLine: 'underline',
+    },
+    termsContainer: {
+        marginTop: 8,
+        marginBottom: 8,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderWidth: 2,
+        borderColor: '#dc2626',
+        borderRadius: 4,
+        marginRight: 12,
+        marginTop: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+    },
+    checkboxChecked: {
+        backgroundColor: '#dc2626',
+    },
+    checkmark: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    termsText: {
+        fontSize: 14,
+        color: '#374151',
+        flex: 1,
+        lineHeight: 20,
     },
 });

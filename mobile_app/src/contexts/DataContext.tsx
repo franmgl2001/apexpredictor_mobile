@@ -20,6 +20,7 @@ interface DataContextType {
     raceResultsByRaceId: Map<string, RaceResultsData>;
     profile: ApexEntity | null;
     isLoading: boolean;
+    profileLoading: boolean;
     driversError: string | null;
     racesError: string | null;
     profileError: string | null;
@@ -38,6 +39,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [raceResultsByRaceId, setRaceResultsByRaceId] = useState<Map<string, RaceResultsData>>(new Map());
     const [profile, setProfile] = useState<ApexEntity | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [profileLoading, setProfileLoading] = useState(false);
     const [driversError, setDriversError] = useState<string | null>(null);
     const [racesError, setRacesError] = useState<string | null>(null);
     const [profileError, setProfileError] = useState<string | null>(null);
@@ -155,9 +157,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchProfile = async () => {
         if (!user?.userId) {
             setProfile(null);
+            setProfileLoading(false);
             return;
         }
 
+        setProfileLoading(true);
         try {
             setProfileError(null);
             const profileData = await getUserProfile(user.userId);
@@ -166,6 +170,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             console.error('Error fetching profile:', err);
             setProfileError(err.message || 'Failed to load profile');
             setProfile(null);
+        } finally {
+            setProfileLoading(false);
         }
     };
 
@@ -189,6 +195,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setRaceResultsByRaceId(new Map());
             setProfile(null);
             setIsLoading(false);
+            setProfileLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated]);
@@ -210,6 +217,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 raceResultsByRaceId,
                 profile,
                 isLoading,
+                profileLoading,
                 driversError,
                 racesError,
                 profileError,

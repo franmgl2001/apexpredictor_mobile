@@ -4,6 +4,7 @@
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client, APEX_ENTITY_FIELDS, isEntityNotFoundError } from './client';
+import { requestLogger } from './requestLogger';
 import type {
   ApexEntity,
   GetApexEntityResponse,
@@ -54,8 +55,8 @@ const LIST_APEX_ENTITIES = `
  * @returns The Apex Entity or null if not found
  */
 export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity | null> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getApexEntity executed at ${timestamp} - PK: ${PK}, SK: ${SK}`);
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('getApexEntity', { PK, SK });
 
   try {
     const result = await client.graphql({
@@ -63,25 +64,32 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
       variables: { PK, SK },
     }) as GraphQLResult<GetApexEntityResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
       // Check if the error is because entity doesn't exist (expected case)
       const errorMessage = result.errors[0].message || '';
       if (isEntityNotFoundError({ message: errorMessage })) {
         // Entity doesn't exist - return null (not an error)
+        requestLogger.logSuccess(logId, 0, duration);
         return null;
       }
       // For other errors, log and throw
-      console.error('GraphQL errors:', result.errors);
+      requestLogger.logError(logId, new Error(errorMessage), duration);
       throw new Error(errorMessage || 'Failed to fetch entity');
     }
 
-    return result.data?.getApexEntity || null;
+    const item = result.data?.getApexEntity || null;
+    requestLogger.logSuccess(logId, item ? 1 : 0, duration);
+    return item;
   } catch (error: any) {
+    const duration = Date.now() - startTime;
     // Check if error is due to entity not existing (expected case for predictions)
     if (isEntityNotFoundError(error)) {
+      requestLogger.logSuccess(logId, 0, duration);
       return null;
     }
-    console.error('Error fetching Apex Entity:', error);
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
@@ -99,8 +107,8 @@ export async function listApexEntities(variables?: {
   limit?: number;
   nextToken?: string;
 }): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] listApexEntities executed at ${timestamp}`, variables ? { PK: variables.PK, limit: variables.limit, hasFilter: !!variables.filter } : 'no variables');
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('listApexEntities', variables);
 
   try {
     const result = await client.graphql({
@@ -108,28 +116,33 @@ export async function listApexEntities(variables?: {
       variables: variables || {},
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     // If we have data, return it even if there are some errors (partial success)
     if (result.data?.listApexEntities?.items) {
       if (result.errors && result.errors.length > 0) {
         // Log warnings for non-fatal errors but still return data
         console.warn('GraphQL warnings (non-fatal):', result.errors);
       }
-      return result.data.listApexEntities.items;
+      const items = result.data.listApexEntities.items;
+      requestLogger.logSuccess(logId, items.length, duration);
+      return items;
     }
 
     // If we have errors but no data, throw
     if (result.errors && result.errors.length > 0) {
       const errorMessage = result.errors[0].message || 'Failed to fetch entities';
-      console.error('GraphQL errors:', result.errors);
+      requestLogger.logError(logId, new Error(errorMessage), duration);
       throw new Error(errorMessage);
     }
 
     // No data and no errors - return empty array
+    requestLogger.logSuccess(logId, 0, duration);
     return [];
   } catch (error: any) {
-    // Only log error message, not the entire error object which might contain data
+    const duration = Date.now() - startTime;
     const errorMessage = error?.message || 'Failed to fetch entities';
-    console.error('Error fetching entities:', errorMessage);
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }

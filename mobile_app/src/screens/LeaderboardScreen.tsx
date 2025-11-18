@@ -51,7 +51,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
 
         try {
             setIsLoadingLeagues(true);
-            const data = await getUserLeagues(user.userId);
+            const data = await getUserLeagues(user.userId, { includeDetails: false });
             setLeagues(data);
             // Auto-select first league if available
             if (data.length > 0 && !selectedLeagueId) {

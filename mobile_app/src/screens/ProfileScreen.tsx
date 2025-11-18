@@ -65,7 +65,7 @@ function formatDate(dateString?: string): string {
 }
 
 export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
-    const { signOut, isLoading: authLoading } = useAuth();
+    const { signOut, isLoading: authLoading, user } = useAuth();
     const { profile, isLoading: profileLoading, profileError, refetchProfile } = useData();
 
     const handleSignOut = async () => {
@@ -83,8 +83,14 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
                     onPress: async () => {
                         try {
                             await signOut();
+                            // Sign out successful - user will be redirected to sign in screen
                         } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to sign out. Please try again.');
+                            console.error('Sign out error:', error);
+                            Alert.alert(
+                                'Error',
+                                error.message || 'Failed to sign out. Please try again.',
+                                [{ text: 'OK' }]
+                            );
                         }
                     },
                 },
@@ -120,39 +126,51 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
                 </View>
             )}
 
-            {profileError && (
+            {profileError && !profileLoading && (
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{profileError}</Text>
+                    <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={refetchProfile}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
                 </View>
             )}
 
-            {profile && !profileLoading && (
+            {!profileLoading && (profile || user) && (
                 <>
                     {/* Profile Card */}
                     <View style={styles.profileCard}>
                         <View style={styles.avatarSection}>
                             <View style={styles.avatar}>
                                 <Text style={styles.avatarText}>
-                                    {getInitials(profile.username, profile.email)}
+                                    {getInitials(profile?.username || user?.username, profile?.email || user?.username)}
                                 </Text>
                             </View>
                         </View>
 
                         <View style={styles.infoSection}>
-                            {profile.username && (
+                            {(profile?.username || user?.username) && (
                                 <Text style={styles.nameText}>
-                                    {profile.username}
+                                    {profile?.username || user?.username}
                                 </Text>
                             )}
-                            {profile.email && (
+                            {(profile?.email || user?.username) && (
                                 <Text style={styles.emailText}>
-                                    {profile.email}
+                                    {profile?.email || user?.username}
                                 </Text>
                             )}
-                            {profile.createdAt && (
+                            {profile?.createdAt && (
                                 <Text style={styles.dateText}>
                                     Member since {formatDate(profile.createdAt)}
                                 </Text>
+                            )}
+                            {!profile && (
+                                <View style={styles.warningBanner}>
+                                    <Text style={styles.warningText}>Profile not fully loaded</Text>
+                                </View>
                             )}
                         </View>
                     </View>
@@ -237,6 +255,31 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#dc2626',
         fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    retryButton: {
+        backgroundColor: '#dc2626',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignSelf: 'center',
+        marginTop: 8,
+    },
+    retryButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    warningBanner: {
+        backgroundColor: '#fef3c7',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 12,
+    },
+    warningText: {
+        color: '#92400e',
+        fontSize: 13,
         textAlign: 'center',
     },
     // Profile Card - Minimalist Design
