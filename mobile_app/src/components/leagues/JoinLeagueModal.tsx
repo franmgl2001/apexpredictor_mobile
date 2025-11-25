@@ -10,106 +10,95 @@ import {
     ActivityIndicator,
 } from 'react-native';
 
-interface UsernamePromptModalProps {
+interface JoinLeagueModalProps {
     visible: boolean;
-    onSave: (username: string) => Promise<void>;
-    onCancel?: () => void;
+    onClose: () => void;
+    onJoin: (joinCode: string) => Promise<void>;
     isLoading?: boolean;
 }
 
-export default function UsernamePromptModal({
+export default function JoinLeagueModal({
     visible,
-    onSave,
-    onCancel,
+    onClose,
+    onJoin,
     isLoading = false,
-}: UsernamePromptModalProps) {
-    const [username, setUsername] = useState('');
+}: JoinLeagueModalProps) {
+    const [joinCode, setJoinCode] = useState('');
 
-    const handleSave = async () => {
-        const trimmedUsername = username.trim();
-        
-        if (!trimmedUsername) {
-            Alert.alert('Error', 'Please enter a username');
+    const handleJoin = async () => {
+        const trimmedCode = joinCode.trim().toUpperCase();
+
+        if (!trimmedCode) {
+            Alert.alert('Error', 'Please enter a join code');
             return;
         }
 
-        if (trimmedUsername.length < 3) {
-            Alert.alert('Error', 'Username must be at least 3 characters long');
-            return;
-        }
-
-        if (trimmedUsername.length > 20) {
-            Alert.alert('Error', 'Username must be less than 20 characters');
+        if (trimmedCode.length !== 6) {
+            Alert.alert('Error', 'Join code must be 6 characters');
             return;
         }
 
         try {
-            await onSave(trimmedUsername);
-            setUsername(''); // Clear input after successful save
+            await onJoin(trimmedCode);
+            // Reset form on success
+            setJoinCode('');
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to save username. Please try again.');
+            Alert.alert('Error', error.message || 'Failed to join league. Please check the code and try again.');
         }
     };
 
-    const handleCancel = () => {
-        if (onCancel) {
-            onCancel();
+    const handleClose = () => {
+        if (!isLoading) {
+            setJoinCode('');
+            onClose();
         }
-        setUsername('');
     };
-
-    const canDismiss = typeof onCancel === 'function';
 
     return (
         <Modal
             visible={visible}
             transparent
             animationType="fade"
-            onRequestClose={handleCancel}
+            onRequestClose={handleClose}
         >
-            <View style={styles.overlay} pointerEvents="box-none">
-                {canDismiss ? (
-                    <TouchableOpacity
-                        style={StyleSheet.absoluteFill}
-                        activeOpacity={1}
-                        onPress={handleCancel}
-                    />
-                ) : (
-                    <View style={StyleSheet.absoluteFill} pointerEvents="none" />
-                )}
-                <View 
-                    style={styles.modalContainer}
-                    pointerEvents="box-none"
-                >
-                    <Text style={styles.title}>Choose a Username</Text>
+            <View style={styles.overlay}>
+                <View style={styles.modalContainer}>
+                    <Text style={styles.title}>Join League</Text>
                     <Text style={styles.subtitle}>
-                        Please enter a username to continue
+                        Enter the 6-character join code to join a league
                     </Text>
 
                     <View style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter username"
+                            placeholder="Enter join code"
                             placeholderTextColor="#9ca3af"
-                            value={username}
-                            onChangeText={setUsername}
-                            autoCapitalize="none"
+                            value={joinCode}
+                            onChangeText={(text) => setJoinCode(text.toUpperCase())}
+                            autoCapitalize="characters"
                             autoCorrect={false}
                             editable={!isLoading}
-                            maxLength={20}
+                            maxLength={6}
                         />
                     </View>
 
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
-                            style={[styles.button, styles.saveButton, isLoading && styles.buttonDisabled]}
-                            onPress={handleSave}
+                            style={[styles.button, styles.cancelButton]}
+                            onPress={handleClose}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, styles.joinButton, isLoading && styles.buttonDisabled]}
+                            onPress={handleJoin}
                             disabled={isLoading}
                         >
                             {isLoading ? (
                                 <ActivityIndicator size="small" color="#ffffff" />
                             ) : (
-                                <Text style={styles.saveButtonText}>Save</Text>
+                                <Text style={styles.joinButtonText}>Join</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -133,12 +122,6 @@ const styles = StyleSheet.create({
         padding: 24,
         width: '100%',
         maxWidth: 400,
-        shadowColor: '#000000',
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 8,
-        zIndex: 1,
     },
     title: {
         fontSize: 24,
@@ -162,29 +145,47 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        fontSize: 16,
+        fontSize: 24,
+        fontWeight: '700',
         backgroundColor: '#f9fafb',
         color: '#111827',
+        textAlign: 'center',
+        letterSpacing: 4,
     },
     buttonContainer: {
-        width: '100%',
+        flexDirection: 'row',
+        gap: 12,
     },
     button: {
+        flex: 1,
         borderRadius: 10,
         paddingVertical: 14,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    saveButton: {
+    cancelButton: {
+        backgroundColor: '#f3f4f6',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    cancelButtonText: {
+        color: '#374151',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    joinButton: {
         backgroundColor: '#dc2626',
     },
     buttonDisabled: {
         opacity: 0.6,
     },
-    saveButtonText: {
+    joinButtonText: {
         color: '#ffffff',
         fontSize: 16,
         fontWeight: '700',
     },
 });
+
+
+
 

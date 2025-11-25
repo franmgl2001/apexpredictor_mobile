@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type RouteKey = 'myteam' | 'leaderboard' | 'leagues';
 
@@ -24,12 +25,13 @@ export default function MobileBottomNav({
     onNavigate: (key: RouteKey) => void;
     theme?: 'light' | 'dark';
 }) {
+    const insets = useSafeAreaInsets();
     const activeColor = theme === 'dark' ? '#ffffff' : '#dc2626'; // red-600
     const inactiveColor = theme === 'dark' ? '#d1d5db' : '#6b7280'; // gray-500
     const borderColor = theme === 'dark' ? '#374151' : '#e5e7eb'; // gray-200
 
     return (
-        <View style={[styles.container, { borderTopColor: borderColor }]}>
+        <View style={[styles.container, { borderTopColor: borderColor, paddingBottom: insets.bottom }]}>
             {NAV_ITEMS.map(({ key, label, emoji }) => {
                 const active = currentRoute === key;
                 const color = active ? activeColor : inactiveColor;
@@ -68,7 +70,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        height: 64, // ~ h-16
+        minHeight: 64, // ~ h-16
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-around',

@@ -130,7 +130,7 @@ function AppContent() {
   // Show loading spinner only during initial auth check (not during sign-in attempts)
   if (!initialAuthCheckComplete && isLoading && !isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#dc2626" />
         </View>
@@ -142,7 +142,7 @@ function AppContent() {
   if (!isAuthenticated) {
     if (authScreen === 'verification') {
       return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
           <VerificationCodeScreen
             email={pendingEmail}
             password={pendingPassword}
@@ -173,7 +173,7 @@ function AppContent() {
 
     if (authScreen === 'signup') {
       return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
           <SignUpScreen
             onSignUp={async (email, password) => {
               try {
@@ -195,7 +195,7 @@ function AppContent() {
     }
 
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
         <SignInScreen
           onSignIn={async (email, password) => {
             setIsSigningIn(true);
@@ -228,7 +228,7 @@ function AppContent() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.content}>{Screen}</View>
       <MobileBottomNav currentRoute={route} onNavigate={setRoute} />
       <Modal
@@ -253,10 +253,10 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
   },
   content: {
     flex: 1,
-    paddingBottom: 76,
   },
   loadingContainer: {
     flex: 1,

@@ -40,18 +40,18 @@ export async function getUserLeagues(userId: string, options?: GetUserLeaguesOpt
     if (memberEntities.length === 0) {
       return [];
     }
-    
+
     // Extract unique league_ids and build league map with data from member entities
     const leagueMap = new Map<string, { leagueId: string; role?: string; league_name?: string }>();
-    
+
     memberEntities.forEach((member) => {
       if (member.league_id) {
         const leagueId = member.league_id;
-        
+
         // Store league_id, role, and league_name from member entity (denormalized)
         if (!leagueMap.has(leagueId)) {
-          leagueMap.set(leagueId, { 
-            leagueId, 
+          leagueMap.set(leagueId, {
+            leagueId,
             role: member.role,
             league_name: member.league_name, // Use league_name from member entity
           });
