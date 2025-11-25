@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RaceCarousel from '../components/race_details/RaceCarousel';
 import RulesScoringButton from '../components/rules_modal/RulesScoringButton';
 import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
@@ -20,6 +21,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [currentPredictions, setCurrentPredictions] = useState<string | null>(null);
     const { races, isLoading, racesError, refetchRaces, profile } = useData();
     const { user } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const handleSave = async () => {
         if (!user?.userId || !currentRaceId || !currentPredictions) {
@@ -93,7 +95,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
                 <View style={{ height: 120 }} />
             </ScrollView>
 
-            <View style={styles.saveWrap}>
+            <View style={[styles.saveWrap, { bottom: 80 + insets.bottom }]}>
                 <TouchableOpacity
                     style={[styles.saveBtn, (isClosed || isSaving || !currentPredictions) && styles.saveBtnDisabled]}
                     activeOpacity={0.85}
@@ -174,10 +176,10 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 24,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 16,
+        zIndex: 100,
     },
     saveBtn: {
         backgroundColor: '#d1d5db',

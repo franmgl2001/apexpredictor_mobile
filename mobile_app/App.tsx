@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Modal } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Modal, Image, Text } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -130,9 +130,17 @@ function AppContent() {
   // Show loading spinner only during initial auth check (not during sign-in attempts)
   if (!initialAuthCheckComplete && isLoading && !isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.loadingScreenContainer} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#dc2626" />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('./src/assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <ActivityIndicator size="large" color="#dc2626" style={styles.loadingSpinner} />
+          <Text style={styles.loadingText}>Apex Predictor</Text>
         </View>
       </SafeAreaView>
     );
@@ -260,11 +268,40 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  loadingScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#000000',
+  },
+  logoContainer: {
+    marginBottom: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+  },
+  loadingSpinner: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  loadingText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginTop: 8,
   },
   modalContainer: {
     flex: 1,
