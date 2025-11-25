@@ -229,7 +229,9 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.content}>{Screen}</View>
+      <View style={styles.content}>
+        {Screen}
+      </View>
       <MobileBottomNav currentRoute={route} onNavigate={setRoute} />
       <Modal
         visible={showProfileModal}

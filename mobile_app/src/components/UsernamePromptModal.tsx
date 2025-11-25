@@ -60,6 +60,11 @@ export default function UsernamePromptModal({
 
     const canDismiss = typeof onCancel === 'function';
 
+    // Don't render modal at all when not visible to prevent touch blocking on physical devices
+    if (!visible) {
+        return null;
+    }
+
     return (
         <Modal
             visible={visible}
@@ -77,10 +82,7 @@ export default function UsernamePromptModal({
                 ) : (
                     <View style={StyleSheet.absoluteFill} pointerEvents="none" />
                 )}
-                <View 
-                    style={styles.modalContainer}
-                    pointerEvents="box-none"
-                >
+                <View style={styles.modalContainer} pointerEvents="auto">
                     <Text style={styles.title}>Choose a Username</Text>
                     <Text style={styles.subtitle}>
                         Please enter a username to continue
@@ -138,7 +140,6 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
         elevation: 8,
-        zIndex: 1,
     },
     title: {
         fontSize: 24,
