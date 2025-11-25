@@ -5,7 +5,7 @@
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import type { ApexEntity } from './types';
-import { getApexEntity, listApexEntities } from './entities';
+import { getApexEntity, getApexEntityNoDateTime, listApexEntities } from './entities';
 import { client, APEX_ENTITY_FIELDS } from './client';
 
 /**
@@ -34,7 +34,10 @@ export async function getUserPredictions(userId: string, raceId: string): Promis
 
     const PK = `prediction#${userId}#${raceId}`;
     const SK = 'RACEPREDICTION';
-    return getApexEntity(PK, SK);
+    
+    // Use getApexEntityNoDateTime to avoid DateTime serialization errors
+    // Predictions don't need createdAt/updatedAt fields, and some have invalid DateTime values
+    return getApexEntityNoDateTime(PK, SK);
 }
 
 /**

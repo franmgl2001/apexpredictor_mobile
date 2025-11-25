@@ -104,16 +104,45 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                     return resultRaceId === raceId;
                 });
 
-                if (raceResult?.results) {
-                    try {
-                        const parsedResults = JSON.parse(raceResult.results) as RaceResultsData;
-                        setRaceResults(parsedResults);
-                    } catch (error) {
-                        console.error('[PredictionsModal] Error parsing race results JSON:', error);
-                        setRaceResults(null);
-                    }
-                } else {
+                if (!raceResult) {
                     console.log('[PredictionsModal] No race results found for raceId:', raceId);
+                    setRaceResults(null);
+                    return;
+                }
+
+                if (!raceResult.results) {
+                    console.warn(`[PredictionsModal] Race result missing results field for raceId: ${raceId}`);
+                    setRaceResults(null);
+                    return;
+                }
+
+                try {
+                    // Handle case where results might be a string or already an object
+                    let parsedResults: RaceResultsData;
+                    if (typeof raceResult.results === 'string') {
+                        parsedResults = JSON.parse(raceResult.results) as RaceResultsData;
+                    } else if (typeof raceResult.results === 'object' && raceResult.results !== null) {
+                        // Already parsed
+                        parsedResults = raceResult.results as RaceResultsData;
+                    } else {
+                        console.error(`[PredictionsModal] Race results is not a valid format for raceId: ${raceId}`, typeof raceResult.results);
+                        setRaceResults(null);
+                        return;
+                    }
+
+                    // Validate parsed results structure
+                    if (!parsedResults || typeof parsedResults !== 'object') {
+                        console.error(`[PredictionsModal] Parsed results is not an object for raceId: ${raceId}`, parsedResults);
+                        setRaceResults(null);
+                        return;
+                    }
+
+                    setRaceResults(parsedResults);
+                } catch (error) {
+                    console.error('[PredictionsModal] Error parsing race results JSON:', error);
+                    console.error('[PredictionsModal] Raw results (first 200 chars):', 
+                        typeof raceResult.results === 'string' ? raceResult.results.substring(0, 200) : raceResult.results
+                    );
                     setRaceResults(null);
                 }
             } catch (error) {

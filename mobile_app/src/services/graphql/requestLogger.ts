@@ -86,14 +86,93 @@ class RequestLogger {
         const log = this.logs.find((l) => l.id === id);
         if (log) {
             log.success = false;
-            log.error = error?.message || String(error);
+            log.error = this.extractErrorMessage(error);
             log.duration = duration;
             console.error(`[GraphQL Error] ${log.operation}`, {
                 id,
                 error: log.error,
+                errorDetails: this.extractErrorDetails(error),
                 duration: duration ? `${duration}ms` : 'N/A',
             });
         }
+    }
+
+    /**
+     * Extract a readable error message from various error formats
+     */
+    private extractErrorMessage(error: any): string {
+        if (!error) return 'Unknown error';
+
+        // If it's already a string, return it
+        if (typeof error === 'string') return error;
+
+        // Try to get message property
+        if (error?.message) return error.message;
+
+        // Try GraphQL errors array
+        if (Array.isArray(error?.errors) && error.errors.length > 0) {
+            return error.errors[0]?.message || String(error.errors[0]);
+        }
+
+        // Try errors property (single error)
+        if (error?.errors?.[0]?.message) {
+            return error.errors[0].message;
+        }
+
+        // Try to stringify the error object
+        try {
+            const stringified = JSON.stringify(error, null, 2);
+            // If it's a reasonable size, return it
+            if (stringified.length < 500) {
+                return stringified;
+            }
+            // Otherwise return a summary
+            return `${stringified.substring(0, 200)}... (truncated)`;
+        } catch {
+            // If JSON.stringify fails, try toString
+            if (error?.toString && error.toString !== Object.prototype.toString) {
+                return error.toString();
+            }
+        }
+
+        // Last resort: return type and keys
+        const errorType = error?.constructor?.name || typeof error;
+        const keys = error && typeof error === 'object' ? Object.keys(error).join(', ') : '';
+        return `Error (${errorType})${keys ? `: ${keys}` : ''}`;
+    }
+
+    /**
+     * Extract detailed error information for logging
+     */
+    private extractErrorDetails(error: any): any {
+        if (!error) return null;
+
+        // If it's a simple string, return as is
+        if (typeof error === 'string') return error;
+
+        // Try to extract useful properties
+        const details: any = {};
+
+        if (error.message) details.message = error.message;
+        if (error.code) details.code = error.code;
+        if (error.statusCode) details.statusCode = error.statusCode;
+        if (error.errors) details.errors = error.errors;
+        if (error.path) details.path = error.path;
+        if (error.extensions) details.extensions = error.extensions;
+
+        // If we have GraphQL errors, include them
+        if (Array.isArray(error.errors)) {
+            details.graphqlErrors = error.errors.map((e: any) => ({
+                message: e.message,
+                path: e.path,
+                extensions: e.extensions,
+            }));
+        }
+
+        // Include error type
+        details.type = error?.constructor?.name || typeof error;
+
+        return Object.keys(details).length > 0 ? details : error;
     }
 
     /**

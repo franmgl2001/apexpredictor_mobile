@@ -134,14 +134,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
             // Parse and store race results by race ID
             const resultsMap = new Map<string, RaceResultsData>();
             raceResultsData.forEach((result) => {
-                const resultRaceId = result.race_id || (result.PK?.startsWith('race#') ? result.PK.replace('race#', '') : null);
-                if (resultRaceId && result.results) {
-                    try {
-                        const parsedResults = JSON.parse(result.results) as RaceResultsData;
-                        resultsMap.set(resultRaceId, parsedResults);
-                    } catch (error) {
-                        console.error(`Error parsing race results for ${resultRaceId}:`, error);
+                try {
+                    const resultRaceId = result.race_id || (result.PK?.startsWith('race#') ? result.PK.replace('race#', '') : null);
+                    
+                    if (!resultRaceId) {
+                        console.warn('[DataContext] Race result missing race_id:', {
+                            PK: result.PK,
+                            SK: result.SK,
+                            hasRaceId: !!result.race_id,
+                        });
+                        return;
                     }
+
+                    if (!result.results) {
+                        console.warn(`[DataContext] Race result missing results field for raceId: ${resultRaceId}`);
+                        return;
+                    }
+
+                    // Handle case where results might be a string or already an object
+                    let parsedResults: RaceResultsData;
+                    if (typeof result.results === 'string') {
+                        try {
+                            parsedResults = JSON.parse(result.results) as RaceResultsData;
+                        } catch (parseError) {
+                            console.error(`[DataContext] Error parsing race results JSON for ${resultRaceId}:`, parseError);
+                            console.error(`[DataContext] Raw results string (first 200 chars):`, result.results.substring(0, 200));
+                            return;
+                        }
+                    } else if (typeof result.results === 'object' && result.results !== null) {
+                        // Already parsed
+                        parsedResults = result.results as RaceResultsData;
+                    } else {
+                        console.warn(`[DataContext] Race results is not a valid format for raceId: ${resultRaceId}`, typeof result.results);
+                        return;
+                    }
+
+                    // Validate parsed results structure
+                    if (!parsedResults || typeof parsedResults !== 'object') {
+                        console.error(`[DataContext] Parsed results is not an object for raceId: ${resultRaceId}`, parsedResults);
+                        return;
+                    }
+
+                    resultsMap.set(resultRaceId, parsedResults);
+                } catch (error) {
+                    console.error(`[DataContext] Unexpected error processing race result:`, error, {
+                        PK: result.PK,
+                        SK: result.SK,
+                        race_id: result.race_id,
+                    });
                 }
             });
             setRaceResultsByRaceId(resultsMap);
