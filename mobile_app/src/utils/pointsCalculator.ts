@@ -126,9 +126,13 @@ export function calculateDriverPoints(
     }
 
     // Calculate pole position points
-    const actualPole = raceResults.gridOrder.find((r) => r.position === 1)?.driverNumber;
+    // IMPORTANT: Pole position comes from additionalPredictions.pole, NOT from gridOrder position 1
+    // Position 1 in gridOrder is the race winner, which may be different from the pole sitter
+    const actualPole = raceResults.additionalPredictions?.pole;
     const predictedPole = predictions.additionalPredictions?.pole;
-    if (actualPole && predictedPole && actualPole === predictedPole) {
+    if (actualPole !== null && actualPole !== undefined && 
+        predictedPole !== null && predictedPole !== undefined && 
+        actualPole === predictedPole) {
         const driverPoints = driverPointsMap.get(actualPole);
         if (driverPoints) {
             driverPoints.points += 10; // 10 points for correct pole (based on rules)

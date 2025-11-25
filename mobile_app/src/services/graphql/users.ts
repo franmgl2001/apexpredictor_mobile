@@ -4,9 +4,10 @@
  */
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
-import type { ApexEntity } from './types';
-import { getApexEntity, getApexEntityNoDateTime, listApexEntities } from './entities';
+import type { ApexEntity, ListApexEntitiesResponse } from './types';
+import { getApexEntity, getApexEntityNoDateTime, listApexEntities, listApexEntitiesNoDateTime } from './entities';
 import { client, APEX_ENTITY_FIELDS } from './client';
+import { requestLogger } from './requestLogger';
 
 /**
  * Fetches user profile from the GraphQL API
@@ -38,6 +39,77 @@ export async function getUserPredictions(userId: string, raceId: string): Promis
     // Use getApexEntityNoDateTime to avoid DateTime serialization errors
     // Predictions don't need createdAt/updatedAt fields, and some have invalid DateTime values
     return getApexEntityNoDateTime(PK, SK);
+}
+
+/**
+ * Fetches all user predictions in a single query (optimized for MyTeamScreen)
+ * Uses user_id filter and SK = RACEPREDICTION
+ * @param userId The Cognito user ID (without any prefix)
+ * @returns Map of race ID to prediction entity (null if not found)
+ */
+export async function getAllUserPredictions(userId: string): Promise<Map<string, ApexEntity | null>> {
+    const timestamp = new Date().toISOString();
+    console.log(`[GraphQL] getAllUserPredictions executed at ${timestamp} - userId: ${userId}`);
+
+    try {
+        // Use listApexEntitiesNoDateTime to avoid DateTime serialization errors
+        // Filter by user_id and SK to get all predictions in one query
+        const predictions = await listApexEntitiesNoDateTime({
+            filter: {
+                user_id: { eq: userId },
+                entityType: { eq: 'PREDICTION' },
+                SK: { eq: 'RACEPREDICTION' },
+            },
+            limit: 1000,
+        });
+
+        // Create a map of raceId -> prediction entity
+        const predictionsMap = new Map<string, ApexEntity | null>();
+
+        // Fill in found predictions
+        predictions.forEach((prediction) => {
+            const raceId = prediction.race_id;
+            if (raceId) {
+                predictionsMap.set(raceId, prediction);
+            }
+        });
+
+        return predictionsMap;
+    } catch (error: any) {
+        // GraphQL client might throw the result object if there are errors
+        // Check if the error contains data we can use
+        if (error?.data?.listApexEntities?.items) {
+            const predictions = error.data.listApexEntities.items;
+            const predictionsMap = new Map<string, ApexEntity | null>();
+            
+            predictions.forEach((prediction: any) => {
+                const raceId = prediction.race_id;
+                if (raceId) {
+                    predictionsMap.set(raceId, prediction);
+                }
+            });
+            
+            // Log warning about errors but return the data
+            if (error.errors && error.errors.length > 0) {
+                console.warn('[getAllUserPredictions] GraphQL errors but data available:', error.errors);
+            }
+            
+            return predictionsMap;
+        }
+        
+        // Only log real errors, not expected cases like "not found"
+        const errorMessage = String(error?.message || error || '');
+        const isExpectedCase =
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist') ||
+            error === null ||
+            error === undefined;
+
+        if (!isExpectedCase) {
+            console.error('Error fetching all user predictions:', error);
+        }
+        return new Map<string, ApexEntity | null>();
+    }
 }
 
 /**

@@ -148,6 +148,71 @@ const LIST_APEX_ENTITIES = `
   }
 `;
 
+// Query for listing predictions that excludes DateTime fields to avoid serialization errors
+const LIST_APEX_ENTITIES_NO_DATETIME = `
+  query ListApexEntities(
+    $PK: String
+    $sortDirection: ModelSortDirection
+    $SK: ModelStringKeyConditionInput
+    $filter: ModelApexEntityFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listApexEntities(
+      PK: $PK
+      sortDirection: $sortDirection
+      SK: $SK
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        PK
+        SK
+        entityType
+        user_id
+        username
+        email
+        race_id
+        race_name
+        season
+        qualy_date
+        race_date
+        category
+        circuit
+        country
+        status
+        has_sprint
+        predictions
+        points_earned
+        results
+        driver_id
+        name
+        team
+        number
+        imageUrl
+        teamColor
+        isActive
+        nationality
+        birthDate
+        league_id
+        league_name
+        description
+        creator_id
+        is_private
+        join_code
+        max_members
+        member_count
+        role
+        points
+        races
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
 /**
  * Fetches an Apex Entity from the GraphQL API
  * @param PK Primary key (e.g., "user#61cbf510-20d1-7047-5006-b3ae8d8fb6e5")
@@ -224,6 +289,68 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
  * @param variables Query variables
  * @returns Array of Apex entities
  */
+export async function listApexEntitiesNoDateTime(variables?: {
+  PK?: string;
+  sortDirection?: ModelSortDirection;
+  SK?: ModelStringKeyConditionInput;
+  filter?: ModelApexEntityFilterInput;
+  limit?: number;
+  nextToken?: string;
+}): Promise<ApexEntity[]> {
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('listApexEntitiesNoDateTime', variables);
+
+  try {
+    const result = await client.graphql({
+      query: LIST_APEX_ENTITIES_NO_DATETIME,
+      variables: variables || {},
+    }) as GraphQLResult<ListApexEntitiesResponse>;
+
+    const duration = Date.now() - startTime;
+
+    // If we have data, return it even if there are some errors (partial success)
+    if (result.data?.listApexEntities?.items) {
+      if (result.errors && result.errors.length > 0) {
+        // Log warnings for non-fatal errors but still return data
+        console.warn('GraphQL warnings (non-fatal):', result.errors);
+      }
+      const items = result.data.listApexEntities.items;
+      requestLogger.logSuccess(logId, items.length, duration);
+      return items;
+    }
+
+    // If we have errors but no data, throw
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message || 'Failed to fetch entities';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
+    }
+
+    // No data and no errors - return empty array
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    // Check if error contains data we can use
+    if (error?.data?.listApexEntities?.items) {
+      const items = error.data.listApexEntities.items;
+      if (error.errors && error.errors.length > 0) {
+        console.warn('[listApexEntitiesNoDateTime] GraphQL errors but data available:', error.errors);
+      }
+      requestLogger.logSuccess(logId, items.length, duration);
+      return items;
+    }
+    const errorMessage = error?.message || 'Failed to fetch entities';
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Lists Apex Entities from the GraphQL API
+ * @param variables Query variables
+ * @returns Array of Apex entities
+ */
 export async function listApexEntities(variables?: {
   PK?: string;
   sortDirection?: ModelSortDirection;
@@ -271,4 +398,5 @@ export async function listApexEntities(variables?: {
     throw error;
   }
 }
+
 

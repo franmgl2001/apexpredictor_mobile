@@ -37,11 +37,13 @@ export default function RaceCarousel({
     onIsClosedChange,
     onCurrentRaceChange,
     onPredictionsChange,
+    predictionsByRaceId,
 }: {
     races?: RaceEntity[];
     onIsClosedChange?: (isClosed: boolean) => void;
     onCurrentRaceChange?: (raceId: string) => void;
     onPredictionsChange?: (predictions: string | null) => void;
+    predictionsByRaceId?: Map<string, any>;
 }) {
     // Use provided races or fall back to loading from mocks
     const races = useMemo(() => {
@@ -127,7 +129,12 @@ export default function RaceCarousel({
 
             <View style={{ height: 12 }} />
 
-            <RaceDetailsCard race={race} timeLeft={timeLeft} onPredictionsChange={onPredictionsChange} />
+            <RaceDetailsCard 
+                race={race} 
+                timeLeft={timeLeft} 
+                onPredictionsChange={onPredictionsChange}
+                predictionsByRaceId={predictionsByRaceId}
+            />
         </View>
     );
 }

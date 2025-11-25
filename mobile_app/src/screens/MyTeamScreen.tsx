@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RaceCarousel from '../components/race_details/RaceCarousel';
@@ -7,7 +7,8 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { saveUserPredictions } from '../services/graphql';
+import { saveUserPredictions, getAllUserPredictions } from '../services/graphql';
+import type { ApexEntity } from '../services/graphql';
 
 type MyTeamScreenProps = {
     onProfilePress: () => void;
@@ -19,9 +20,34 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [currentRaceId, setCurrentRaceId] = useState<string | null>(null);
     const [currentPredictions, setCurrentPredictions] = useState<string | null>(null);
+    const [predictionsByRaceId, setPredictionsByRaceId] = useState<Map<string, ApexEntity | null>>(new Map());
+    const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
     const { races, isLoading, racesError, refetchRaces, profile } = useData();
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
+
+    // Fetch all user predictions when screen loads
+    useEffect(() => {
+        if (!user?.userId || races.length === 0) {
+            setPredictionsByRaceId(new Map());
+            return;
+        }
+
+        const fetchAllPredictions = async () => {
+            setIsLoadingPredictions(true);
+            try {
+                const predictionsMap = await getAllUserPredictions(user.userId);
+                setPredictionsByRaceId(predictionsMap);
+            } catch (error) {
+                console.error('Error fetching all predictions:', error);
+                setPredictionsByRaceId(new Map());
+            } finally {
+                setIsLoadingPredictions(false);
+            }
+        };
+
+        fetchAllPredictions();
+    }, [user?.userId, races.length]);
 
     const handleSave = async () => {
         if (!user?.userId || !currentRaceId || !currentPredictions) {
@@ -78,6 +104,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
                             onIsClosedChange={setIsClosed}
                             onCurrentRaceChange={setCurrentRaceId}
                             onPredictionsChange={setCurrentPredictions}
+                            predictionsByRaceId={predictionsByRaceId}
                         />
                         <View style={{ height: 16 }} />
                     </>

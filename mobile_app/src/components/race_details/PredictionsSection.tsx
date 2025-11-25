@@ -30,7 +30,7 @@ type ApiPredictionsData = {
     };
 };
 
-export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint, onPredictionsChange }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean; onPredictionsChange?: (predictions: string | null) => void }) {
+export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSprint, onPredictionsChange, predictionsByRaceId }: { raceId: string; timeLeft: TimeLeft; isClosed: boolean; hasSprint?: boolean; onPredictionsChange?: (predictions: string | null) => void; predictionsByRaceId?: Map<string, any> }) {
     const { user } = useAuth();
     const { drivers, raceResultsByRaceId } = useData();
 
@@ -182,7 +182,30 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
             };
 
             try {
-                const predictionEntity = await getUserPredictions(user.userId, raceId);
+                // Use pre-fetched predictions if available, otherwise fetch individually
+                let predictionEntity: any = null;
+                
+                // If predictionsByRaceId is provided, use it exclusively - don't make individual requests
+                // This means predictions are being loaded centrally (e.g., in MyTeamScreen)
+                if (predictionsByRaceId !== undefined) {
+                    // Check if prediction exists in the map
+                    if (predictionsByRaceId.has(raceId)) {
+                        predictionEntity = predictionsByRaceId.get(raceId);
+                        // If null, it means no prediction exists (expected case)
+                        if (!predictionEntity) {
+                            setEmptyState();
+                            return;
+                        }
+                    } else {
+                        // RaceId not in map - no prediction exists for this race
+                        // Don't make individual request, just set empty state
+                        setEmptyState();
+                        return;
+                    }
+                } else {
+                    // predictionsByRaceId is undefined - this is another screen, fetch individually
+                    predictionEntity = await getUserPredictions(user.userId, raceId);
+                }
 
                 // No entity returned - predictions don't exist yet (normal case)
                 if (!predictionEntity) {
@@ -252,7 +275,7 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
         // Close any open modals when switching races
         setOpenSprintFor(null);
         setOpenPickerFor(null);
-    }, [raceId, user?.userId, drivers]);
+    }, [raceId, user?.userId, drivers, predictionsByRaceId]);
 
     // Close modals when race becomes closed
     useEffect(() => {
