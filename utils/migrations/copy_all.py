@@ -2,7 +2,7 @@ import os, time, json, boto3
 from itertools import islice
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "")
+TABLE_NAME = os.environ.get("TABLE_NAME", "ApexEntity-5jcwvxujrfbo3hrhevdplmyhsi-NONE")
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
