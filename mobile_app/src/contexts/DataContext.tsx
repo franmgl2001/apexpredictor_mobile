@@ -57,7 +57,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchDrivers = async () => {
         try {
             setDriversError(null);
-            const driverData = await getDrivers('2025');
+            const driverData = await getDrivers();
             const mappedDrivers = driverData
                 .filter((it) => it.entityType === 'DRIVER')
                 .map(mapDriver)

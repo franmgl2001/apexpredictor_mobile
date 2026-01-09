@@ -39,13 +39,17 @@ const LIST_APEX_ENTITIES = `
  * - PK beginning with "driver#"
  * - SK beginning with "SEASON#<season>"
  * - isActive equal to true
- * @param season Season year (default: "2025")
+ * - category equal to "F1"
+ * - season equal to current year
+ * @param season Season year (default: current year)
+ * @param category Optional category (default: "F1")
  * @param limit Optional limit (default: 1000)
  * @returns Array of driver entities
  */
-export async function getDrivers(season: string = '2025', limit: number = 1000): Promise<ApexEntity[]> {
+export async function getDrivers(season?: string, category: string = 'F1', limit: number = 1000): Promise<ApexEntity[]> {
   const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getDrivers executed at ${timestamp} - season: ${season}, limit: ${limit}`);
+  const currentYear = season || new Date().getFullYear().toString();
+  console.log(`[GraphQL] getDrivers executed at ${timestamp} - season: ${currentYear}, category: ${category}, limit: ${limit}`);
 
   try {
     const result = await client.graphql({
@@ -56,10 +60,16 @@ export async function getDrivers(season: string = '2025', limit: number = 1000):
             beginsWith: 'driver#',
           },
           SK: {
-            beginsWith: `SEASON#${season}`,
+            beginsWith: `SEASON#${currentYear}`,
           },
           isActive: {
             eq: true,
+          },
+          category: {
+            eq: category,
+          },
+          season: {
+            eq: currentYear,
           },
         },
         limit,
