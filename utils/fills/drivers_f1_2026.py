@@ -13,18 +13,22 @@ def now_iso():
 # Team colors (hex) — used for teams where a hex value is available.
 # For Audi/Cadillac: not defined (no authoritative hex palette published as hex).
 TEAM_COLORS = {
+    # Orange / green / silver are already fine
     "McLaren": "#F47600",
     "Mercedes": "#00D7B6",
-    "Red Bull": "#4781D7",
     "Ferrari": "#ED1131",
-    "Williams": "#1868DB",
-    "Racing Bulls": "#6C98FF",
     "Aston Martin": "#229971",
-    "Haas": "#9C9FA2",
-    # New/changed 2026 teams (hex not defined in your docs / not safely hardcodable)
-    "Audi": "#BB0A30",
-    "Cadillac": "#002D72",
+    "Alpine": "#EC4899",
+    # Adjusted for clarity
+    "Red Bull": "#1E3A8A",  # deep royal blue
+    "Racing Bulls": "#3B82F6",  # electric blue
+    "Williams": "#0EA5E9",  # cyan blue
+    # Special cases you asked for
+    "Haas": "#0F0F12",  # dark red
+    "Audi": "#8B1D2C",  # premium dark red
+    "Cadillac": "#002868",  # navy racing blue
 }
+
 
 DRIVERS_2026_F1 = [
     # McLaren
