@@ -200,14 +200,15 @@ export async function getLeagueMembers(leagueId: string): Promise<ApexEntity[]> 
 
 /**
  * Fetches league leaderboard for a specific league
- * Filter: SK eq "TOTALPOINTS", entityType eq "LEAGUE_LEADERBOARD", league_id eq leagueId
+ * Filter: SK eq "TOTALPOINTS", entityType eq "LEAGUE_LEADERBOARD", league_id eq leagueId, season eq current year, category eq "F1"
  * @param leagueId The league ID
  * @param limit Optional limit (default: 1000)
  * @returns Array of leaderboard entities
  */
 export async function getLeagueLeaderboard(leagueId: string, limit: number = 1000): Promise<ApexEntity[]> {
   const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeagueLeaderboard executed at ${timestamp} - leagueId: ${leagueId}, limit: ${limit}`);
+  const currentYear = new Date().getFullYear().toString();
+  console.log(`[GraphQL] getLeagueLeaderboard executed at ${timestamp} - leagueId: ${leagueId}, limit: ${limit}, season: ${currentYear}, category: F1`);
 
   try {
     const result = await client.graphql({
@@ -241,6 +242,8 @@ export async function getLeagueLeaderboard(leagueId: string, limit: number = 100
           SK: { eq: 'TOTALPOINTS' },
           entityType: { eq: 'LEAGUE_LEADERBOARD' },
           league_id: { eq: leagueId },
+          season: { eq: currentYear },
+          category: { eq: 'F1' },
         } as ModelApexEntityFilterInput,
         limit,
       },

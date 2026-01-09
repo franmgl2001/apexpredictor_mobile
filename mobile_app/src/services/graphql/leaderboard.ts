@@ -43,6 +43,7 @@ const LEADERBOARD_BY_POINTS = `
 
 /**
  * Fetches the leaderboard data from the GraphQL API
+ * Filters by current season and category "F1" by default
  * @param entityType The entity type filter (default: "LEADERBOARD")
  * @param sortDirection Sort direction (default: "DESC")
  * @param limit Optional limit (default: 1000)
@@ -60,9 +61,19 @@ export async function getLeaderboard(
   nextToken?: string
 ): Promise<ApexEntity[]> {
   const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeaderboard executed at ${timestamp} - entityType: ${entityType}, sortDirection: ${sortDirection}, limit: ${limit}`);
+  const currentYear = new Date().getFullYear().toString();
+  console.log(`[GraphQL] getLeaderboard executed at ${timestamp} - entityType: ${entityType}, sortDirection: ${sortDirection}, limit: ${limit}, season: ${currentYear}, category: F1`);
 
   try {
+    // Merge default filters with provided filter, always enforcing SK, season, and category
+    const mergedFilter: ModelApexEntityFilterInput = {
+      ...filter,
+      // Always enforce these filters
+      SK: { eq: 'TOTALPOINTS' },
+      season: { eq: currentYear },
+      category: { eq: 'F1' },
+    };
+
     const result = await client.graphql({
       query: LEADERBOARD_BY_POINTS,
       variables: {
@@ -70,7 +81,7 @@ export async function getLeaderboard(
         sortDirection,
         limit,
         points,
-        filter,
+        filter: mergedFilter,
         nextToken,
       },
     }) as GraphQLResult<LeaderboardByPointsResponse>;

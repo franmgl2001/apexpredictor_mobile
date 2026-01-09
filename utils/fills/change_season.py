@@ -37,6 +37,7 @@ def make_2026_copy(item: dict) -> dict:
     # Only variable changes you requested
     new_item["season"] = SEASON_TO
     new_item["points"] = 0
+    new_item["races"] = 0
 
     # Keep other attributes the same; update timestamps (recommended)
     ts = now_iso()
