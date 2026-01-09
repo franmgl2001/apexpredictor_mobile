@@ -36,12 +36,15 @@ const LIST_APEX_ENTITIES = `
 /**
  * Fetches all race details from the GraphQL API
  * Fetches race entities with PK beginning with "race#" and SK equal to "DETAILS"
+ * Filters by current year (season) and category "f1" by default
  * @param limit Optional limit (default: 1000)
+ * @param category Optional category (default: "f1")
  * @returns Array of race detail entities
  */
-export async function getRaceDetails(limit: number = 1000): Promise<ApexEntity[]> {
+export async function getRaceDetails(limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
   const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getRaceDetails executed at ${timestamp} - limit: ${limit}`);
+  const currentYear = new Date().getFullYear().toString();
+  console.log(`[GraphQL] getRaceDetails executed at ${timestamp} - limit: ${limit}, season: ${currentYear}, category: ${category}`);
 
   try {
     const result = await client.graphql({
@@ -53,6 +56,12 @@ export async function getRaceDetails(limit: number = 1000): Promise<ApexEntity[]
           },
           SK: {
             eq: 'DETAILS',
+          },
+          season: {
+            eq: currentYear,
+          },
+          category: {
+            eq: category,
           },
         },
         limit,
