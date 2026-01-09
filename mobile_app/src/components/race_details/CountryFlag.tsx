@@ -14,6 +14,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
     Spain: '🇪🇸',
     Austria: '🇦🇹',
     'Great Britain': '🇬🇧',
+    'United Kingdom': '🇬🇧',
+    UK: '🇬🇧',
     Hungary: '🇭🇺',
     Belgium: '🇧🇪',
     Netherlands: '🇳🇱',
