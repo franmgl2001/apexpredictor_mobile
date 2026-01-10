@@ -6,6 +6,7 @@
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client, APEX_ENTITY_FIELDS } from './client';
 import type { ApexEntity, ListApexEntitiesResponse } from './types';
+import { requestLogger } from './requestLogger';
 
 const LIST_APEX_ENTITIES = `
   query ListApexEntities(
@@ -35,82 +36,90 @@ const LIST_APEX_ENTITIES = `
 
 /**
  * Fetches all race details from the GraphQL API
- * Fetches race entities with PK beginning with "race#" and SK equal to "DETAILS"
- * Filters by current year (season) and category "f1" by default
+ * Fetches race entities with PK equal to "f1#<season>" (e.g., "f1#2025") and SK beginning with "race#"
+ * @param season Optional season year (default: current year)
  * @param limit Optional limit (default: 1000)
- * @param category Optional category (default: "f1")
+ * @param category Optional category (default: "F1")
  * @returns Array of race detail entities
  */
-export async function getRaceDetails(limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  const currentYear = new Date().getFullYear().toString();
-  console.log(`[GraphQL] getRaceDetails executed at ${timestamp} - limit: ${limit}, season: ${currentYear}, category: ${category}`);
+export async function getRaceDetails(season?: string, limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
+  const startTime = Date.now();
+  const currentYear = season || new Date().getFullYear().toString();
+  const pk = `${category.toLowerCase()}#${currentYear}`;
+  const variables = {
+    PK: pk,
+    SK: {
+      beginsWith: 'race#',
+    },
+    limit,
+  };
+  const logId = requestLogger.logRequest('getRaceDetails', variables);
 
   try {
     const result = await client.graphql({
       query: LIST_APEX_ENTITIES,
-      variables: {
-        filter: {
-          PK: {
-            beginsWith: 'race#',
-          },
-          SK: {
-            eq: 'DETAILS',
-          },
-          season: {
-            eq: currentYear,
-          },
-          category: {
-            eq: category,
-          },
-        },
-        limit,
-      },
+      variables,
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch race details');
+      const errorMessage = result.errors[0].message || 'Failed to fetch race details';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.listApexEntities.items || [];
+    const items = result.data?.listApexEntities.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching race details:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
 
 /**
  * Fetches race results from the GraphQL API
- * Fetches race result entities with SK equal to "RACERESULT"
+ * Fetches race result entities with PK equal to "f1#<season>" (e.g., "f1#2025") and SK beginning with "results#"
+ * @param season Optional season year (default: current year)
  * @param limit Optional limit (default: 1000)
+ * @param category Optional category (default: "F1")
  * @returns Array of race result entities
  */
-export async function getRaceResults(limit: number = 1000): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getRaceResults executed at ${timestamp} - limit: ${limit}`);
+export async function getRaceResults(season?: string, limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
+  const startTime = Date.now();
+  const currentYear = season || new Date().getFullYear().toString();
+  const pk = `${category.toLowerCase()}#${currentYear}`;
+  const variables = {
+    PK: pk,
+    SK: {
+      beginsWith: 'results#',
+    },
+    limit,
+  };
+  const logId = requestLogger.logRequest('getRaceResults', variables);
 
   try {
     const result = await client.graphql({
       query: LIST_APEX_ENTITIES,
-      variables: {
-        filter: {
-          SK: {
-            eq: 'RACERESULT',
-          },
-        },
-        limit,
-      },
+      variables,
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch race results');
+      const errorMessage = result.errors[0].message || 'Failed to fetch race results';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.listApexEntities.items || [];
+    const items = result.data?.listApexEntities.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching race results:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }

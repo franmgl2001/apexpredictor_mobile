@@ -100,7 +100,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                 const allResults = await getRaceResults();
                 // Find the result for this specific race
                 const raceResult = allResults.find((result: ApexEntity) => {
-                    const resultRaceId = result.race_id || (result.PK?.startsWith('race#') ? result.PK.replace('race#', '') : null);
+                    const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
                     return resultRaceId === raceId;
                 });
 

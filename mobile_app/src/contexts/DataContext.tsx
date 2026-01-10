@@ -89,13 +89,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const raceIdsWithResults = new Set(
                 raceResultsData
                     .map((result) => {
-                        // Try race_id field first, then extract from PK if needed
+                        // Try race_id field first, then extract from SK if needed
                         if (result.race_id) {
                             return result.race_id;
                         }
-                        // PK format is "race#race_id", extract race_id
-                        if (result.PK && result.PK.startsWith('race#')) {
-                            return result.PK.replace('race#', '');
+                        // SK format is "results#race_id", extract race_id
+                        if (result.SK && result.SK.startsWith('results#')) {
+                            return result.SK.replace('results#', '');
                         }
                         return null;
                     })
@@ -135,7 +135,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const resultsMap = new Map<string, RaceResultsData>();
             raceResultsData.forEach((result) => {
                 try {
-                    const resultRaceId = result.race_id || (result.PK?.startsWith('race#') ? result.PK.replace('race#', '') : null);
+                    const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
                     
                     if (!resultRaceId) {
                         console.warn('[DataContext] Race result missing race_id:', {

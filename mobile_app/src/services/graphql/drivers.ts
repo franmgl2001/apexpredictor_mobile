@@ -6,6 +6,7 @@
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client, APEX_ENTITY_FIELDS } from './client';
 import type { ApexEntity, ListApexEntitiesResponse } from './types';
+import { requestLogger } from './requestLogger';
 
 const LIST_APEX_ENTITIES = `
   query ListApexEntities(
@@ -36,54 +37,52 @@ const LIST_APEX_ENTITIES = `
 /**
  * Fetches all active drivers for a season from the GraphQL API
  * Fetches driver entities with:
- * - PK beginning with "driver#"
- * - SK beginning with "SEASON#<season>"
+ * - PK equal to "f1#<season>" (e.g., "f1#2025")
+ * - SK beginning with "drivers#"
  * - isActive equal to true
- * - category equal to "F1"
- * - season equal to current year
  * @param season Season year (default: current year)
  * @param category Optional category (default: "F1")
  * @param limit Optional limit (default: 1000)
  * @returns Array of driver entities
  */
 export async function getDrivers(season?: string, category: string = 'F1', limit: number = 1000): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
+  const startTime = Date.now();
   const currentYear = season || new Date().getFullYear().toString();
-  console.log(`[GraphQL] getDrivers executed at ${timestamp} - season: ${currentYear}, category: ${category}, limit: ${limit}`);
+  const pk = `${category.toLowerCase()}#${currentYear}`;
+  const variables = {
+    PK: pk,
+    SK: {
+      beginsWith: 'drivers#',
+    },
+    filter: {
+      isActive: {
+        eq: true,
+      },
+    },
+    limit,
+  };
+  const logId = requestLogger.logRequest('getDrivers', variables);
 
   try {
     const result = await client.graphql({
       query: LIST_APEX_ENTITIES,
-      variables: {
-        filter: {
-          PK: {
-            beginsWith: 'driver#',
-          },
-          SK: {
-            beginsWith: `SEASON#${currentYear}`,
-          },
-          isActive: {
-            eq: true,
-          },
-          category: {
-            eq: category,
-          },
-          season: {
-            eq: currentYear,
-          },
-        },
-        limit,
-      },
+      variables,
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch drivers');
+      const errorMessage = result.errors[0].message || 'Failed to fetch drivers';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.listApexEntities.items || [];
+    const items = result.data?.listApexEntities.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching drivers:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
