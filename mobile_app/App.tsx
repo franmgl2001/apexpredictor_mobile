@@ -105,7 +105,7 @@ function AppContent() {
       console.log('Profile data to be saved:', profileData);
 
       // Create profile
-      await saveUserProfile(user.userId, username, country);
+      await saveUserProfile(username, country);
 
       await refetchProfile();
       setShowUsernameModal(false);

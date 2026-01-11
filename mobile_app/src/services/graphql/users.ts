@@ -8,6 +8,7 @@ import type { ApexEntity, ListApexEntitiesResponse } from './types';
 import { getApexEntity, getApexEntityNoDateTime, listApexEntities, listApexEntitiesNoDateTime } from './entities';
 import { client, APEX_ENTITY_FIELDS } from './client';
 import { requestLogger } from './requestLogger';
+import { getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
 
 /**
  * Fetches user profile from the GraphQL API
@@ -206,87 +207,123 @@ const UPDATE_APEX_ENTITY = `
   }
 `;
 
+interface UpsertUserProfileInput {
+    username: string;
+    country: string;
+    email: string;
+}
+
+interface UpsertMyProfileResponse {
+    upsertMyProfile: {
+        user_id: string;
+        email?: string;
+        username: string;
+        country: string;
+        createdAt?: string;
+        updatedAt?: string;
+    };
+}
+
+const UPSERT_MY_PROFILE = `
+  mutation UpsertMyProfile($input: UpsertUserProfileInput!) {
+    upsertMyProfile(input: $input) {
+      user_id
+      email
+      username
+      country
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 /**
  * Saves or updates user profile (creates or updates)
- * @param userId The Cognito user ID (without any prefix)
  * @param username The username
- * @param email The user's email address
  * @param country The user's country
  * @returns The created/updated profile entity
  */
 export async function saveUserProfile(
-    userId: string,
     username: string,
     country: string
 ): Promise<ApexEntity> {
     const startTime = Date.now();
-    const PK = `user#${userId}`;
-    const SK = 'PROFILE';
-    const variables = { userId, username, country };
-    const logId = requestLogger.logRequest('saveUserProfile', variables);
 
-    // Check if profile already exists
-    const existing = await getApexEntity(PK, SK);
-    const isUpdate = existing !== null;
+    // Get the current user's ID and email
+    const currentUser = await getCurrentUser();
+    const userId = currentUser.userId;
+    const userAttributes = await fetchUserAttributes();
+    const email = userAttributes.email || userAttributes['email'] || '';
 
-    const input: CreateApexEntityInput | UpdateApexEntityInput = {
-        PK,
-        SK,
-        entityType: 'USER',
+    if (!email) {
+        throw new Error('User email not found. Please ensure your account has a verified email address.');
+    }
+
+    const input: UpsertUserProfileInput = {
         username: username,
         country: country,
+        email: email,
     };
 
+    // Log the actual variables being sent to GraphQL
+    const variables = { input };
+    const logId = requestLogger.logRequest('saveUserProfile', variables);
+
     try {
-        let result;
+        const result = await client.graphql({
+            query: UPSERT_MY_PROFILE,
+            variables: { input },
+        }) as GraphQLResult<UpsertMyProfileResponse>;
+
         const duration = Date.now() - startTime;
-        // COMMENTED OUT: GraphQL calls disabled - migrating to CDK backend
-        throw new Error('GraphQL mutations are disabled - backend migration in progress');
-        /* COMMENTED OUT - Original GraphQL code:
-        if (isUpdate) {
-            // Update existing profile
-            result = await client.graphql({
-                query: UPDATE_APEX_ENTITY,
-                variables: { input },
-            }) as GraphQLResult<UpdateApexEntityResponse>;
 
-            if (result.errors && result.errors.length > 0) {
-                const errorMessage = result.errors[0].message || 'Failed to update profile';
-                requestLogger.logError(logId, new Error(errorMessage), duration);
-                throw new Error(errorMessage);
-            }
-
-            if (!result.data?.updateApexEntity) {
-                const error = new Error('Failed to update profile: No data returned');
-                requestLogger.logError(logId, error, duration);
-                throw error;
-            }
-
-            requestLogger.logSuccess(logId, 1, duration);
-            return result.data.updateApexEntity;
-        } else {
-            // Create new profile
-            result = await client.graphql({
-                query: CREATE_APEX_ENTITY,
-                variables: { input },
-            }) as GraphQLResult<CreateApexEntityResponse>;
-
-            if (result.errors && result.errors.length > 0) {
-                const errorMessage = result.errors[0].message || 'Failed to save profile';
-                requestLogger.logError(logId, new Error(errorMessage), duration);
-                throw new Error(errorMessage);
-            }
-
-            if (!result.data?.createApexEntity) {
-                const error = new Error('Failed to save profile: No data returned');
-                requestLogger.logError(logId, error, duration);
-                throw error;
-            }
-
-            requestLogger.logSuccess(logId, 1, duration);
-            return result.data.createApexEntity;
+        if (result.errors && result.errors.length > 0) {
+            const errorMessage = result.errors[0].message || 'Failed to save profile';
+            const errorDetails = {
+                errors: result.errors,
+                data: result.data,
+            };
+            console.error('[GraphQL Error Details]', errorDetails);
+            requestLogger.logError(logId, new Error(errorMessage), duration);
+            throw new Error(errorMessage);
         }
-        */
+
+        if (!result.data?.upsertMyProfile) {
+            const errorDetails = {
+                data: result.data,
+                errors: result.errors,
+                variables: { input },
+                userId: userId,
+            };
+            console.error('[GraphQL No Data]', errorDetails);
+            console.error('[GraphQL Full Response]', JSON.stringify(result, null, 2));
+
+            // More descriptive error message
+            const errorMessage = result.data?.upsertMyProfile === null
+                ? 'Backend resolver returned null. This may indicate: 1) Resolver cannot access user email from auth context, 2) Database write failed, or 3) Resolver logic error. Check backend logs.'
+                : 'Failed to save profile: No data returned';
+
+            const error = new Error(errorMessage);
+            requestLogger.logError(logId, error, duration);
+            throw error;
+        }
+
+        // Convert the response to ApexEntity format
+        const profileData = result.data.upsertMyProfile;
+        const apexEntity: ApexEntity = {
+            PK: `user#${profileData.user_id}`,
+            SK: 'PROFILE',
+            entityType: 'USER',
+            user_id: profileData.user_id,
+            username: profileData.username,
+            email: profileData.email,
+            country: profileData.country,
+            createdAt: profileData.createdAt,
+            updatedAt: profileData.updatedAt,
+        };
+
+        requestLogger.logSuccess(logId, 1, duration);
+        return apexEntity;
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);
