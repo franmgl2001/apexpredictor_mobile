@@ -35,7 +35,7 @@ export async function getUserPredictions(userId: string, raceId: string): Promis
 
     const PK = `prediction#${userId}#${raceId}`;
     const SK = 'RACEPREDICTION';
-    
+
     // Use getApexEntityNoDateTime to avoid DateTime serialization errors
     // Predictions don't need createdAt/updatedAt fields, and some have invalid DateTime values
     return getApexEntityNoDateTime(PK, SK);
@@ -67,7 +67,7 @@ export async function getAllUserPredictions(userId: string): Promise<Map<string,
         const predictionsMap = new Map<string, ApexEntity | null>();
 
         // Fill in found predictions
-        predictions.forEach((prediction) => {
+        predictions.forEach((prediction: ApexEntity) => {
             const raceId = prediction.race_id;
             if (raceId) {
                 predictionsMap.set(raceId, prediction);
@@ -81,22 +81,22 @@ export async function getAllUserPredictions(userId: string): Promise<Map<string,
         if (error?.data?.listApexEntities?.items) {
             const predictions = error.data.listApexEntities.items;
             const predictionsMap = new Map<string, ApexEntity | null>();
-            
+
             predictions.forEach((prediction: any) => {
                 const raceId = prediction.race_id;
                 if (raceId) {
                     predictionsMap.set(raceId, prediction);
                 }
             });
-            
+
             // Log warning about errors but return the data
             if (error.errors && error.errors.length > 0) {
                 console.warn('[getAllUserPredictions] GraphQL errors but data available:', error.errors);
             }
-            
+
             return predictionsMap;
         }
-        
+
         // Only log real errors, not expected cases like "not found"
         const errorMessage = String(error?.message || error || '');
         const isExpectedCase =
@@ -141,7 +141,7 @@ export async function getUserPredictionsForRaces(userId: string, raceIds: string
         });
 
         // Fill in found predictions
-        predictions.forEach((prediction) => {
+        predictions.forEach((prediction: ApexEntity) => {
             const raceId = prediction.race_id;
             if (raceId && raceIds.includes(raceId)) {
                 predictionsMap.set(raceId, prediction);
@@ -211,17 +211,18 @@ const UPDATE_APEX_ENTITY = `
  * @param userId The Cognito user ID (without any prefix)
  * @param username The username
  * @param email The user's email address
+ * @param country The user's country
  * @returns The created/updated profile entity
  */
 export async function saveUserProfile(
     userId: string,
     username: string,
-    email: string
+    country: string
 ): Promise<ApexEntity> {
     const startTime = Date.now();
     const PK = `user#${userId}`;
     const SK = 'PROFILE';
-    const variables = { userId, username, email: email.substring(0, 50) }; // Truncate email for logging
+    const variables = { userId, username, country };
     const logId = requestLogger.logRequest('saveUserProfile', variables);
 
     // Check if profile already exists
@@ -232,14 +233,16 @@ export async function saveUserProfile(
         PK,
         SK,
         entityType: 'USER',
-        user_id: userId,
         username: username,
-        email: email,
+        country: country,
     };
 
     try {
         let result;
         const duration = Date.now() - startTime;
+        // COMMENTED OUT: GraphQL calls disabled - migrating to CDK backend
+        throw new Error('GraphQL mutations are disabled - backend migration in progress');
+        /* COMMENTED OUT - Original GraphQL code:
         if (isUpdate) {
             // Update existing profile
             result = await client.graphql({
@@ -283,6 +286,7 @@ export async function saveUserProfile(
             requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
+        */
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);
@@ -327,6 +331,9 @@ export async function saveUserLeaderboardEntry(
     try {
         let result;
         const duration = Date.now() - startTime;
+        // COMMENTED OUT: GraphQL calls disabled - migrating to CDK backend
+        throw new Error('GraphQL mutations are disabled - backend migration in progress');
+        /* COMMENTED OUT - Original GraphQL code:
         if (isUpdate) {
             // Update existing leaderboard entry (preserve existing points and races)
             result = await client.graphql({
@@ -370,6 +377,7 @@ export async function saveUserLeaderboardEntry(
             requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
+        */
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);
@@ -414,6 +422,9 @@ export async function saveUserPredictions(
     try {
         let result;
         const duration = Date.now() - startTime;
+        // COMMENTED OUT: GraphQL calls disabled - migrating to CDK backend
+        throw new Error('GraphQL mutations are disabled - backend migration in progress');
+        /* COMMENTED OUT - Original GraphQL code:
         if (isUpdate) {
             // Update existing prediction
             result = await client.graphql({
@@ -457,6 +468,7 @@ export async function saveUserPredictions(
             requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
+        */
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);

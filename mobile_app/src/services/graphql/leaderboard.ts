@@ -76,18 +76,23 @@ export async function getLeaderboard(
       category: { eq: 'F1' },
     };
 
-    const result = await client.graphql({
-      query: LEADERBOARD_BY_POINTS,
-      variables: {
-        entityType,
-        sortDirection,
-        limit,
-        points,
-        filter: mergedFilter,
-        nextToken,
-      },
-    }) as GraphQLResult<LeaderboardByPointsResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LEADERBOARD_BY_POINTS,
+    //   variables: {
+    //     entityType,
+    //     sortDirection,
+    //     limit,
+    //     points,
+    //     filter: mergedFilter,
+    //     nextToken,
+    //   },
+    // }) as GraphQLResult<LeaderboardByPointsResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -99,6 +104,7 @@ export async function getLeaderboard(
     const items = result.data?.leaderboardByPoints.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);
@@ -159,18 +165,23 @@ export async function getLeaderboardPredictions(
   const logId = requestLogger.logRequest('getLeaderboardPredictions', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_LEADERBOARD_PREDICTIONS,
-      variables: {
-        filter: {
-          PK: { beginsWith: 'prediction#' },
-          entityType: { eq: 'PREDICTION' },
-          race_id: { eq: raceId },
-        },
-        limit,
-      },
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_LEADERBOARD_PREDICTIONS,
+    //   variables: {
+    //     filter: {
+    //       PK: { beginsWith: 'prediction#' },
+    //       entityType: { eq: 'PREDICTION' },
+    //       race_id: { eq: raceId },
+    //     },
+    //     limit,
+    //   },
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     // If we have data, return it even if there are some errors (partial success)
@@ -194,6 +205,7 @@ export async function getLeaderboardPredictions(
     // No data and no errors - return empty array
     requestLogger.logSuccess(logId, 0, duration);
     return [];
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

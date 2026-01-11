@@ -56,11 +56,16 @@ export async function getRaceResults(season?: string, limit: number = 1000, cate
   const logId = requestLogger.logRequest('getRaceResults', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES,
-      variables,
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_APEX_ENTITIES,
+    //   variables,
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -72,6 +77,7 @@ export async function getRaceResults(season?: string, limit: number = 1000, cate
     const items = result.data?.listApexEntities.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);
@@ -110,11 +116,20 @@ export async function getSeasonData(
   const logId = requestLogger.logRequest('getSeasonData', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES,
-      variables,
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_APEX_ENTITIES,
+    //   variables,
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty data since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return {
+      drivers: [],
+      races: [],
+      results: [],
+    };
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -143,6 +158,7 @@ export async function getSeasonData(
       races,
       results,
     };
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

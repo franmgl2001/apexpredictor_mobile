@@ -221,6 +221,13 @@ export async function getLeagueLeaderboard(leagueId: string, limit: number = 100
   const logId = requestLogger.logRequest('getLeagueLeaderboard', variables);
 
   try {
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({...});
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const result = await client.graphql({
       query: `
         query ListApexEntities(
@@ -270,6 +277,7 @@ export async function getLeagueLeaderboard(leagueId: string, limit: number = 100
     const items = result.data?.listApexEntities.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);
@@ -295,6 +303,13 @@ export async function getLeagueRacePredictions(
   const logId = requestLogger.logRequest('getLeagueRacePredictions', variables);
 
   try {
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({...});
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const result = await client.graphql({
       query: `
         query ListApexEntities(
@@ -351,6 +366,7 @@ export async function getLeagueRacePredictions(
     const items = result.data?.listApexEntities.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

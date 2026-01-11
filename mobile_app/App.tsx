@@ -13,10 +13,10 @@ import {
 import React, { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
 import { fetchUserAttributes } from 'aws-amplify/auth';
-import amplifyconfig from './amplify_outputs.json';
+import amplifyconfig from './amplify_config.json';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { DataProvider, useData } from './src/contexts/DataContext';
-import { saveUserProfile, saveUserLeaderboardEntry } from './src/services/graphql/users';
+import { saveUserProfile } from './src/services/graphql/users';
 
 // Configure Amplify with the outputs
 // @aws-amplify/react-native automatically sets up AsyncStorage for React Native
@@ -88,34 +88,24 @@ function AppContent() {
     }
   }, [isAuthenticated, profileLoading, profile]);
 
-  const handleSaveUsername = async (username: string) => {
+  const handleSaveUsername = async (username: string, country: string) => {
     if (!user?.userId) {
       throw new Error('User not authenticated');
     }
 
     setIsSavingUsername(true);
     try {
-      // Get user email from profile or fetch from attributes
-      let email = profile?.email;
-      if (!email) {
-        try {
-          const attributes = await fetchUserAttributes();
-          email = attributes.email || user.username || '';
-        } catch (error) {
-          // Fallback to username if fetch fails
-          email = user.username || '';
-        }
-      }
+      // Prepare profile data
+      const profileData = {
+        username,
+        country,
+      };
 
-      if (!email) {
-        throw new Error('Unable to retrieve user email');
-      }
+      // Log profile before sending
+      console.log('Profile data to be saved:', profileData);
 
-      // Create both profile and leaderboard entry
-      await Promise.all([
-        saveUserProfile(user.userId, username, email),
-        saveUserLeaderboardEntry(user.userId, username),
-      ]);
+      // Create profile
+      await saveUserProfile(user.userId, username, country);
 
       await refetchProfile();
       setShowUsernameModal(false);

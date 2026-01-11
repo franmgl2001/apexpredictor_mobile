@@ -80,11 +80,16 @@ export async function getApexEntityNoDateTime(PK: string, SK: string): Promise<A
   const logId = requestLogger.logRequest('getApexEntityNoDateTime', { PK, SK });
 
   try {
-    const result = await client.graphql({
-      query: GET_APEX_ENTITY_NO_DATETIME,
-      variables: { PK, SK },
-    }) as GraphQLResult<GetApexEntityResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: GET_APEX_ENTITY_NO_DATETIME,
+    //   variables: { PK, SK },
+    // }) as GraphQLResult<GetApexEntityResponse>;
+    // Return null since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return null;
+    /* COMMENTED OUT - Original GraphQL code (kept for reference):
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -110,6 +115,7 @@ export async function getApexEntityNoDateTime(PK: string, SK: string): Promise<A
     const item = result.data?.getApexEntity || null;
     requestLogger.logSuccess(logId, item ? 1 : 0, duration);
     return item;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     // Check if error is due to entity not existing (expected case for predictions)
@@ -224,11 +230,16 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
   const logId = requestLogger.logRequest('getApexEntity', { PK, SK });
 
   try {
-    const result = await client.graphql({
-      query: GET_APEX_ENTITY,
-      variables: { PK, SK },
-    }) as GraphQLResult<GetApexEntityResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: GET_APEX_ENTITY,
+    //   variables: { PK, SK },
+    // }) as GraphQLResult<GetApexEntityResponse>;
+    // Return null since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return null;
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     // Check for DateTime serialization errors (non-fatal - data is still available)
@@ -272,6 +283,7 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
 
     requestLogger.logSuccess(logId, item ? 1 : 0, duration);
     return item;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     // Check if error is due to entity not existing (expected case for predictions)
@@ -301,11 +313,16 @@ export async function listApexEntitiesNoDateTime(variables?: {
   const logId = requestLogger.logRequest('listApexEntitiesNoDateTime', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES_NO_DATETIME,
-      variables: variables || {},
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_APEX_ENTITIES_NO_DATETIME,
+    //   variables: variables || {},
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     // If we have data, return it even if there are some errors (partial success)
@@ -329,6 +346,7 @@ export async function listApexEntitiesNoDateTime(variables?: {
     // No data and no errors - return empty array
     requestLogger.logSuccess(logId, 0, duration);
     return [];
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     // Check if error contains data we can use
@@ -363,11 +381,16 @@ export async function listApexEntities(variables?: {
   const logId = requestLogger.logRequest('listApexEntities', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES,
-      variables: variables || {},
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_APEX_ENTITIES,
+    //   variables: variables || {},
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     // If we have data, return it even if there are some errors (partial success)
@@ -391,6 +414,7 @@ export async function listApexEntities(variables?: {
     // No data and no errors - return empty array
     requestLogger.logSuccess(logId, 0, duration);
     return [];
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     const errorMessage = error?.message || 'Failed to fetch entities';

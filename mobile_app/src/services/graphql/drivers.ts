@@ -64,11 +64,16 @@ export async function getDrivers(season?: string, category: string = 'F1', limit
   const logId = requestLogger.logRequest('getDrivers', variables);
 
   try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES,
-      variables,
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
+    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
+    // const result = await client.graphql({
+    //   query: LIST_APEX_ENTITIES,
+    //   variables,
+    // }) as GraphQLResult<ListApexEntitiesResponse>;
+    // Return empty array since GraphQL is disabled
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, 0, duration);
+    return [];
+    /* COMMENTED OUT - Original GraphQL code:
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -80,6 +85,7 @@ export async function getDrivers(season?: string, category: string = 'F1', limit
     const items = result.data?.listApexEntities.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

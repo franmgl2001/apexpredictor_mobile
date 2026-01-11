@@ -2,11 +2,18 @@
  * GraphQL client initialization and shared utilities
  */
 
-import { generateClient } from 'aws-amplify/api';
+// COMMENTED OUT: GraphQL client disabled - migrating to CDK backend
+// import { generateClient } from 'aws-amplify/api';
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 
-// Initialize the GraphQL client
-export const client = generateClient();
+// COMMENTED OUT: Initialize the GraphQL client
+// export const client = generateClient();
+// Placeholder client object to prevent import errors
+export const client = {
+  graphql: async () => {
+    throw new Error('GraphQL client is disabled - backend migration in progress');
+  }
+} as any;
 
 /**
  * Checks if an error indicates that an entity was not found (expected case)
