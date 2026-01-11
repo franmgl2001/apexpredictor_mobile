@@ -1,0 +1,23 @@
+type UserProfile {
+  user_id: ID!          # Cognito sub
+  email: AWSEmail!
+  username: String!
+  country: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+input UpsertUserProfileInput {
+  username: String!
+  country: String!
+}
+
+type Query {
+  getMyProfile: UserProfile
+}
+
+type Mutation {
+  upsertMyProfile(input: UpsertUserProfileInput!): UserProfile
+}
+
+
