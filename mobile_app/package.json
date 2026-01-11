@@ -17,10 +17,10 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native/new-app-screen": "0.82.1",
+    "@realtril/react-native-country-picker-modal": "^1.0.12",
     "aws-amplify": "^6.15.7",
     "react": "19.1.1",
     "react-native": "0.82.1",
-    "react-native-country-picker-modal": "^2.0.0",
     "react-native-get-random-values": "^2.0.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-svg": "^15.14.0",
@@ -50,5 +50,16 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "react": "19.1.1",
+    "react-native": "0.82.1",
+    "@realtril/react-native-country-picker-modal": {
+      "react": "19.1.1",
+      "react-native": "0.82.1",
+      "@expo/vector-icons": {
+        "react": "19.1.1"
+      }
+    }
   }
 }

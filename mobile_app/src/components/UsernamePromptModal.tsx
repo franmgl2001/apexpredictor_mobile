@@ -9,7 +9,7 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import CountryPicker from 'react-native-country-picker-modal';
+import CountryPicker from '@realtril/react-native-country-picker-modal';
 
 interface UsernamePromptModalProps {
     visible: boolean;
@@ -34,7 +34,7 @@ export default function UsernamePromptModal({
     isLoading = false,
 }: UsernamePromptModalProps) {
     const [username, setUsername] = useState('');
-    const [selectedCountry, setSelectedCountry] = useState<{ name: string; cca2: string } | null>(null);
+    const [selectedCountry, setSelectedCountry] = useState<any>(null);
     const [showCountryPicker, setShowCountryPicker] = useState(false);
 
     const handleSave = async () => {
@@ -78,13 +78,9 @@ export default function UsernamePromptModal({
         setShowCountryPicker(false);
     };
 
-    const handleCountrySelect = (country: any) => {
-        const countryName = country.name?.common || country.name || 'Unknown';
-        setSelectedCountry({
-            name: countryName,
-            cca2: country.cca2,
-        });
-        setShowCountryPicker(false);
+    const getCountryName = (name: any) => {
+        if (typeof name === 'string') return name;
+        return name?.common || 'Unknown';
     };
 
     const canDismiss = typeof onCancel === 'function';
@@ -150,7 +146,7 @@ export default function UsernamePromptModal({
                                             numberOfLines={1}
                                             ellipsizeMode="tail"
                                         >
-                                            {selectedCountry.name || 'Unknown'}
+                                            {getCountryName(selectedCountry.name)}
                                         </Text>
                                     </>
                                 ) : (
@@ -166,13 +162,16 @@ export default function UsernamePromptModal({
                     {showCountryPicker && (
                         <CountryPicker
                             visible={showCountryPicker}
-                            countryCode={selectedCountry?.cca2 as any || 'US'}
+                            countryCode={selectedCountry?.cca2 || 'US'}
                             withFilter
                             withFlag
                             withAlphaFilter
                             withCallingCode={false}
                             withEmoji
-                            onSelect={handleCountrySelect}
+                            onSelect={(country) => {
+                                setSelectedCountry(country);
+                                setShowCountryPicker(false);
+                            }}
                             onClose={() => setShowCountryPicker(false)}
                         />
                     )}
