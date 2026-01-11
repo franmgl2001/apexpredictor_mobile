@@ -10,6 +10,7 @@ type UserProfile {
 input UpsertUserProfileInput {
   username: String!
   country: String!
+  email: AWSEmail!
 }
 
 type Query {

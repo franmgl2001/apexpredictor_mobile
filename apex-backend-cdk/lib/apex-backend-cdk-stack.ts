@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as cognito from "aws-cdk-lib/aws-cognito"; // (leave yours as-is if it works)
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import path from "path";
@@ -21,7 +21,7 @@ export class ApexBackendStack extends cdk.Stack {
       partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // change to RETAIN for prod
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // 3) AppSync API using Cognito User Pool auth
@@ -39,20 +39,85 @@ export class ApexBackendStack extends cdk.Stack {
       xrayEnabled: true,
     });
 
+    // =========================
+    // ✅ ADD RESOLVERS HERE
+    // =========================
 
-    // (Optional but common) Create an App Client for your RN app
-    // If you ALREADY have a client ID you want to keep, skip this and output your existing one.
-    const userPoolClient = new cognito.CfnUserPoolClient(this, "MobileAppClient", {
-      userPoolId: "us-east-2_O43Zxwqdm",
-      clientName: "apex-react-native",
-      generateSecret: false, // IMPORTANT for public clients (mobile/web)
-      explicitAuthFlows: [
-        "ALLOW_USER_PASSWORD_AUTH",
-        "ALLOW_USER_SRP_AUTH",
-        "ALLOW_REFRESH_TOKEN_AUTH",
-      ],
-      preventUserExistenceErrors: "ENABLED",
+    // DynamoDB datasource
+    const profileDS = api.addDynamoDbDataSource("UserProfileDS", table);
+
+    // Mutation.upsertMyProfile resolver
+    profileDS.createResolver("UpsertMyProfileResolver", {
+      typeName: "Mutation",
+      fieldName: "upsertMyProfile",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+{
+  "version": "2018-05-29",
+  "operation": "PutItem",
+  "key": {
+    "PK": { "S": "user#\${ctx.identity.sub}" },
+    "SK": { "S": "PROFILE" }
+  },
+  "attributeValues": {
+    "user_id": { "S": "\${ctx.identity.sub}" },
+    "email": { "S": "\${ctx.args.input.email}" },
+    "username": { "S": "\${ctx.args.input.username}" },
+    "country": { "S": "\${ctx.args.input.country}" },
+    "createdAt": { "S": "\${util.time.nowISO8601()}" },
+    "updatedAt": { "S": "\${util.time.nowISO8601()}" }
+  }
+}
+      `),
+      // IMPORTANT: PutItem may not return an item → return what your GraphQL expects
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+$util.toJson({
+  "user_id": $ctx.identity.sub,
+  "email": $ctx.args.input.email,
+  "username": $ctx.args.input.username,
+  "country": $ctx.args.input.country,
+  "createdAt": $util.time.nowISO8601(),
+  "updatedAt": $util.time.nowISO8601()
+})
+      `),
     });
+
+    // Query.getMyProfile resolver
+    profileDS.createResolver("GetMyProfileResolver", {
+      typeName: "Query",
+      fieldName: "getMyProfile",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+{
+  "version": "2018-05-29",
+  "operation": "GetItem",
+  "key": {
+    "PK": { "S": "USER#\${ctx.identity.sub}" },
+    "SK": { "S": "PROFILE" }
+  }
+}
+      `),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+$util.toJson($ctx.result)
+      `),
+    });
+
+    // =========================
+    // (Optional) App Client
+    // =========================
+    const userPoolClient = new cognito.CfnUserPoolClient(
+      this,
+      "MobileAppClient",
+      {
+        userPoolId: "us-east-2_O43Zxwqdm",
+        clientName: "apex-react-native",
+        generateSecret: false,
+        explicitAuthFlows: [
+          "ALLOW_USER_PASSWORD_AUTH",
+          "ALLOW_USER_SRP_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH",
+        ],
+        preventUserExistenceErrors: "ENABLED",
+      }
+    );
 
     // 4) Outputs (what frontend needs)
     new cdk.CfnOutput(this, "Region", { value: this.region });
