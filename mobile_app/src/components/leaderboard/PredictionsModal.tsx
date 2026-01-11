@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useData, Driver as ContextDriver } from '../../contexts/DataContext';
-import { getRaceResults, ApexEntity } from '../../services/graphql';
+import { getSeasonData, ApexEntity } from '../../services/graphql';
 import { calculateDriverPoints, calculateBonusPoints, type RaceResultsData, type PredictionData as PointsPredictionData, type BonusPoints } from '../../utils/pointsCalculator';
 
 type PredictionData = {
@@ -97,9 +97,10 @@ export default function PredictionsModal({ visible, onClose, username, predictio
         const fetchResults = async () => {
             setIsLoadingResults(true);
             try {
-                const allResults = await getRaceResults();
+                // Use getSeasonData to fetch all data in one query (more efficient)
+                const seasonData = await getSeasonData();
                 // Find the result for this specific race
-                const raceResult = allResults.find((result: ApexEntity) => {
+                const raceResult = seasonData.results.find((result: ApexEntity) => {
                     const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
                     return resultRaceId === raceId;
                 });

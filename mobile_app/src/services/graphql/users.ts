@@ -218,11 +218,11 @@ export async function saveUserProfile(
     username: string,
     email: string
 ): Promise<ApexEntity> {
-    const timestamp = new Date().toISOString();
-    console.log(`[GraphQL] saveUserProfile executed at ${timestamp} - userId: ${userId}, username: ${username}`);
-
+    const startTime = Date.now();
     const PK = `user#${userId}`;
     const SK = 'PROFILE';
+    const variables = { userId, username, email: email.substring(0, 50) }; // Truncate email for logging
+    const logId = requestLogger.logRequest('saveUserProfile', variables);
 
     // Check if profile already exists
     const existing = await getApexEntity(PK, SK);
@@ -239,6 +239,7 @@ export async function saveUserProfile(
 
     try {
         let result;
+        const duration = Date.now() - startTime;
         if (isUpdate) {
             // Update existing profile
             result = await client.graphql({
@@ -248,14 +249,17 @@ export async function saveUserProfile(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to update profile';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.updateApexEntity) {
-                throw new Error('Failed to update profile: No data returned');
+                const error = new Error('Failed to update profile: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.updateApexEntity;
         } else {
             // Create new profile
@@ -266,18 +270,22 @@ export async function saveUserProfile(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to save profile';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.createApexEntity) {
-                throw new Error('Failed to save profile: No data returned');
+                const error = new Error('Failed to save profile: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
     } catch (error: any) {
-        console.error('Error saving profile:', error);
+        const duration = Date.now() - startTime;
+        requestLogger.logError(logId, error, duration);
         throw error;
     }
 }
@@ -294,13 +302,12 @@ export async function saveUserLeaderboardEntry(
     username: string,
     season?: string
 ): Promise<ApexEntity> {
-    // Use current year if season is not provided
+    const startTime = Date.now();
     const seasonYear = season || new Date().getFullYear().toString();
-    const timestamp = new Date().toISOString();
-    console.log(`[GraphQL] saveUserLeaderboardEntry executed at ${timestamp} - userId: ${userId}, season: ${seasonYear}`);
-
     const PK = `user#${userId}#season#${seasonYear}`;
     const SK = 'TOTALPOINTS';
+    const variables = { userId, username, season: seasonYear };
+    const logId = requestLogger.logRequest('saveUserLeaderboardEntry', variables);
 
     // Check if leaderboard entry already exists
     const existing = await getApexEntity(PK, SK);
@@ -319,6 +326,7 @@ export async function saveUserLeaderboardEntry(
 
     try {
         let result;
+        const duration = Date.now() - startTime;
         if (isUpdate) {
             // Update existing leaderboard entry (preserve existing points and races)
             result = await client.graphql({
@@ -328,14 +336,17 @@ export async function saveUserLeaderboardEntry(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to update leaderboard entry';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.updateApexEntity) {
-                throw new Error('Failed to update leaderboard entry: No data returned');
+                const error = new Error('Failed to update leaderboard entry: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.updateApexEntity;
         } else {
             // Create new leaderboard entry with initial values
@@ -346,18 +357,22 @@ export async function saveUserLeaderboardEntry(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to create leaderboard entry';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.createApexEntity) {
-                throw new Error('Failed to create leaderboard entry: No data returned');
+                const error = new Error('Failed to create leaderboard entry: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
     } catch (error: any) {
-        console.error('Error saving leaderboard entry:', error);
+        const duration = Date.now() - startTime;
+        requestLogger.logError(logId, error, duration);
         throw error;
     }
 }
@@ -376,11 +391,11 @@ export async function saveUserPredictions(
     raceId: string,
     predictionsJson: string
 ): Promise<ApexEntity> {
-    const timestamp = new Date().toISOString();
-    console.log(`[GraphQL] saveUserPredictions executed at ${timestamp} - userId: ${userId}, raceId: ${raceId}`);
-
+    const startTime = Date.now();
     const PK = `prediction#${userId}#${raceId}`;
     const SK = 'RACEPREDICTION';
+    const variables = { userId, username, raceId };
+    const logId = requestLogger.logRequest('saveUserPredictions', variables);
 
     // Check if prediction already exists
     const existing = await getApexEntity(PK, SK);
@@ -398,6 +413,7 @@ export async function saveUserPredictions(
 
     try {
         let result;
+        const duration = Date.now() - startTime;
         if (isUpdate) {
             // Update existing prediction
             result = await client.graphql({
@@ -407,14 +423,17 @@ export async function saveUserPredictions(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to update predictions';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.updateApexEntity) {
-                throw new Error('Failed to update predictions: No data returned');
+                const error = new Error('Failed to update predictions: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.updateApexEntity;
         } else {
             // Create new prediction
@@ -425,18 +444,22 @@ export async function saveUserPredictions(
 
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0].message || 'Failed to save predictions';
-                console.error('GraphQL errors:', result.errors);
+                requestLogger.logError(logId, new Error(errorMessage), duration);
                 throw new Error(errorMessage);
             }
 
             if (!result.data?.createApexEntity) {
-                throw new Error('Failed to save predictions: No data returned');
+                const error = new Error('Failed to save predictions: No data returned');
+                requestLogger.logError(logId, error, duration);
+                throw error;
             }
 
+            requestLogger.logSuccess(logId, 1, duration);
             return result.data.createApexEntity;
         }
     } catch (error: any) {
-        console.error('Error saving predictions:', error);
+        const duration = Date.now() - startTime;
+        requestLogger.logError(logId, error, duration);
         throw error;
     }
 }

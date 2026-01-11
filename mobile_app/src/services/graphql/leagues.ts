@@ -6,6 +6,7 @@
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client, APEX_ENTITY_FIELDS } from './client';
 import { listApexEntities } from './entities';
+import { requestLogger } from './requestLogger';
 import type {
   ApexEntity,
   ListApexEntitiesResponse,
@@ -146,8 +147,9 @@ export async function getUserLeagues(userId: string, options?: GetUserLeaguesOpt
  * @returns Array of league entities
  */
 export async function getLeagues(limit: number = 1000, includePrivate: boolean = false): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeagues executed at ${timestamp} - limit: ${limit}, includePrivate: ${includePrivate}`);
+  const startTime = Date.now();
+  const variables = { limit, includePrivate };
+  const logId = requestLogger.logRequest('getLeagues', variables);
 
   try {
     const filter: ModelApexEntityFilterInput = {
@@ -165,9 +167,12 @@ export async function getLeagues(limit: number = 1000, includePrivate: boolean =
       limit,
     });
 
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, leagues.length, duration);
     return leagues;
   } catch (error: any) {
-    console.error('Error fetching leagues:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
@@ -178,8 +183,9 @@ export async function getLeagues(limit: number = 1000, includePrivate: boolean =
  * @returns Array of league member entities
  */
 export async function getLeagueMembers(leagueId: string): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeagueMembers executed at ${timestamp} - leagueId: ${leagueId}`);
+  const startTime = Date.now();
+  const variables = { leagueId };
+  const logId = requestLogger.logRequest('getLeagueMembers', variables);
 
   try {
     const members = await listApexEntities({
@@ -191,9 +197,12 @@ export async function getLeagueMembers(leagueId: string): Promise<ApexEntity[]> 
       limit: 1000,
     });
 
+    const duration = Date.now() - startTime;
+    requestLogger.logSuccess(logId, members.length, duration);
     return members;
   } catch (error: any) {
-    console.error('Error fetching league members:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
@@ -206,9 +215,10 @@ export async function getLeagueMembers(leagueId: string): Promise<ApexEntity[]> 
  * @returns Array of leaderboard entities
  */
 export async function getLeagueLeaderboard(leagueId: string, limit: number = 1000): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
+  const startTime = Date.now();
   const currentYear = new Date().getFullYear().toString();
-  console.log(`[GraphQL] getLeagueLeaderboard executed at ${timestamp} - leagueId: ${leagueId}, limit: ${limit}, season: ${currentYear}, category: F1`);
+  const variables = { leagueId, limit, season: currentYear, category: 'F1' };
+  const logId = requestLogger.logRequest('getLeagueLeaderboard', variables);
 
   try {
     const result = await client.graphql({
@@ -249,14 +259,20 @@ export async function getLeagueLeaderboard(leagueId: string, limit: number = 100
       },
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch league leaderboard');
+      const errorMessage = result.errors[0].message || 'Failed to fetch league leaderboard';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.listApexEntities.items || [];
+    const items = result.data?.listApexEntities.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching league leaderboard:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
@@ -274,8 +290,9 @@ export async function getLeagueRacePredictions(
   raceId: string,
   limit: number = 1000
 ): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeagueRacePredictions executed at ${timestamp} - leagueId: ${leagueId}, raceId: ${raceId}, limit: ${limit}`);
+  const startTime = Date.now();
+  const variables = { leagueId, raceId, limit };
+  const logId = requestLogger.logRequest('getLeagueRacePredictions', variables);
 
   try {
     const result = await client.graphql({
@@ -323,14 +340,20 @@ export async function getLeagueRacePredictions(
       },
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch league race predictions');
+      const errorMessage = result.errors[0].message || 'Failed to fetch league race predictions';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.listApexEntities.items || [];
+    const items = result.data?.listApexEntities.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching league race predictions:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }

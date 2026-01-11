@@ -5,6 +5,7 @@
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client, APEX_ENTITY_FIELDS } from './client';
+import { requestLogger } from './requestLogger';
 import type {
   ApexEntity,
   LeaderboardByPointsResponse,
@@ -60,9 +61,10 @@ export async function getLeaderboard(
   filter?: ModelApexEntityFilterInput,
   nextToken?: string
 ): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
+  const startTime = Date.now();
   const currentYear = new Date().getFullYear().toString();
-  console.log(`[GraphQL] getLeaderboard executed at ${timestamp} - entityType: ${entityType}, sortDirection: ${sortDirection}, limit: ${limit}, season: ${currentYear}, category: F1`);
+  const variables = { entityType, sortDirection, limit, season: currentYear, category: 'F1', hasPoints: !!points, hasFilter: !!filter, hasNextToken: !!nextToken };
+  const logId = requestLogger.logRequest('getLeaderboard', variables);
 
   try {
     // Merge default filters with provided filter, always enforcing SK, season, and category
@@ -86,14 +88,20 @@ export async function getLeaderboard(
       },
     }) as GraphQLResult<LeaderboardByPointsResponse>;
 
+    const duration = Date.now() - startTime;
+
     if (result.errors && result.errors.length > 0) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0].message || 'Failed to fetch leaderboard');
+      const errorMessage = result.errors[0].message || 'Failed to fetch leaderboard';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
     }
 
-    return result.data?.leaderboardByPoints.items || [];
+    const items = result.data?.leaderboardByPoints.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
-    console.error('Error fetching leaderboard:', error);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
@@ -146,8 +154,9 @@ export async function getLeaderboardPredictions(
   raceId: string,
   limit: number = 1000
 ): Promise<ApexEntity[]> {
-  const timestamp = new Date().toISOString();
-  console.log(`[GraphQL] getLeaderboardPredictions executed at ${timestamp} - raceId: ${raceId}, limit: ${limit}`);
+  const startTime = Date.now();
+  const variables = { raceId, limit };
+  const logId = requestLogger.logRequest('getLeaderboardPredictions', variables);
 
   try {
     const result = await client.graphql({
@@ -162,28 +171,32 @@ export async function getLeaderboardPredictions(
       },
     }) as GraphQLResult<ListApexEntitiesResponse>;
 
+    const duration = Date.now() - startTime;
+
     // If we have data, return it even if there are some errors (partial success)
     if (result.data?.listApexEntities?.items) {
+      const items = result.data.listApexEntities.items;
       if (result.errors && result.errors.length > 0) {
         // Log warnings for non-fatal errors but still return data
         console.warn('GraphQL warnings (non-fatal):', result.errors);
       }
-      return result.data.listApexEntities.items;
+      requestLogger.logSuccess(logId, items.length, duration);
+      return items;
     }
 
     // If we have errors but no data, throw
     if (result.errors && result.errors.length > 0) {
       const errorMessage = result.errors[0].message || 'Failed to fetch leaderboard predictions';
-      console.error('GraphQL errors:', result.errors);
+      requestLogger.logError(logId, new Error(errorMessage), duration);
       throw new Error(errorMessage);
     }
 
     // No data and no errors - return empty array
+    requestLogger.logSuccess(logId, 0, duration);
     return [];
   } catch (error: any) {
-    // Only log error message, not the entire error object which might contain data
-    const errorMessage = error?.message || 'Failed to fetch leaderboard predictions';
-    console.error('Error fetching leaderboard predictions:', errorMessage);
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
     throw error;
   }
 }

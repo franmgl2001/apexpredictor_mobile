@@ -35,51 +35,6 @@ const LIST_APEX_ENTITIES = `
 `;
 
 /**
- * Fetches all race details from the GraphQL API
- * Fetches race entities with PK equal to "f1#<season>" (e.g., "f1#2025") and SK beginning with "race#"
- * @param season Optional season year (default: current year)
- * @param limit Optional limit (default: 1000)
- * @param category Optional category (default: "F1")
- * @returns Array of race detail entities
- */
-export async function getRaceDetails(season?: string, limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
-  const startTime = Date.now();
-  const currentYear = season || new Date().getFullYear().toString();
-  const pk = `${category.toLowerCase()}#${currentYear}`;
-  const variables = {
-    PK: pk,
-    SK: {
-      beginsWith: 'race#',
-    },
-    limit,
-  };
-  const logId = requestLogger.logRequest('getRaceDetails', variables);
-
-  try {
-    const result = await client.graphql({
-      query: LIST_APEX_ENTITIES,
-      variables,
-    }) as GraphQLResult<ListApexEntitiesResponse>;
-
-    const duration = Date.now() - startTime;
-
-    if (result.errors && result.errors.length > 0) {
-      const errorMessage = result.errors[0].message || 'Failed to fetch race details';
-      requestLogger.logError(logId, new Error(errorMessage), duration);
-      throw new Error(errorMessage);
-    }
-
-    const items = result.data?.listApexEntities.items || [];
-    requestLogger.logSuccess(logId, items.length, duration);
-    return items;
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    requestLogger.logError(logId, error, duration);
-    throw error;
-  }
-}
-
-/**
  * Fetches race results from the GraphQL API
  * Fetches race result entities with PK equal to "f1#<season>" (e.g., "f1#2025") and SK beginning with "results#"
  * @param season Optional season year (default: current year)
@@ -117,6 +72,77 @@ export async function getRaceResults(season?: string, limit: number = 1000, cate
     const items = result.data?.listApexEntities.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Fetches all season data (drivers, races, and results) in a single query
+ * This is more efficient than making three separate queries since they all use the same PK
+ * @param season Optional season year (default: current year)
+ * @param limit Optional limit (default: 1500 to accommodate all entities)
+ * @param category Optional category (default: "F1")
+ * @returns Object containing drivers, races, and results arrays
+ */
+export interface SeasonData {
+  drivers: ApexEntity[];
+  races: ApexEntity[];
+  results: ApexEntity[];
+}
+
+export async function getSeasonData(
+  season?: string,
+  limit: number = 1500,
+  category: string = 'F1'
+): Promise<SeasonData> {
+  const startTime = Date.now();
+  const currentYear = season || new Date().getFullYear().toString();
+  const pk = `${category.toLowerCase()}#${currentYear}`;
+
+  // Query by PK only - no SK filter to get all entities for the season
+  const variables = {
+    PK: pk,
+    limit,
+  };
+  const logId = requestLogger.logRequest('getSeasonData', variables);
+
+  try {
+    const result = await client.graphql({
+      query: LIST_APEX_ENTITIES,
+      variables,
+    }) as GraphQLResult<ListApexEntitiesResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message || 'Failed to fetch season data';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
+    }
+
+    const allItems = result.data?.listApexEntities.items || [];
+
+    // Filter items client-side by SK prefix
+    const drivers = allItems.filter(
+      (item) => item.SK?.startsWith('drivers#') && item.entityType === 'DRIVER'
+    );
+    const races = allItems.filter(
+      (item) => item.SK?.startsWith('race#') && item.entityType === 'RACE'
+    );
+    const results = allItems.filter(
+      (item) => item.SK?.startsWith('results#')
+    );
+
+    requestLogger.logSuccess(logId, allItems.length, duration);
+
+    return {
+      drivers,
+      races,
+      results,
+    };
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

@@ -22,7 +22,7 @@ export { getApexEntity, listApexEntities, listApexEntitiesNoDateTime } from './g
 export { getUserProfile, getUserPredictions, getAllUserPredictions, saveUserPredictions, saveUserProfile, saveUserLeaderboardEntry } from './graphql/users';
 
 // Re-export race queries
-export { getRaceDetails, getRaceResults } from './graphql/races';
+export { getRaceResults, getSeasonData, type SeasonData } from './graphql/races';
 
 // Re-export driver queries
 export { getDrivers } from './graphql/drivers';
