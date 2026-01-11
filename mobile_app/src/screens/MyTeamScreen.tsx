@@ -36,8 +36,9 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
         const fetchAllPredictions = async () => {
             setIsLoadingPredictions(true);
             try {
-                const predictionsMap = await getAllUserPredictions(user.userId);
-                setPredictionsByRaceId(predictionsMap);
+                // COMMENTED OUT: const predictionsMap = await getAllUserPredictions(user.userId);
+                // COMMENTED OUT: setPredictionsByRaceId(predictionsMap);
+                setPredictionsByRaceId(new Map()); // Set to empty since we're not fetching
             } catch (error) {
                 console.error('Error fetching all predictions:', error);
                 setPredictionsByRaceId(new Map());
@@ -62,8 +63,9 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
 
         setIsSaving(true);
         try {
-            await saveUserPredictions(user.userId, profile.username, currentRaceId, currentPredictions);
-            Alert.alert('Success', 'Predictions saved successfully!');
+            // COMMENTED OUT: await saveUserPredictions(user.userId, profile.username, currentRaceId, currentPredictions);
+            // COMMENTED OUT: Alert.alert('Success', 'Predictions saved successfully!');
+            Alert.alert('Info', 'Save functionality is currently disabled.');
         } catch (error: any) {
             console.error('Error saving predictions:', error);
             Alert.alert('Error', error?.message || 'Failed to save predictions. Please try again.');

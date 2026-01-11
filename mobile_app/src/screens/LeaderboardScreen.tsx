@@ -51,15 +51,16 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
 
         try {
             setIsLoadingLeagues(true);
-            const data = await getUserLeagues(user.userId, { includeDetails: false });
-            setLeagues(data);
+            // COMMENTED OUT: const data = await getUserLeagues(user.userId, { includeDetails: false });
+            // COMMENTED OUT: setLeagues(data);
+            setLeagues([]); // Set to empty since we're not fetching
             // Auto-select first league if available
-            if (data.length > 0 && !selectedLeagueId) {
-                const firstLeagueId = data[0].league_id || data[0].PK?.replace('league#', '') || null;
-                if (firstLeagueId) {
-                    setSelectedLeagueId(firstLeagueId);
-                }
-            }
+            // COMMENTED OUT: if (data.length > 0 && !selectedLeagueId) {
+            //     const firstLeagueId = data[0].league_id || data[0].PK?.replace('league#', '') || null;
+            //     if (firstLeagueId) {
+            //         setSelectedLeagueId(firstLeagueId);
+            //     }
+            // }
         } catch (err: any) {
             console.error('Error fetching leagues:', err);
             setError(err.message || 'Failed to load leagues');
@@ -74,15 +75,16 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             setIsLoading(true);
             setError(null);
             
-            if (filterType === 'league' && selectedLeagueId) {
-                // Fetch league leaderboard
-                const data = await getLeagueLeaderboard(selectedLeagueId, 1000);
-                setSeasonLeaderboard(data);
-            } else {
-                // Fetch global leaderboard
-                const data = await getLeaderboard('LEADERBOARD', 'DESC', 1000);
-                setSeasonLeaderboard(data);
-            }
+            // COMMENTED OUT: if (filterType === 'league' && selectedLeagueId) {
+            //     // Fetch league leaderboard
+            //     const data = await getLeagueLeaderboard(selectedLeagueId, 1000);
+            //     setSeasonLeaderboard(data);
+            // } else {
+            //     // Fetch global leaderboard
+            //     const data = await getLeaderboard('LEADERBOARD', 'DESC', 1000);
+            //     setSeasonLeaderboard(data);
+            // }
+            setSeasonLeaderboard([]); // Set to empty since we're not fetching
         } catch (err: any) {
             console.error('Error fetching season leaderboard:', err);
             setError(err.message || 'Failed to load leaderboard');
@@ -97,32 +99,33 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             setIsLoading(true);
             setError(null);
             
-            let data: ApexEntity[];
-            if (filterType === 'league' && selectedLeagueId) {
-                // Fetch league race predictions
-                data = await getLeagueRacePredictions(selectedLeagueId, raceId, 1000);
-            } else {
-                // Use getLeaderboardPredictions which only fetches necessary fields (excludes createdAt/updatedAt)
-                data = await getLeaderboardPredictions(raceId, 1000);
-            }
+            // COMMENTED OUT: let data: ApexEntity[];
+            // COMMENTED OUT: if (filterType === 'league' && selectedLeagueId) {
+            //     // Fetch league race predictions
+            //     data = await getLeagueRacePredictions(selectedLeagueId, raceId, 1000);
+            // } else {
+            //     // Use getLeaderboardPredictions which only fetches necessary fields (excludes createdAt/updatedAt)
+            //     data = await getLeaderboardPredictions(raceId, 1000);
+            // }
             
-            // Transform data immediately to only include needed fields
-            if (Array.isArray(data)) {
-                const transformedData: LeaderboardEntryData[] = data
-                    .map((item) => {
-                        // Extract only what we need: username, points, and predictions (for gridOrder)
-                        return {
-                            username: item.username || 'Unknown',
-                            points: item.points ?? 0,
-                            predictions: item.predictions, // Keep as string JSON for modal
-                        };
-                    })
-                    .sort((a, b) => b.points - a.points); // Sort by points descending
-                setRaceLeaderboard(transformedData);
-            } else {
-                console.warn('Race leaderboard data is not an array:', data);
-                setRaceLeaderboard([]);
-            }
+            // COMMENTED OUT: Transform data immediately to only include needed fields
+            // COMMENTED OUT: if (Array.isArray(data)) {
+            //     const transformedData: LeaderboardEntryData[] = data
+            //         .map((item) => {
+            //             // Extract only what we need: username, points, and predictions (for gridOrder)
+            //             return {
+            //                 username: item.username || 'Unknown',
+            //                 points: item.points ?? 0,
+            //                 predictions: item.predictions, // Keep as string JSON for modal
+            //             };
+            //         })
+            //         .sort((a, b) => b.points - a.points); // Sort by points descending
+            //     setRaceLeaderboard(transformedData);
+            // } else {
+            //     console.warn('Race leaderboard data is not an array:', data);
+            //     setRaceLeaderboard([]);
+            // }
+            setRaceLeaderboard([]); // Set to empty since we're not fetching
         } catch (err: any) {
             console.error('Error fetching race leaderboard:', err);
             // Extract error message more carefully

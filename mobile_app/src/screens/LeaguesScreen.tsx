@@ -41,13 +41,15 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
             setIsLoading(true);
             setError(null);
 
-            if (activeTab === 'my') {
-                const leagues = await getUserLeagues(user.userId);
-                setMyLeagues(leagues);
-            } else {
-                const leagues = await getLeagues(undefined, false);
-                setPublicLeagues(leagues);
-            }
+            // COMMENTED OUT: if (activeTab === 'my') {
+            //     const leagues = await getUserLeagues(user.userId);
+            //     setMyLeagues(leagues);
+            // } else {
+            //     const leagues = await getLeagues(undefined, false);
+            //     setPublicLeagues(leagues);
+            // }
+            setMyLeagues([]); // Set to empty since we're not fetching
+            setPublicLeagues([]); // Set to empty since we're not fetching
         } catch (err: any) {
             console.error('Error fetching leagues:', err);
             setError(err.message || 'Failed to load leagues');
