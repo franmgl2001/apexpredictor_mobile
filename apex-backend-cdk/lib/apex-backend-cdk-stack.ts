@@ -81,7 +81,9 @@ $util.toJson({
       `),
     });
 
-    // Query.getMyProfile resolver
+
+
+    // Query.getMyProfile resolver (gets user from token, same pattern as upsertMyProfile)
     profileDS.createResolver("GetMyProfileResolver", {
       typeName: "Query",
       fieldName: "getMyProfile",
@@ -90,7 +92,7 @@ $util.toJson({
   "version": "2018-05-29",
   "operation": "GetItem",
   "key": {
-    "PK": { "S": "USER#\${ctx.identity.sub}" },
+    "PK": { "S": "user#\${ctx.identity.sub}" },
     "SK": { "S": "PROFILE" }
   }
 }
