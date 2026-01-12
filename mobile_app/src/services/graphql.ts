@@ -19,7 +19,7 @@ export type {
 export { getApexEntity, listApexEntities, listApexEntitiesNoDateTime } from './graphql/entities';
 
 // Re-export user queries and mutations
-export { getUserProfile, getUserPredictions, getAllUserPredictions, saveUserPredictions, saveUserProfile, saveUserLeaderboardEntry } from './graphql/users';
+export { getMyProfile, saveUserProfile } from './graphql/users';
 
 // Re-export race queries
 export { getRaceResults, getSeasonData, type SeasonData } from './graphql/races';

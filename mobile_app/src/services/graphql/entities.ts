@@ -230,26 +230,21 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
   const logId = requestLogger.logRequest('getApexEntity', { PK, SK });
 
   try {
-    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
-    // const result = await client.graphql({
-    //   query: GET_APEX_ENTITY,
-    //   variables: { PK, SK },
-    // }) as GraphQLResult<GetApexEntityResponse>;
-    // Return null since GraphQL is disabled
-    const duration = Date.now() - startTime;
-    requestLogger.logSuccess(logId, 0, duration);
-    return null;
-    /* COMMENTED OUT - Original GraphQL code:
+    const result = await client.graphql({
+      query: GET_APEX_ENTITY,
+      variables: { PK, SK },
+    }) as GraphQLResult<GetApexEntityResponse>;
+
     const duration = Date.now() - startTime;
 
     // Check for DateTime serialization errors (non-fatal - data is still available)
-    const dateTimeErrors = result.errors?.filter((err: any) => 
-      err?.message?.includes('serialize') && 
+    const dateTimeErrors = result.errors?.filter((err: any) =>
+      err?.message?.includes('serialize') &&
       (err?.path?.includes('createdAt') || err?.path?.includes('updatedAt'))
     ) || [];
 
     // Check for other errors (fatal)
-    const otherErrors = result.errors?.filter((err: any) => 
+    const otherErrors = result.errors?.filter((err: any) =>
       !dateTimeErrors.includes(err)
     ) || [];
 
@@ -275,7 +270,7 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
 
     // If we have data, return it even if there are DateTime serialization errors
     const item = result.data?.getApexEntity || null;
-    
+
     // Log warning for DateTime errors but don't fail
     if (dateTimeErrors.length > 0 && item) {
       console.warn(`[getApexEntity] DateTime serialization errors for ${PK}/${SK}, but data is available:`, dateTimeErrors);
@@ -283,7 +278,6 @@ export async function getApexEntity(PK: string, SK: string): Promise<ApexEntity 
 
     requestLogger.logSuccess(logId, item ? 1 : 0, duration);
     return item;
-    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     // Check if error is due to entity not existing (expected case for predictions)

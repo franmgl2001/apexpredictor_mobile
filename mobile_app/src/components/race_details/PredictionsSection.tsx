@@ -5,7 +5,6 @@ import TimeBox from './TimeBox';
 import PredictedGridRow, { DriverSummary } from '../drivers/PredictedGridRow';
 import DriverPickerModal, { Driver } from '../drivers/DriverPickerModal';
 import DriverPickRow from '../drivers/DriverPickRow';
-import { getUserPredictions } from '../../services/graphql';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { calculateDriverPoints, calculateBonusPoints, type PredictionData as PointsPredictionData } from '../../utils/pointsCalculator';
@@ -204,7 +203,9 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                     }
                 } else {
                     // predictionsByRaceId is undefined - this is another screen, fetch individually
-                    predictionEntity = await getUserPredictions(user.userId, raceId);
+                    // COMMENTED OUT: getUserPredictions removed - use getApexEntity or other method
+                    // predictionEntity = await getUserPredictions(user.userId, raceId);
+                    predictionEntity = null;
                 }
 
                 // No entity returned - predictions don't exist yet (normal case)

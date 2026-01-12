@@ -12,8 +12,8 @@ export const client = generateClient();
  * Checks if an error indicates that an entity was not found (expected case)
  */
 export function isEntityNotFoundError(error: any): boolean {
-    const errorMessage = error?.message || '';
-    return errorMessage.includes('not found') || errorMessage.includes('does not exist');
+  const errorMessage = error?.message || '';
+  return errorMessage.includes('not found') || errorMessage.includes('does not exist');
 }
 
 /**

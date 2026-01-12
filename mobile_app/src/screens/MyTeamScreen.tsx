@@ -7,7 +7,6 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { saveUserPredictions, getAllUserPredictions } from '../services/graphql';
 import type { ApexEntity } from '../services/graphql';
 
 type MyTeamScreenProps = {
