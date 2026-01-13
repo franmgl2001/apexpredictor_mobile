@@ -4,29 +4,31 @@
  */
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
-import { client, APEX_ENTITY_FIELDS } from './client';
-import type { ApexEntity, ListApexEntitiesResponse } from './types';
+import { client } from './client';
+import type { ApexEntity } from './types';
 import { requestLogger } from './requestLogger';
+import { normalizeCategory } from './races';
 
-const LIST_APEX_ENTITIES = `
-  query ListApexEntities(
-    $PK: String
-    $sortDirection: ModelSortDirection
-    $SK: ModelStringKeyConditionInput
-    $filter: ModelApexEntityFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    listApexEntities(
-      PK: $PK
-      sortDirection: $sortDirection
-      SK: $SK
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
+const GET_DRIVERS = `
+  query GetDrivers($category: String!, $season: String!, $limit: Int, $nextToken: String) {
+    getDrivers(category: $category, season: $season, limit: $limit, nextToken: $nextToken) {
       items {
-        ${APEX_ENTITY_FIELDS}
+        PK
+        SK
+        entityType
+        driver_id
+        name
+        team
+        number
+        imageUrl
+        teamColor
+        isActive
+        nationality
+        birthDate
+        season
+        category
+        createdAt
+        updatedAt
       }
       nextToken
       __typename
@@ -34,46 +36,59 @@ const LIST_APEX_ENTITIES = `
   }
 `;
 
+interface GetDriversResponse {
+  getDrivers: {
+    items: ApexEntity[];
+    nextToken: string | null;
+    __typename: string;
+  };
+}
+
 /**
- * Fetches all active drivers for a season from the GraphQL API
- * Fetches driver entities with:
- * - PK equal to "f1#<season>" (e.g., "f1#2025")
- * - SK beginning with "drivers#"
- * - isActive equal to true
- * @param season Season year (default: current year)
- * @param category Optional category (default: "F1")
- * @param limit Optional limit (default: 1000)
+ * Fetches all drivers for a specific category and season
+ * Automatically normalizes the category input to a valid category prefix
+ * @param category Category name (e.g., "F1", "Formula 1", "MotoGP", etc.) - will be normalized
+ * @param season Season year (e.g., "2026")
+ * @param limit Optional limit (default: 100)
+ * @param nextToken Optional pagination token
  * @returns Array of driver entities
  */
-export async function getDrivers(season?: string, category: string = 'F1', limit: number = 1000): Promise<ApexEntity[]> {
+export async function getDrivers(
+  category: string,
+  season: string,
+  limit: number = 100,
+  nextToken?: string
+): Promise<ApexEntity[]> {
   const startTime = Date.now();
-  const currentYear = season || new Date().getFullYear().toString();
-  const pk = `${category.toLowerCase()}#${currentYear}`;
-  const variables = {
-    PK: pk,
-    SK: {
-      beginsWith: 'drivers#',
-    },
-    filter: {
-      isActive: {
-        eq: true,
-      },
-    },
+
+  // Normalize category to ensure it's one of the valid prefixes
+  const normalizedCategory = normalizeCategory(category);
+  const currentSeason = season || new Date().getFullYear().toString();
+
+  const variables: {
+    category: string;
+    season: string;
+    limit: number;
+    nextToken?: string;
+  } = {
+    category: normalizedCategory,
+    season: currentSeason,
     limit,
   };
+
+  if (nextToken) {
+    variables.nextToken = nextToken;
+  }
+
   const logId = requestLogger.logRequest('getDrivers', variables);
 
   try {
-    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
-    // const result = await client.graphql({
-    //   query: LIST_APEX_ENTITIES,
-    //   variables,
-    // }) as GraphQLResult<ListApexEntitiesResponse>;
-    // Return empty array since GraphQL is disabled
-    const duration = Date.now() - startTime;
-    requestLogger.logSuccess(logId, 0, duration);
-    return [];
-    /* COMMENTED OUT - Original GraphQL code:
+    const result = await client.graphql({
+      query: GET_DRIVERS,
+      variables,
+    }) as GraphQLResult<GetDriversResponse>;
+    console.log('result', result);
+
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
@@ -82,10 +97,9 @@ export async function getDrivers(season?: string, category: string = 'F1', limit
       throw new Error(errorMessage);
     }
 
-    const items = result.data?.listApexEntities.items || [];
+    const items = result.data?.getDrivers.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
-    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

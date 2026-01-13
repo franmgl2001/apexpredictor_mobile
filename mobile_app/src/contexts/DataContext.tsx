@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getSeasonData, getDrivers, getMyProfile, ApexEntity } from '../services/graphql';
+import { getRaces, getDrivers, getMyProfile, ApexEntity, type Race } from '../services/graphql';
 import { RaceEntity } from '../components/race_details/RaceDetailsCard';
 import { useAuth } from './AuthContext';
 import { RaceResultsData } from '../utils/pointsCalculator';
@@ -54,166 +54,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         teamColor: item.teamColor ?? undefined,
     });
 
-    // Combined function to fetch all season data in one query
-    const fetchSeasonData = async () => {
-        try {
-            setDriversError(null);
-            setRacesError(null);
-
-            // Single query to fetch all season data (drivers, races, and results)
-            const seasonData = await getSeasonData();
-
-            // Process drivers
-            try {
-                // Filter for active drivers only (preserving original behavior)
-                const driverData = seasonData.drivers.filter((it) => it.isActive === true);
-                const mappedDrivers = driverData
-                    .filter((it) => it.entityType === 'DRIVER')
-                    .map(mapDriver)
-                    // Sort by team, then by name within team
-                    .sort((a, b) => {
-                        if (a.team !== b.team) {
-                            return a.team.localeCompare(b.team);
-                        }
-                        return a.name.localeCompare(b.name);
-                    });
-                setDrivers(mappedDrivers);
-            } catch (driverErr: any) {
-                console.error('Error processing drivers:', driverErr);
-                setDriversError(driverErr.message || 'Failed to process drivers');
-                setDrivers([]);
-            }
-
-            // Process races and results
-            try {
-
-                // Extract race_ids from race results to filter races
-                const raceIdsWithResults = new Set(
-                    seasonData.results
-                        .map((result) => {
-                            // Try race_id field first, then extract from SK if needed
-                            if (result.race_id) {
-                                return result.race_id;
-                            }
-                            // SK format is "results#race_id", extract race_id
-                            if (result.SK && result.SK.startsWith('results#')) {
-                                return result.SK.replace('results#', '');
-                            }
-                            return null;
-                        })
-                        .filter((id): id is string => !!id)
-                );
-
-                // Map all race data to RaceEntity format
-                const allRaceEntities: RaceEntity[] = seasonData.races
-                    .filter((item): item is ApexEntity & { entityType: 'RACE' } => item.entityType === 'RACE')
-                    .map((item) => ({
-                        entityType: 'RACE' as const,
-                        race_id: item.race_id || '',
-                        race_name: item.race_name || '',
-                        season: item.season || '',
-                        qualy_date: item.qualy_date || '',
-                        race_date: item.race_date || '',
-                        category: item.category || '',
-                        circuit: item.circuit || '',
-                        country: item.country || '',
-                        status: item.status || 'upcoming',
-                        has_sprint: item.has_sprint || false,
-                    }))
-                    // Sort by qualy_date ascending
-                    .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
-
-                // Store all races (unfiltered)
-                setRaces(allRaceEntities);
-
-                // Filter races to only include those with results
-                const racesWithResultsFiltered = allRaceEntities.filter((race) => {
-                    const raceId = race.race_id || '';
-                    return raceIdsWithResults.has(raceId);
-                });
-                setRacesWithResults(racesWithResultsFiltered);
-
-                // Parse and store race results by race ID
-                const resultsMap = new Map<string, RaceResultsData>();
-                seasonData.results.forEach((result) => {
-                    try {
-                        const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
-
-                        if (!resultRaceId) {
-                            console.warn('[DataContext] Race result missing race_id:', {
-                                PK: result.PK,
-                                SK: result.SK,
-                                hasRaceId: !!result.race_id,
-                            });
-                            return;
-                        }
-
-                        if (!result.results) {
-                            console.warn(`[DataContext] Race result missing results field for raceId: ${resultRaceId}`);
-                            return;
-                        }
-
-                        // Handle case where results might be a string or already an object
-                        let parsedResults: RaceResultsData;
-                        if (typeof result.results === 'string') {
-                            try {
-                                parsedResults = JSON.parse(result.results) as RaceResultsData;
-                            } catch (parseError) {
-                                console.error(`[DataContext] Error parsing race results JSON for ${resultRaceId}:`, parseError);
-                                console.error(`[DataContext] Raw results string (first 200 chars):`, result.results.substring(0, 200));
-                                return;
-                            }
-                        } else if (typeof result.results === 'object' && result.results !== null) {
-                            // Already parsed
-                            parsedResults = result.results as RaceResultsData;
-                        } else {
-                            console.warn(`[DataContext] Race results is not a valid format for raceId: ${resultRaceId}`, typeof result.results);
-                            return;
-                        }
-
-                        // Validate parsed results structure
-                        if (!parsedResults || typeof parsedResults !== 'object') {
-                            console.error(`[DataContext] Parsed results is not an object for raceId: ${resultRaceId}`, parsedResults);
-                            return;
-                        }
-
-                        resultsMap.set(resultRaceId, parsedResults);
-                    } catch (error) {
-                        console.error(`[DataContext] Unexpected error processing race result:`, error, {
-                            PK: result.PK,
-                            SK: result.SK,
-                            race_id: result.race_id,
-                        });
-                    }
-                });
-                setRaceResultsByRaceId(resultsMap);
-            } catch (raceErr: any) {
-                console.error('Error processing races:', raceErr);
-                setRacesError(raceErr.message || 'Failed to process races');
-                setRaces([]);
-                setRacesWithResults([]);
-                setRaceResultsByRaceId(new Map());
-            }
-        } catch (err: any) {
-            console.error('Error fetching season data:', err);
-            const errorMessage = err.message || 'Failed to load season data';
-            setDriversError(errorMessage);
-            setRacesError(errorMessage);
-            setDrivers([]);
-            setRaces([]);
-            setRacesWithResults([]);
-            setRaceResultsByRaceId(new Map());
-        }
-    };
 
     // Keep separate functions for refetching individual resources (backwards compatibility)
     const fetchDrivers = async () => {
         try {
             setDriversError(null);
-            const seasonData = await getSeasonData();
-            const driverData = seasonData.drivers.filter((it) => it.isActive === true);
-            const mappedDrivers = driverData
-                .filter((it) => it.entityType === 'DRIVER')
+            const category = 'F1';
+            const season = new Date().getFullYear().toString();
+            const driversData = await getDrivers(category, season, 100);
+            const mappedDrivers = driversData
+                .filter((it) => it.entityType === 'DRIVER' && it.isActive === true)
                 .map(mapDriver)
                 .sort((a, b) => {
                     if (a.team !== b.team) {
@@ -223,7 +73,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 });
             setDrivers(mappedDrivers);
         } catch (err: any) {
-            console.error('Error fetching drivers:', err);
             setDriversError(err.message || 'Failed to load drivers');
             setDrivers([]);
         }
@@ -232,26 +81,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchRaces = async () => {
         try {
             setRacesError(null);
-            const seasonData = await getSeasonData();
-
-            // Extract race_ids from race results to filter races
-            const raceIdsWithResults = new Set(
-                seasonData.results
-                    .map((result) => {
-                        if (result.race_id) {
-                            return result.race_id;
-                        }
-                        if (result.SK && result.SK.startsWith('results#')) {
-                            return result.SK.replace('results#', '');
-                        }
-                        return null;
-                    })
-                    .filter((id): id is string => !!id)
-            );
+            const category = 'F1';
+            const season = new Date().getFullYear().toString();
+            const racesData = await getRaces(category, season, 100);
 
             // Map all race data to RaceEntity format
-            const allRaceEntities: RaceEntity[] = seasonData.races
-                .filter((item): item is ApexEntity & { entityType: 'RACE' } => item.entityType === 'RACE')
+            const allRaceEntities: RaceEntity[] = racesData
+                .filter((item): item is Race => item.entityType === 'RACE')
                 .map((item) => ({
                     entityType: 'RACE' as const,
                     race_id: item.race_id || '',
@@ -268,51 +104,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
 
             setRaces(allRaceEntities);
-
-            const racesWithResultsFiltered = allRaceEntities.filter((race) => {
-                const raceId = race.race_id || '';
-                return raceIdsWithResults.has(raceId);
-            });
-            setRacesWithResults(racesWithResultsFiltered);
-
-            // Parse and store race results by race ID
-            const resultsMap = new Map<string, RaceResultsData>();
-            seasonData.results.forEach((result) => {
-                try {
-                    const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
-
-                    if (!resultRaceId || !result.results) {
-                        return;
-                    }
-
-                    let parsedResults: RaceResultsData;
-                    if (typeof result.results === 'string') {
-                        try {
-                            parsedResults = JSON.parse(result.results) as RaceResultsData;
-                        } catch (parseError) {
-                            console.error(`[DataContext] Error parsing race results JSON for ${resultRaceId}:`, parseError);
-                            return;
-                        }
-                    } else if (typeof result.results === 'object' && result.results !== null) {
-                        parsedResults = result.results as RaceResultsData;
-                    } else {
-                        return;
-                    }
-
-                    if (parsedResults && typeof parsedResults === 'object') {
-                        resultsMap.set(resultRaceId, parsedResults);
-                    }
-                } catch (error) {
-                    console.error(`[DataContext] Unexpected error processing race result:`, error);
-                }
-            });
-            setRaceResultsByRaceId(resultsMap);
+            // For now, set racesWithResults to empty - can be updated later if needed
+            setRacesWithResults([]);
         } catch (err: any) {
-            console.error('Error fetching races:', err);
             setRacesError(err.message || 'Failed to load races');
             setRaces([]);
             setRacesWithResults([]);
-            setRaceResultsByRaceId(new Map());
         }
     };
 
@@ -329,7 +126,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const profileData = await getMyProfile();
             setProfile(profileData);
         } catch (err: any) {
-            console.error('Error fetching profile:', err);
             setProfileError(err.message || 'Failed to load profile');
             setProfile(null);
         } finally {
@@ -341,8 +137,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isAuthenticated) {
             setIsLoading(true);
-            // Fetch all season data (drivers, races, results) in a single query
-            fetchSeasonData().finally(() => {
+            // Fetch drivers and races in parallel
+            Promise.all([fetchDrivers(), fetchRaces()]).finally(() => {
                 setIsLoading(false);
             });
             // Fetch profile if userId is available

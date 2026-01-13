@@ -4,29 +4,98 @@
  */
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
-import { client, APEX_ENTITY_FIELDS } from './client';
-import type { ApexEntity, ListApexEntitiesResponse } from './types';
+import { client } from './client';
 import { requestLogger } from './requestLogger';
 
-const LIST_APEX_ENTITIES = `
-  query ListApexEntities(
-    $PK: String
-    $sortDirection: ModelSortDirection
-    $SK: ModelStringKeyConditionInput
-    $filter: ModelApexEntityFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    listApexEntities(
-      PK: $PK
-      sortDirection: $sortDirection
-      SK: $SK
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
+/**
+ * Race type matching the GraphQL Race schema
+ */
+export type Race = {
+  PK: string;
+  SK: string;
+  entityType: string;
+  race_id: string;
+  race_name: string;
+  season: string;
+  qualy_date?: string | null;
+  race_date?: string | null;
+  category: string;
+  circuit?: string | null;
+  country?: string | null;
+  status?: string | null;
+  has_sprint?: boolean | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+/**
+ * Valid category prefixes for race queries
+ */
+const VALID_CATEGORIES = ['f1', 'motogp', 'wrc', 'wec', 'dakar', 'indycar'] as const;
+
+/**
+ * Normalizes a category string to a valid category prefix
+ * @param category Input category (e.g., "F1", "Formula 1", "MotoGP", etc.)
+ * @returns Normalized category (f1, motogp, wrc, wec, dakar, or indycar)
+ */
+export function normalizeCategory(category: string): string {
+  const normalized = category.toLowerCase().trim();
+
+  // Direct matches
+  if (VALID_CATEGORIES.includes(normalized as any)) {
+    return normalized;
+  }
+
+  // Common variations
+  const categoryMap: Record<string, string> = {
+    'formula 1': 'f1',
+    'formula1': 'f1',
+    'formula one': 'f1',
+    'f1': 'f1',
+    'moto gp': 'motogp',
+    'moto-gp': 'motogp',
+    'motogp': 'motogp',
+    'world rally championship': 'wrc',
+    'wrc': 'wrc',
+    'world endurance championship': 'wec',
+    'wec': 'wec',
+    'dakar rally': 'dakar',
+    'dakar': 'dakar',
+    'indy car': 'indycar',
+    'indy-car': 'indycar',
+    'indycar': 'indycar',
+  };
+
+  // Check for partial matches
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return value;
+    }
+  }
+
+  // Default to f1 if no match found
+  return 'f1';
+}
+
+const GET_RACES = `
+  query GetRaces($category: String!, $season: String!, $limit: Int, $nextToken: String) {
+    getRaces(category: $category, season: $season, limit: $limit, nextToken: $nextToken) {
       items {
-        ${APEX_ENTITY_FIELDS}
+        PK
+        SK
+        entityType
+        race_id
+        race_name
+        season
+        qualy_date
+        race_date
+        category
+        circuit
+        country
+        status
+        has_sprint
+        createdAt
+        updatedAt
       }
       nextToken
       __typename
@@ -34,135 +103,73 @@ const LIST_APEX_ENTITIES = `
   }
 `;
 
+interface GetRacesResponse {
+  getRaces: {
+    items: Race[];
+    nextToken: string | null;
+    __typename: string;
+  };
+}
+
 /**
- * Fetches race results from the GraphQL API
- * Fetches race result entities with PK equal to "f1#<season>" (e.g., "f1#2025") and SK beginning with "results#"
- * @param season Optional season year (default: current year)
- * @param limit Optional limit (default: 1000)
- * @param category Optional category (default: "F1")
- * @returns Array of race result entities
+ * Fetches races for a specific category and season
+ * Automatically normalizes the category input to a valid category prefix
+ * @param category Category name (e.g., "F1", "Formula 1", "MotoGP", etc.) - will be normalized
+ * @param season Season year (e.g., "2026")
+ * @param limit Optional limit (default: 100)
+ * @param nextToken Optional pagination token
+ * @returns Array of race entities
  */
-export async function getRaceResults(season?: string, limit: number = 1000, category: string = 'F1'): Promise<ApexEntity[]> {
+export async function getRaces(
+  category: string,
+  season: string,
+  limit: number = 100,
+  nextToken?: string
+): Promise<Race[]> {
   const startTime = Date.now();
-  const currentYear = season || new Date().getFullYear().toString();
-  const pk = `${category.toLowerCase()}#${currentYear}`;
-  const variables = {
-    PK: pk,
-    SK: {
-      beginsWith: 'results#',
-    },
+
+  // Normalize category to ensure it's one of the valid prefixes
+  const normalizedCategory = normalizeCategory(category);
+  const currentSeason = season || new Date().getFullYear().toString();
+
+  const variables: {
+    category: string;
+    season: string;
+    limit: number;
+    nextToken?: string;
+  } = {
+    category: normalizedCategory,
+    season: currentSeason,
     limit,
   };
-  const logId = requestLogger.logRequest('getRaceResults', variables);
+
+  if (nextToken) {
+    variables.nextToken = nextToken;
+  }
+
+  const logId = requestLogger.logRequest('getRaces', variables);
 
   try {
-    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
-    // const result = await client.graphql({
-    //   query: LIST_APEX_ENTITIES,
-    //   variables,
-    // }) as GraphQLResult<ListApexEntitiesResponse>;
-    // Return empty array since GraphQL is disabled
-    const duration = Date.now() - startTime;
-    requestLogger.logSuccess(logId, 0, duration);
-    return [];
-    /* COMMENTED OUT - Original GraphQL code:
+    const result = await client.graphql({
+      query: GET_RACES,
+      variables,
+    }) as GraphQLResult<GetRacesResponse>;
+    console.log('result', result);
+
     const duration = Date.now() - startTime;
 
     if (result.errors && result.errors.length > 0) {
-      const errorMessage = result.errors[0].message || 'Failed to fetch race results';
+      const errorMessage = result.errors[0].message || 'Failed to fetch races';
       requestLogger.logError(logId, new Error(errorMessage), duration);
       throw new Error(errorMessage);
     }
 
-    const items = result.data?.listApexEntities.items || [];
+    const items = result.data?.getRaces.items || [];
     requestLogger.logSuccess(logId, items.length, duration);
     return items;
-    */
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);
     throw error;
   }
 }
-
-/**
- * Fetches all season data (drivers, races, and results) in a single query
- * This is more efficient than making three separate queries since they all use the same PK
- * @param season Optional season year (default: current year)
- * @param limit Optional limit (default: 1500 to accommodate all entities)
- * @param category Optional category (default: "F1")
- * @returns Object containing drivers, races, and results arrays
- */
-export interface SeasonData {
-  drivers: ApexEntity[];
-  races: ApexEntity[];
-  results: ApexEntity[];
-}
-
-export async function getSeasonData(
-  season?: string,
-  limit: number = 1500,
-  category: string = 'F1'
-): Promise<SeasonData> {
-  const startTime = Date.now();
-  const currentYear = season || new Date().getFullYear().toString();
-  const pk = `${category.toLowerCase()}#${currentYear}`;
-
-  // Query by PK only - no SK filter to get all entities for the season
-  const variables = {
-    PK: pk,
-    limit,
-  };
-  const logId = requestLogger.logRequest('getSeasonData', variables);
-
-  try {
-    // COMMENTED OUT: GraphQL call disabled - migrating to CDK backend
-    // const result = await client.graphql({
-    //   query: LIST_APEX_ENTITIES,
-    //   variables,
-    // }) as GraphQLResult<ListApexEntitiesResponse>;
-    // Return empty data since GraphQL is disabled
-    const duration = Date.now() - startTime;
-    requestLogger.logSuccess(logId, 0, duration);
-    return {
-      drivers: [],
-      races: [],
-      results: [],
-    };
-    /* COMMENTED OUT - Original GraphQL code:
-    const duration = Date.now() - startTime;
-
-    if (result.errors && result.errors.length > 0) {
-      const errorMessage = result.errors[0].message || 'Failed to fetch season data';
-      requestLogger.logError(logId, new Error(errorMessage), duration);
-      throw new Error(errorMessage);
-    }
-
-    const allItems = result.data?.listApexEntities.items || [];
-
-    // Filter items client-side by SK prefix
-    const drivers = allItems.filter(
-      (item) => item.SK?.startsWith('drivers#') && item.entityType === 'DRIVER'
-    );
-    const races = allItems.filter(
-      (item) => item.SK?.startsWith('race#') && item.entityType === 'RACE'
-    );
-    const results = allItems.filter(
-      (item) => item.SK?.startsWith('results#')
-    );
-
-    requestLogger.logSuccess(logId, allItems.length, duration);
-
-    return {
-      drivers,
-      races,
-      results,
-    };
-    */
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    requestLogger.logError(logId, error, duration);
-    throw error;
-  }
-}
-
