@@ -1,9 +1,11 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as cognito from "aws-cdk-lib/aws-cognito"; // (leave yours as-is if it works)
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import path from "path";
+import { createProfileResolvers } from "./resolvers/profile-resolvers";
+import { createAssetsResolvers } from "./resolvers/assets-resolvers";
 
 export class ApexBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -40,67 +42,18 @@ export class ApexBackendStack extends cdk.Stack {
     });
 
     // =========================
-    // ✅ ADD RESOLVERS HERE
+    // ✅ RESOLVERS
     // =========================
 
     // DynamoDB datasource
     const profileDS = api.addDynamoDbDataSource("UserProfileDS", table);
 
-    // Mutation.upsertMyProfile resolver
-    profileDS.createResolver("UpsertMyProfileResolver", {
-      typeName: "Mutation",
-      fieldName: "upsertMyProfile",
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-{
-  "version": "2018-05-29",
-  "operation": "PutItem",
-  "key": {
-    "PK": { "S": "user#\${ctx.identity.sub}" },
-    "SK": { "S": "PROFILE" }
-  },
-  "attributeValues": {
-    "user_id": { "S": "\${ctx.identity.sub}" },
-    "email": { "S": "\${ctx.args.input.email}" },
-    "username": { "S": "\${ctx.args.input.username}" },
-    "country": { "S": "\${ctx.args.input.country}" },
-    "createdAt": { "S": "\${util.time.nowISO8601()}" },
-    "updatedAt": { "S": "\${util.time.nowISO8601()}" }
-  }
-}
-      `),
-      // IMPORTANT: PutItem may not return an item → return what your GraphQL expects
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-$util.toJson({
-  "user_id": $ctx.identity.sub,
-  "email": $ctx.args.input.email,
-  "username": $ctx.args.input.username,
-  "country": $ctx.args.input.country,
-  "createdAt": $util.time.nowISO8601(),
-  "updatedAt": $util.time.nowISO8601()
-})
-      `),
-    });
+    // Create profile resolvers (user profile queries and mutations)
+    createProfileResolvers(profileDS);
 
+    // Create assets resolvers (races, drivers, results queries)
+    createAssetsResolvers(profileDS);
 
-
-    // Query.getMyProfile resolver (gets user from token, same pattern as upsertMyProfile)
-    profileDS.createResolver("GetMyProfileResolver", {
-      typeName: "Query",
-      fieldName: "getMyProfile",
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-{
-  "version": "2018-05-29",
-  "operation": "GetItem",
-  "key": {
-    "PK": { "S": "user#\${ctx.identity.sub}" },
-    "SK": { "S": "PROFILE" }
-  }
-}
-      `),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-$util.toJson($ctx.result)
-      `),
-    });
 
     // =========================
     // (Optional) App Client

@@ -13,8 +13,76 @@ input UpsertUserProfileInput {
   email: AWSEmail!
 }
 
+type Race {
+  PK: String!
+  SK: String!
+  entityType: String!
+  race_id: String!
+  race_name: String!
+  season: String!
+  qualy_date: String
+  race_date: String
+  category: String!
+  circuit: String
+  country: String
+  status: String
+  has_sprint: Boolean
+  createdAt: String
+  updatedAt: String
+}
+
+type Driver {
+  PK: String!
+  SK: String!
+  entityType: String!
+  driver_id: String!
+  name: String!
+  team: String
+  number: Int
+  imageUrl: String
+  teamColor: String
+  isActive: Boolean
+  nationality: String
+  birthDate: String
+  season: String!
+  category: String!
+  createdAt: String
+  updatedAt: String
+}
+
+type Result {
+  PK: String!
+  SK: String!
+  entityType: String!
+  race_id: String!
+  results: String
+  season: String!
+  category: String!
+  createdAt: String
+  updatedAt: String
+}
+
+type RacesResponse {
+  items: [Race!]!
+  nextToken: String
+}
+
+type DriversResponse {
+  items: [Driver!]!
+  nextToken: String
+}
+
+type ResultsResponse {
+  items: [Result!]!
+  nextToken: String
+}
+
 type Query {
   getMyProfile: UserProfile
+  getRaces(category: String!, season: String!, limit: Int, nextToken: String): RacesResponse
+  getDrivers(category: String!, season: String!, limit: Int, nextToken: String): DriversResponse
+  getResults(category: String!, season: String!, limit: Int, nextToken: String): ResultsResponse
+
 }
 
 type Mutation {
