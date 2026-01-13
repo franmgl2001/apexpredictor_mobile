@@ -3,7 +3,7 @@ import time
 import boto3
 from boto3.dynamodb.conditions import Attr
 
-TABLE_NAME = "ApexEntity-5jcwvxujrfbo3hrhevdplmyhsi-NONE"
+TABLE_NAME = "ApexBackendStack-ApexEntityTableDFB3421A-QK13O45RSY13"
 
 SEASON = "2025"
 CATEGORY = "F1"  # adjust if stored as "f1"
