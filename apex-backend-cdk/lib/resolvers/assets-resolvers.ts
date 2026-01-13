@@ -10,113 +10,62 @@ export function createAssetsResolvers(
   dataSource.createResolver("GetRacesResolver", {
     typeName: "Query",
     fieldName: "getRaces",
-    requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($category = $util.defaultIfNullOrBlank($ctx.args.category, "f1"))
-#set($categoryLower = $util.toLower($category))
-#set($season = $util.defaultIfNullOrBlank($ctx.args.season, "2026"))
-#set($pk = "$categoryLower#$season")
-#set($limit = $util.defaultIfNullOrBlank($ctx.args.limit, 100))
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($pk = $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
   "query": {
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
-      ":pk": { "S": "$pk" },
+      ":pk": $util.dynamodb.toDynamoDBJson($pk),
       ":skPrefix": { "S": "race#" }
     }
   },
-  "limit": $limit
-  #if($ctx.args.nextToken)
-  ,"nextToken": "$ctx.args.nextToken"
-  #end
-}
-    `),
-    responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($items = [])
-#foreach($item in $ctx.result.items)
-  $util.qr($items.add($util.dynamodb.toMapValues($item)))
-#end
-{
-  "items": $util.toJson($items),
-  "nextToken": $util.toJson($ctx.result.nextToken)
-}
-    `),
+  "limit": $util.defaultIfNull($ctx.args.limit, 100)
+}`),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`$util.toJson($ctx.result)`),
   });
 
   // Query.getDrivers resolver
   dataSource.createResolver("GetDriversResolver", {
     typeName: "Query",
     fieldName: "getDrivers",
-    requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($category = $util.defaultIfNullOrBlank($ctx.args.category, "f1"))
-#set($categoryLower = $util.toLower($category))
-#set($season = $util.defaultIfNullOrBlank($ctx.args.season, "2026"))
-#set($pk = "$categoryLower#$season")
-#set($limit = $util.defaultIfNullOrBlank($ctx.args.limit, 100))
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($pk = $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
   "query": {
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
-      ":pk": { "S": "$pk" },
+      ":pk": $util.dynamodb.toDynamoDBJson($pk),
       ":skPrefix": { "S": "drivers#" }
     }
   },
-  "limit": $limit
-  #if($ctx.args.nextToken)
-  ,"nextToken": "$ctx.args.nextToken"
-  #end
-}
-    `),
-    responseMappingTemplate: appsync.MappingTemplate.fromString(`
-    #set($items = [])
-  #foreach($item in $ctx.result.items)
-    $util.qr($items.add($util.dynamodb.toMapValues($item)))
-  #end
-  {
-    "items": $util.toJson($items),
-    "nextToken": $util.toJson($ctx.result.nextToken)
-}
-    `),
+  "limit": $util.defaultIfNull($ctx.args.limit, 100)
+}`),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`$util.toJson($ctx.result)`),
   });
 
   // Query.getResults resolver
   dataSource.createResolver("GetResultsResolver", {
     typeName: "Query",
     fieldName: "getResults",
-    requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($category = $util.defaultIfNullOrBlank($ctx.args.category, "f1"))
-#set($categoryLower = $util.toLower($category))
-#set($season = $util.defaultIfNullOrBlank($ctx.args.season, "2026"))
-#set($pk = "$categoryLower#$season")
-#set($limit = $util.defaultIfNullOrBlank($ctx.args.limit, 100))
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($pk = $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
   "query": {
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
-      ":pk": { "S": "$pk" },
+      ":pk": $util.dynamodb.toDynamoDBJson($pk),
       ":skPrefix": { "S": "results#" }
     }
   },
-  "limit": $limit
-  #if($ctx.args.nextToken)
-  ,"nextToken": "$ctx.args.nextToken"
-  #end
-}
-    `),
-    responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($items = [])
-#foreach($item in $ctx.result.items)
-  $util.qr($items.add($util.dynamodb.toMapValues($item)))
-#end
-{
-  "items": $util.toJson($items),
-  "nextToken": $util.toJson($ctx.result.nextToken)
-}
-    `),
+  "limit": $util.defaultIfNull($ctx.args.limit, 100)
+}`),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`$util.toJson($ctx.result)`),
   });
 }
