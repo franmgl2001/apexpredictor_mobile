@@ -6,7 +6,9 @@ import boto3
 
 
 # ---- config ----
-TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "")
+TABLE_NAME = os.environ.get(
+    "DB_TABLE_NAME", "ApexBackendStack-ApexEntityTableDFB3421A-QK13O45RSY13"
+)
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-2")
 
 # UK time (Europe/London) -> UTC ISO8601 with 'Z'
@@ -27,8 +29,8 @@ def london_to_utc_z(dt_str: str) -> str:
 def make_race_item(r: dict, now_iso: str) -> dict:
     race_id = r["race_id"]
     return {
-        "PK": f"race#{race_id}",
-        "SK": "DETAILS",
+        "PK": "f1#2026",
+        "SK": f"race#{race_id}",
         # required attributes (per your RACE card)
         "entityType": "RACE",
         "season": "2026",

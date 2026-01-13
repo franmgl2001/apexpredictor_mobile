@@ -1,7 +1,7 @@
 import boto3
 from datetime import datetime, timezone
 
-TABLE_NAME = "ApexEntity-5jcwvxujrfbo3hrhevdplmyhsi-NONE"
+TABLE_NAME = "ApexBackendStack-ApexEntityTableDFB3421A-QK13O45RSY13"
 
 
 def now_iso():
@@ -177,14 +177,25 @@ DRIVERS_2026_F1 = [
 ]
 
 
+def slug_from_driver(driver_id: str) -> str:
+    """
+    Convert driver_id to slug format (same logic as assets.py)
+    Example: "driver_max_verstappen" -> "max_verstappen"
+    """
+    if driver_id.startswith("driver_"):
+        return driver_id.replace("driver_", "")
+    return driver_id
+
+
 def build_driver_item(d, ts):
     driver_id = d["driver_id"]
     season = "2026"
     team = d["team"]
+    driver_slug = slug_from_driver(driver_id)
 
     return {
-        "PK": f"driver#{driver_id}",
-        "SK": f"SEASON#{season}",
+        "PK": "f1#2026",
+        "SK": f"drivers#{driver_slug}",
         "entityType": "DRIVER",
         "driver_id": driver_id,
         "season": season,
