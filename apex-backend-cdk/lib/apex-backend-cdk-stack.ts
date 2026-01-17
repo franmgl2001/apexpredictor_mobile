@@ -6,6 +6,7 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 import path from "path";
 import { createProfileResolvers } from "./resolvers/profile-resolvers";
 import { createAssetsResolvers } from "./resolvers/assets-resolvers";
+import { createPredictionsResolvers } from "./resolvers/predictions-resolvers";
 
 export class ApexBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -24,6 +25,13 @@ export class ApexBackendStack extends cdk.Stack {
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Add GSI1: USER#<userId> / RACE#<series>#<season>#<raceId>
+    table.addGlobalSecondaryIndex({
+      indexName: "byUser",
+      partitionKey: { name: "byUserPK", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "byUserSK", type: dynamodb.AttributeType.STRING },
     });
 
     // 3) AppSync API using Cognito User Pool auth
@@ -53,6 +61,9 @@ export class ApexBackendStack extends cdk.Stack {
 
     // Create assets resolvers (races, drivers, results queries)
     createAssetsResolvers(profileDS);
+
+    // Create predictions resolvers (race prediction queries and mutations)
+    createPredictionsResolvers(profileDS);
 
 
     // =========================

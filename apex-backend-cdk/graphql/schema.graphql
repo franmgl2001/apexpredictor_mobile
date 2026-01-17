@@ -1,3 +1,7 @@
+
+scalar AWSJSON
+scalar AWSDateTime
+
 type UserProfile {
   user_id: ID!          # Cognito sub
   email: AWSEmail!
@@ -77,16 +81,41 @@ type ResultsResponse {
   nextToken: String
 }
 
+type RacePrediction {
+  series: String!
+  season: String!
+  raceId: String!
+  userId: ID!
+  prediction: AWSJSON!
+  points: Int!          # starts at 0
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type RacePredictionConnection {
+  items: [RacePrediction!]!
+  nextToken: String
+}
+
+input UpsertPredictionInput {
+  series: String!
+  season: String!
+  raceId: String!
+  prediction: AWSJSON!
+}
+
 type Query {
   getMyProfile: UserProfile
   getRaces(category: String!, season: String!, limit: Int, nextToken: String): RacesResponse
   getDrivers(category: String!, season: String!, limit: Int, nextToken: String): DriversResponse
   getResults(category: String!, season: String!, limit: Int, nextToken: String): ResultsResponse
-
+  # list all races/predictions of the logged-in user (via GSI)
+  listMyRaces(series: String, season: String, limit: Int = 50, nextToken: String): RacePredictionConnection!
+  # optional: fetch my prediction for a specific race
+  getMyPrediction(series: String!, season: String!, raceId: String!): RacePrediction
 }
 
 type Mutation {
   upsertMyProfile(input: UpsertUserProfileInput!): UserProfile
+  upsertPrediction(input: UpsertPredictionInput!): RacePrediction!
 }
-
-
