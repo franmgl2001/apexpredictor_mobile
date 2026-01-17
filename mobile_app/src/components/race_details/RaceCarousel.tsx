@@ -92,6 +92,9 @@ export default function RaceCarousel({
             const nowClosed = Date.now() >= Date.parse(race.qualy_date);
             setIsClosed(nowClosed);
         };
+        // Update immediately when race changes (no lag)
+        update();
+        // Then set up interval for continuous updates
         const id = setInterval(update, 1000);
         return () => clearInterval(id);
     }, [race?.qualy_date]);
