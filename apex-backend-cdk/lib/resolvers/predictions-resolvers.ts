@@ -16,8 +16,9 @@ export function createPredictionsResolvers(
 #set($season = $ctx.args.input.season)
 #set($raceId = $ctx.args.input.raceId)
 #set($pk = "prediction#" + $userId + "#" + $series + "#" + $season + "#" + $raceId)
-#set($sk = "RACEPREDICTION")
+#set($paddedPoints = "0000000000")
 #set($points = 0)
+#set($sk = "PTS#" + $paddedPoints)
 #set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
