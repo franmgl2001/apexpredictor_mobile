@@ -87,7 +87,6 @@ export async function getDrivers(
       query: GET_DRIVERS,
       variables,
     }) as GraphQLResult<GetDriversResponse>;
-    console.log('result', result);
 
     const duration = Date.now() - startTime;
 

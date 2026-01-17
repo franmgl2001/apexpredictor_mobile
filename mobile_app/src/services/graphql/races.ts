@@ -154,7 +154,6 @@ export async function getRaces(
       query: GET_RACES,
       variables,
     }) as GraphQLResult<GetRacesResponse>;
-    console.log('result', result);
 
     const duration = Date.now() - startTime;
 

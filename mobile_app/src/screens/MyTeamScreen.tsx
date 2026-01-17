@@ -7,8 +7,7 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData, type Driver } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { getRaces, getDrivers, type ApexEntity, type Race } from '../services/graphql';
-import type { RaceEntity } from '../components/race_details/RaceDetailsCard';
+import type { ApexEntity } from '../services/graphql';
 
 type MyTeamScreenProps = {
     onProfilePress: () => void;
@@ -22,83 +21,15 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [currentPredictions, setCurrentPredictions] = useState<string | null>(null);
     const [predictionsByRaceId, setPredictionsByRaceId] = useState<Map<string, ApexEntity | null>>(new Map());
     const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
-    const [localRaces, setLocalRaces] = useState<RaceEntity[]>([]);
-    const [localDrivers, setLocalDrivers] = useState<Driver[]>([]);
-    const [isLoadingData, setIsLoadingData] = useState(false);
-    const [dataError, setDataError] = useState<string | null>(null);
-    const { profile, refetchRaces, refetchDrivers } = useData();
+    const { profile, races, drivers, isLoading, racesError, driversError } = useData();
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
 
-    // Fetch races and drivers using the services
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoadingData(true);
-            setDataError(null);
-            const category = 'F1';
-            const season = '2026';
-
-            try {
-                // Fetch races and drivers in parallel
-                const [racesData, driversData] = await Promise.all([
-                    getRaces(category, season, 100),
-                    getDrivers(category, season, 100),
-                ]);
-
-                // Convert Race[] to RaceEntity[] for races
-                const raceEntities: RaceEntity[] = racesData
-                    .filter((item): item is Race => item.entityType === 'RACE')
-                    .map((item) => ({
-                        entityType: 'RACE' as const,
-                        race_id: item.race_id,
-                        race_name: item.race_name,
-                        season: item.season,
-                        qualy_date: item.qualy_date || '',
-                        race_date: item.race_date || '',
-                        category: item.category,
-                        circuit: item.circuit || '',
-                        country: item.country || '',
-                        status: (item.status || 'upcoming') as 'upcoming' | 'completed' | string,
-                        has_sprint: item.has_sprint || false,
-                    }))
-                    .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
-
-                // Convert drivers to Driver[] format (same structure as DataContext expects)
-                const driverEntities: Driver[] = driversData
-                    .filter((item) => item.entityType === 'DRIVER' && item.isActive === true)
-                    .map((item) => ({
-                        id: String(item.driver_id ?? item.PK ?? item.name ?? ''),
-                        name: String(item.name ?? ''),
-                        team: String(item.team ?? ''),
-                        number: Number(item.number ?? 0),
-                        nationality: item.nationality ?? undefined,
-                        teamColor: item.teamColor ?? undefined,
-                    }))
-                    .sort((a, b) => {
-                        if (a.team !== b.team) {
-                            return a.team.localeCompare(b.team);
-                        }
-                        return a.name.localeCompare(b.name);
-                    });
-
-                setLocalRaces(raceEntities);
-                setLocalDrivers(driverEntities);
-
-                // Update DataContext so PredictionsSection can access drivers
-                try {
-                    await Promise.all([refetchRaces(), refetchDrivers()]);
-                } catch (err) {
-                    // Silently fail - DataContext update failed
-                }
-            } catch (error: any) {
-                setDataError(error?.message || 'Failed to fetch data');
-            } finally {
-                setIsLoadingData(false);
-            }
-        };
-
-        fetchData();
-    }, []);
+    // Use races and drivers from DataContext - no need to fetch separately
+    const localRaces = races;
+    const localDrivers = drivers;
+    const isLoadingData = isLoading;
+    const dataError = racesError || driversError;
 
     // Fetch all user predictions when screen loads
     useEffect(() => {
@@ -121,7 +52,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
         };
 
         fetchAllPredictions();
-    }, [user?.userId, localRaces.length]);
+    }, [user?.userId, localRaces]);
 
     const handleSave = async () => {
         if (!user?.userId || !currentRaceId || !currentPredictions) {
@@ -165,69 +96,6 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
                 {dataError && (
                     <View style={styles.errorContainer}>
                         <Text style={styles.errorText}>{dataError}</Text>
-                        <TouchableOpacity
-                            onPress={() => {
-                                // Retry fetching
-                                const fetchData = async () => {
-                                    setIsLoadingData(true);
-                                    setDataError(null);
-                                    const category = 'F1';
-                                    const season = '2026';
-
-                                    try {
-                                        const [racesData, driversData] = await Promise.all([
-                                            getRaces(category, season, 100),
-                                            getDrivers(category, season, 100),
-                                        ]);
-
-                                        const raceEntities: RaceEntity[] = racesData
-                                            .filter((item): item is Race => item.entityType === 'RACE')
-                                            .map((item) => ({
-                                                entityType: 'RACE' as const,
-                                                race_id: item.race_id,
-                                                race_name: item.race_name,
-                                                season: item.season,
-                                                qualy_date: item.qualy_date || '',
-                                                race_date: item.race_date || '',
-                                                category: item.category,
-                                                circuit: item.circuit || '',
-                                                country: item.country || '',
-                                                status: (item.status || 'upcoming') as 'upcoming' | 'completed' | string,
-                                                has_sprint: item.has_sprint || false,
-                                            }))
-                                            .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
-
-                                        const driverEntities: Driver[] = driversData
-                                            .filter((item) => item.entityType === 'DRIVER' && item.isActive === true)
-                                            .map((item) => ({
-                                                id: String(item.driver_id ?? item.PK ?? item.name ?? ''),
-                                                name: String(item.name ?? ''),
-                                                team: String(item.team ?? ''),
-                                                number: Number(item.number ?? 0),
-                                                nationality: item.nationality ?? undefined,
-                                                teamColor: item.teamColor ?? undefined,
-                                            }))
-                                            .sort((a, b) => {
-                                                if (a.team !== b.team) {
-                                                    return a.team.localeCompare(b.team);
-                                                }
-                                                return a.name.localeCompare(b.name);
-                                            });
-
-                                        setLocalRaces(raceEntities);
-                                        setLocalDrivers(driverEntities);
-                                    } catch (error: any) {
-                                        setDataError(error?.message || 'Failed to fetch data');
-                                    } finally {
-                                        setIsLoadingData(false);
-                                    }
-                                };
-                                fetchData();
-                            }}
-                            style={styles.retryButton}
-                        >
-                            <Text style={styles.retryText}>Retry</Text>
-                        </TouchableOpacity>
                     </View>
                 )}
 
