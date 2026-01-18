@@ -1,10 +1,10 @@
 import boto3
 from datetime import datetime, timezone
 
-TABLE_NAME = "ApexBackendStack-ApexEntityTableDFB3421A-QK13O45RSY13"
+tableName = "ApexBackendStack-ApexEntityTableDFB3421A-QK13O45RSY13"
 
 
-def now_iso():
+def nowIso():
     return (
         datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     )
@@ -12,7 +12,7 @@ def now_iso():
 
 # Team colors (hex) — used for teams where a hex value is available.
 # For Audi/Cadillac: not defined (no authoritative hex palette published as hex).
-TEAM_COLORS = {
+teamColors = {
     # Orange / green / silver are already fine
     "McLaren": "#F47600",
     "Mercedes": "#00D7B6",
@@ -30,146 +30,146 @@ TEAM_COLORS = {
 }
 
 
-DRIVERS_2026_F1 = [
+drivers2026F1 = [
     # McLaren
     {
-        "driver_id": "driver_lando_norris",
+        "driverId": "driver_lando_norris",
         "name": "Lando Norris",
         "number": 1,
         "team": "McLaren",
     },
     {
-        "driver_id": "driver_oscar_piastri",
+        "driverId": "driver_oscar_piastri",
         "name": "Oscar Piastri",
         "number": 81,
         "team": "McLaren",
     },
     # Mercedes
     {
-        "driver_id": "driver_george_russell",
+        "driverId": "driver_george_russell",
         "name": "George Russell",
         "number": 63,
         "team": "Mercedes",
     },
     {
-        "driver_id": "driver_kimi_antonelli",
+        "driverId": "driver_kimi_antonelli",
         "name": "Kimi Antonelli",
         "number": 12,
         "team": "Mercedes",
     },
     # Red Bull
     {
-        "driver_id": "driver_max_verstappen",
+        "driverId": "driver_max_verstappen",
         "name": "Max Verstappen",
         "number": 3,
         "team": "Red Bull",
     },
     {
-        "driver_id": "driver_isack_hadjar",
+        "driverId": "driver_isack_hadjar",
         "name": "Isack Hadjar",
         "number": 6,
         "team": "Red Bull",
     },
     # Ferrari
     {
-        "driver_id": "driver_charles_leclerc",
+        "driverId": "driver_charles_leclerc",
         "name": "Charles Leclerc",
         "number": 16,
         "team": "Ferrari",
     },
     {
-        "driver_id": "driver_lewis_hamilton",
+        "driverId": "driver_lewis_hamilton",
         "name": "Lewis Hamilton",
         "number": 44,
         "team": "Ferrari",
     },
     # Williams
     {
-        "driver_id": "driver_alexander_albon",
+        "driverId": "driver_alexander_albon",
         "name": "Alexander Albon",
         "number": 23,
         "team": "Williams",
     },
     {
-        "driver_id": "driver_carlos_sainz",
+        "driverId": "driver_carlos_sainz",
         "name": "Carlos Sainz",
         "number": 55,
         "team": "Williams",
     },
     # Racing Bulls
     {
-        "driver_id": "driver_liam_lawson",
+        "driverId": "driver_liam_lawson",
         "name": "Liam Lawson",
         "number": 30,
         "team": "Racing Bulls",
     },
     {
-        "driver_id": "driver_arvid_lindblad",
+        "driverId": "driver_arvid_lindblad",
         "name": "Arvid Lindblad",
         "number": 41,
         "team": "Racing Bulls",
     },
     # Aston Martin
     {
-        "driver_id": "driver_fernando_alonso",
+        "driverId": "driver_fernando_alonso",
         "name": "Fernando Alonso",
         "number": 14,
         "team": "Aston Martin",
     },
     {
-        "driver_id": "driver_lance_stroll",
+        "driverId": "driver_lance_stroll",
         "name": "Lance Stroll",
         "number": 18,
         "team": "Aston Martin",
     },
     # Haas
     {
-        "driver_id": "driver_esteban_ocon",
+        "driverId": "driver_esteban_ocon",
         "name": "Esteban Ocon",
         "number": 31,
         "team": "Haas",
     },
     {
-        "driver_id": "driver_oliver_bearman",
+        "driverId": "driver_oliver_bearman",
         "name": "Oliver Bearman",
         "number": 87,
         "team": "Haas",
     },
     # Audi
     {
-        "driver_id": "driver_gabriel_bortoleto",
+        "driverId": "driver_gabriel_bortoleto",
         "name": "Gabriel Bortoleto",
         "number": 5,
         "team": "Audi",
     },
     {
-        "driver_id": "driver_nico_hulkenberg",
+        "driverId": "driver_nico_hulkenberg",
         "name": "Nico Hulkenberg",
         "number": 27,
         "team": "Audi",
     },
     # Alpine
     {
-        "driver_id": "driver_pierre_gasly",
+        "driverId": "driver_pierre_gasly",
         "name": "Pierre Gasly",
         "number": 10,
         "team": "Alpine",
     },
     {
-        "driver_id": "driver_franco_colapinto",
+        "driverId": "driver_franco_colapinto",
         "name": "Franco Colapinto",
         "number": 43,
         "team": "Alpine",
     },
     # Cadillac
     {
-        "driver_id": "driver_sergio_perez",
+        "driverId": "driver_sergio_perez",
         "name": "Sergio Perez",
         "number": 11,
         "team": "Cadillac",
     },
     {
-        "driver_id": "driver_valtteri_bottas",
+        "driverId": "driver_valtteri_bottas",
         "name": "Valtteri Bottas",
         "number": 77,
         "team": "Cadillac",
@@ -177,33 +177,33 @@ DRIVERS_2026_F1 = [
 ]
 
 
-def slug_from_driver(driver_id: str) -> str:
+def slugFromDriver(driverId: str) -> str:
     """
-    Convert driver_id to slug format (same logic as assets.py)
+    Convert driverId to slug format (same logic as assets.py)
     Example: "driver_max_verstappen" -> "max_verstappen"
     """
-    if driver_id.startswith("driver_"):
-        return driver_id.replace("driver_", "")
-    return driver_id
+    if driverId.startswith("driver_"):
+        return driverId.replace("driver_", "")
+    return driverId
 
 
-def build_driver_item(d, ts):
-    driver_id = d["driver_id"]
+def buildDriverItem(d, ts):
+    driverId = d["driverId"]
     season = "2026"
     team = d["team"]
-    driver_slug = slug_from_driver(driver_id)
+    driverSlug = slugFromDriver(driverId)
 
     return {
         "PK": "f1#2026",
-        "SK": f"DRIVER#{driver_slug}",
+        "SK": f"DRIVER#{driverSlug}",
         "entityType": "DRIVER",
-        "driver_id": driver_id,
+        "driverId": driverId,
         "season": season,
         "category": "F1",
         "name": d["name"],
         "number": int(d["number"]),
         "team": team,
-        "teamColor": TEAM_COLORS.get(team, "not defined"),
+        "teamColor": teamColors.get(team, "not defined"),
         "isActive": True,
         # placeholders for required attributes not specified in your card beyond being "required"
         "birthDate": "Unknown",
@@ -215,18 +215,18 @@ def build_driver_item(d, ts):
 
 
 def main():
-    ts = now_iso()
+    ts = nowIso()
     dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table(TABLE_NAME)
+    table = dynamodb.Table(tableName)
 
-    items = [build_driver_item(d, ts) for d in DRIVERS_2026_F1]
+    items = [buildDriverItem(d, ts) for d in drivers2026F1]
 
     with table.batch_writer(overwrite_by_pkeys=["PK", "SK"]) as batch:
         for item in items:
             batch.put_item(Item=item)
 
     print(
-        f"Wrote {len(items)} DRIVER items for season 2026 (category=F1) into {TABLE_NAME}"
+        f"Wrote {len(items)} DRIVER items for season 2026 (category=F1) into {tableName}"
     )
 
 
