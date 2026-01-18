@@ -15,10 +15,10 @@ $util.unauthorized()
 #end
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
-#set($pk = "leaderboard#" + $input.category + "#" + $input.season)
+#set($pk = "LEADERBOARD#" + $input.category + "#" + $input.season)
 #set($sk = "PTS#0000000000#" + $userId)
-#set($byUserPK = "user#" + $userId)
-#set($byUserSK = "leaderboard#" + $input.category + "#" + $input.season)
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "LEADERBOARD#" + $input.category + "#" + $input.season)
 #set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
@@ -53,7 +53,7 @@ $util.unauthorized()
         typeName: "Query",
         fieldName: "getLeaderboard",
         requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($pk = "leaderboard#" + $ctx.args.category + "#" + $ctx.args.season)
+            `#set($pk = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
@@ -82,8 +82,8 @@ $util.unauthorized()
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
-#set($byUserPK = "user#" + $userId)
-#set($byUserSK = "leaderboard#" + $ctx.args.category + "#" + $ctx.args.season)
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",

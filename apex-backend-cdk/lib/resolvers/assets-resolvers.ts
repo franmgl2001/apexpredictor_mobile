@@ -19,7 +19,7 @@ export function createAssetsResolvers(
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
       ":pk": $util.dynamodb.toDynamoDBJson($pk),
-      ":skPrefix": { "S": "race#" }
+      ":skPrefix": { "S": "RACE#" }
     }
   },
   "limit": $util.defaultIfNull($ctx.args.limit, 100)
@@ -40,7 +40,7 @@ export function createAssetsResolvers(
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
       ":pk": $util.dynamodb.toDynamoDBJson($pk),
-      ":skPrefix": { "S": "drivers#" }
+      ":skPrefix": { "S": "DRIVER#" }
     }
   },
   "limit": $util.defaultIfNull($ctx.args.limit, 100)
@@ -61,7 +61,7 @@ export function createAssetsResolvers(
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
       ":pk": $util.dynamodb.toDynamoDBJson($pk),
-      ":skPrefix": { "S": "results#" }
+      ":skPrefix": { "S": "RESULTS#" }
     }
   },
   "limit": $util.defaultIfNull($ctx.args.limit, 100)

@@ -54,7 +54,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             }
 
             try {
-                const entry = await ensureLeaderboardEntry(category, season, profile.username);
+                const entry = await ensureLeaderboardEntry(category, season, profile.username, profile.country);
                 setMyEntry(entry);
             } catch (err: any) {
                 console.error('Error ensuring leaderboard entry:', err);
@@ -175,6 +175,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
                 username: item.username || 'Unknown',
                 points: item.totalPoints || 0,
                 races: item.numberOfRaces || 0,
+                nationality: item.nationality,
             }));
         }
     }, [timeFilter, selectedRaceId, leaderboardEntries, raceLeaderboard]);

@@ -15,8 +15,8 @@ export function createProfileResolvers(
   "version": "2018-05-29",
   "operation": "PutItem",
   "key": {
-    "PK": { "S": "user#\${ctx.identity.sub}" },
-    "SK": { "S": "profile" }
+    "PK": { "S": "USER#\${ctx.identity.sub}" },
+    "SK": { "S": "PROFILE" }
   },
   "attributeValues": {
     "user_id": { "S": "\${ctx.identity.sub}" },
@@ -49,8 +49,8 @@ $util.toJson({
   "version": "2018-05-29",
   "operation": "GetItem",
   "key": {
-    "PK": { "S": "user#\${ctx.identity.sub}" },
-    "SK": { "S": "profile" }
+    "PK": { "S": "USER#\${ctx.identity.sub}" },
+    "SK": { "S": "PROFILE" }
   }
 }
     `),

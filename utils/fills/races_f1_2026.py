@@ -30,7 +30,7 @@ def make_race_item(r: dict, now_iso: str) -> dict:
     race_id = r["race_id"]
     return {
         "PK": "f1#2026",
-        "SK": f"race#{race_id}",
+        "SK": f"RACE#{race_id}",
         # required attributes (per your RACE card)
         "entityType": "RACE",
         "season": "2026",

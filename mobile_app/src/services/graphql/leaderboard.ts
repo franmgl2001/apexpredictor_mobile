@@ -19,6 +19,7 @@ export interface LeaderboardEntry {
   totalPoints: number;
   username: string;
   numberOfRaces: number;
+  nationality?: string;
   byUserPK: string;
   byUserSK: string;
   createdAt?: string;
@@ -44,6 +45,7 @@ const GET_LEADERBOARD = /* GraphQL */ `
                 totalPoints
                 username
                 numberOfRaces
+                nationality
                 byUserPK
                 byUserSK
                 createdAt
@@ -66,6 +68,7 @@ const GET_MY_LEADERBOARD_ENTRY = /* GraphQL */ `
             totalPoints
             username
             numberOfRaces
+            nationality
             byUserPK
             byUserSK
             createdAt
@@ -86,6 +89,7 @@ const UPSERT_LEADERBOARD_ENTRY = /* GraphQL */ `
             totalPoints
             username
             numberOfRaces
+            nationality
             byUserPK
             byUserSK
             createdAt
@@ -200,6 +204,7 @@ export async function getMyLeaderboardEntry(
  * @param totalPoints The total points (default: 0)
  * @param username The user's display name
  * @param numberOfRaces Number of races participated (default: 0)
+ * @param nationality The user's nationality/country code (e.g., "ES", "GB")
  * @returns The created/updated LeaderboardEntry
  */
 export async function upsertLeaderboardEntry(
@@ -207,7 +212,8 @@ export async function upsertLeaderboardEntry(
   season: string,
   totalPoints: number,
   username: string,
-  numberOfRaces: number
+  numberOfRaces: number,
+  nationality?: string
 ): Promise<LeaderboardEntry> {
   await fetchAuthSession();
 
@@ -218,6 +224,7 @@ export async function upsertLeaderboardEntry(
     totalPoints,
     username,
     numberOfRaces,
+    nationality,
   });
 
   try {
@@ -230,6 +237,7 @@ export async function upsertLeaderboardEntry(
           totalPoints,
           username,
           numberOfRaces,
+          nationality,
         },
       },
     }) as GraphQLResult<UpsertLeaderboardEntryResponse>;
@@ -259,12 +267,14 @@ export async function upsertLeaderboardEntry(
  * @param category The category (e.g., "F1")
  * @param season The season year (e.g., "2026")
  * @param username The user's display name (used when creating new entry)
+ * @param nationality The user's nationality/country code (e.g., "ES", "GB")
  * @returns The existing or newly created LeaderboardEntry
  */
 export async function ensureLeaderboardEntry(
   category: string,
   season: string,
-  username: string
+  username: string,
+  nationality?: string
 ): Promise<LeaderboardEntry> {
   // First, try to get existing entry
   const existingEntry = await getMyLeaderboardEntry(category, season);
@@ -274,5 +284,5 @@ export async function ensureLeaderboardEntry(
   }
 
   // Entry doesn't exist, create a new one with 0 points and 0 races
-  return await upsertLeaderboardEntry(category, season, 0, username, 0);
+  return await upsertLeaderboardEntry(category, season, 0, username, 0, nationality);
 }

@@ -23,12 +23,12 @@ export function createPredictionsResolvers(dataSource: appsync.DynamoDbDataSourc
 ## prediction is a STRING in your schema, store exactly as string
 #set($prediction = $input.prediction)
 
-#set($pk = "prediction#" + $userId + "#" + $series + "#" + $season + "#" + $raceId)
+#set($pk = "PREDICTION#" + $userId + "#" + $series + "#" + $season + "#" + $raceId)
 #set($sk = "PTS#0000000000")
 
 #set($now = $util.time.nowISO8601())
-#set($byUserPK = "user#" + $userId)
-#set($byUserSK = "race#" + $series + "#" + $season + "#" + $raceId)
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "RACE#" + $series + "#" + $season + "#" + $raceId)
 
 {
   "version": "2018-05-29",

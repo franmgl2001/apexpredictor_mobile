@@ -5,7 +5,18 @@ export type LeaderboardEntryData = {
     username: string;
     points: number;
     races?: number;
+    nationality?: string;
     predictions?: string | null;
+};
+
+// Country code to flag emoji converter
+const getFlagEmoji = (countryCode?: string): string => {
+    if (!countryCode || countryCode.length !== 2) return '';
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
 };
 
 interface LeaderboardEntryProps {
@@ -35,6 +46,9 @@ export default function LeaderboardEntry({ entry, rank, showSeparator, onPress }
             <View style={[styles.rankBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
                 <Text style={[styles.rankNumber, { color: badgeStyle.color }]}>{rank}</Text>
             </View>
+            {entry.nationality && (
+                <Text style={styles.flag}>{getFlagEmoji(entry.nationality)}</Text>
+            )}
             <View style={styles.userInfo}>
                 <Text style={[styles.username, entry.races !== undefined && styles.usernameWithSubtext]}>
                     {entry.username}
@@ -81,6 +95,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
+    },
+    flag: {
+        fontSize: 22,
+        marginRight: 10,
     },
     rankNumber: {
         fontSize: 16,

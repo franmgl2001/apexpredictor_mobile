@@ -195,7 +195,7 @@ def build_driver_item(d, ts):
 
     return {
         "PK": "f1#2026",
-        "SK": f"drivers#{driver_slug}",
+        "SK": f"DRIVER#{driver_slug}",
         "entityType": "DRIVER",
         "driver_id": driver_id,
         "season": season,
