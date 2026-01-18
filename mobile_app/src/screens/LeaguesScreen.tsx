@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
+import { CreateLeagueModal } from '../components/leagues';
+import { createLeague } from '../services/graphql/leagues';
+import { getLeaderboard } from '../services/graphql/leaderboard';
 
 // Local League type for this screen (leagues feature is placeholder)
 interface League {
@@ -34,6 +37,12 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     const [myLeagues, setMyLeagues] = useState<League[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [isCreatingLeague, setIsCreatingLeague] = useState(false);
+
+    // Constants for category and season
+    const category = 'F1';
+    const season = new Date().getFullYear().toString();
 
     useEffect(() => {
         fetchLeagues();
@@ -61,8 +70,35 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     };
 
     const handleCreateLeague = () => {
-        // TODO: Implement create league functionality
-        Alert.alert('Create League', 'This feature is coming soon!');
+        setShowCreateModal(true);
+    };
+
+    const handleCreateLeagueSubmit = async (leagueName: string, description: string) => {
+        if (!user?.userId) {
+            Alert.alert('Error', 'You must be logged in to create a league');
+            return;
+        }
+
+        setIsCreatingLeague(true);
+        try {
+            // Create the league
+            const league = await createLeague(leagueName, description, category, season);
+            
+            // TODO: Create league member and copy leaderboard entries
+            // For now, we'll handle this in a follow-up step
+            
+            Alert.alert('Success', `League "${league.name}" created! Join code: ${league.code}`, [
+                { text: 'OK', onPress: () => {
+                    setShowCreateModal(false);
+                    fetchLeagues(); // Refresh leagues list
+                }}
+            ]);
+        } catch (err: any) {
+            console.error('Error creating league:', err);
+            Alert.alert('Error', err.message || 'Failed to create league. Please try again.');
+        } finally {
+            setIsCreatingLeague(false);
+        }
     };
 
     const handleJoinLeague = () => {
@@ -149,6 +185,13 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
                     </View>
                 )}
             </ScrollView>
+
+            <CreateLeagueModal
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onCreate={handleCreateLeagueSubmit}
+                isLoading={isCreatingLeague}
+            />
         </View>
     );
 }

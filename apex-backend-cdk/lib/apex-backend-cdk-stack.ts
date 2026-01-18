@@ -8,6 +8,7 @@ import { createProfileResolvers } from "./resolvers/profile-resolvers";
 import { createAssetsResolvers } from "./resolvers/assets-resolvers";
 import { createPredictionsResolvers } from "./resolvers/predictions-resolvers";
 import { createLeaderboardResolvers } from "./resolvers/leaderboard-resolvers";
+import { createLeagueResolvers } from "./resolvers/league-resolvers";
 
 export class ApexBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -68,6 +69,9 @@ export class ApexBackendStack extends cdk.Stack {
 
     // Create leaderboard resolvers (total points leaderboard queries and mutations)
     createLeaderboardResolvers(profileDS);
+
+    // Create league resolvers (league creation and management)
+    createLeagueResolvers(profileDS);
 
 
     // =========================

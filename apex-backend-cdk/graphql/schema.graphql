@@ -135,6 +135,31 @@ input UpsertLeaderboardEntryInput {
   nationality: String
 }
 
+type League {
+  PK: String!
+  SK: String!
+  entityType: String!
+  leagueId: String!
+  name: String!
+  createdByUserId: ID!
+  createdAt: String!
+  code: String!
+  description: String
+}
+
+input CreateLeagueInput {
+  name: String!
+  description: String
+  category: String!
+  season: String!
+}
+
+input CopyLeaderboardToLeagueInput {
+  leagueId: String!
+  category: String!
+  season: String!
+}
+
 type Query {
   getMyProfile: UserProfile
   getRaces(category: String!, season: String!, limit: Int, nextToken: String): RacesResponse
@@ -153,4 +178,6 @@ type Mutation {
   upsertMyProfile(input: UpsertUserProfileInput!): UserProfile
   upsertPrediction(input: UpsertPredictionInput!): RacePrediction!
   upsertLeaderboardEntry(input: UpsertLeaderboardEntryInput!): LeaderboardEntry!
+  createLeague(input: CreateLeagueInput!): League!
+  copyLeaderboardToLeague(input: CopyLeaderboardToLeagueInput!): Boolean!
 }
