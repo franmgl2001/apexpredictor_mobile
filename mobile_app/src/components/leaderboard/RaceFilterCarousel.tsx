@@ -4,21 +4,21 @@ import { useData } from '../../contexts/DataContext';
 import type { RaceEntity } from '../race_details/RaceDetailsCard';
 
 type RaceItem = {
-    race_id: string;
-    race_name: string;
-    race_date: string;
+    raceId: string;
+    raceName: string;
+    raceDate: string;
 };
 
 function loadRacesFromContext(racesFromContext: RaceEntity[]): RaceItem[] {
     const races: RaceItem[] = racesFromContext
         .map((race) => ({
-            race_id: race.race_id,
-            race_name: race.race_name,
-            race_date: race.race_date,
+            raceId: race.raceId,
+            raceName: race.raceName,
+            raceDate: race.raceDate,
         }))
-        .filter((race) => race.race_id && race.race_name && race.race_date);
-    // Sort by race_date ascending (earliest first, latest last)
-    races.sort((a, b) => Date.parse(a.race_date) - Date.parse(b.race_date));
+        .filter((race) => race.raceId && race.raceName && race.raceDate);
+    // Sort by raceDate ascending (earliest first, latest last)
+    races.sort((a, b) => Date.parse(a.raceDate) - Date.parse(b.raceDate));
     return races;
 }
 
@@ -49,7 +49,7 @@ export default function RaceFilterCarousel({ onRaceChange }: RaceFilterCarouselP
         if (races.length > 0) {
             const lastIndex = races.length - 1;
             setIndex(lastIndex);
-            onRaceChange?.(races[lastIndex].race_id);
+            onRaceChange?.(races[lastIndex].raceId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [races.length]); // Update when races are loaded or change
@@ -57,13 +57,13 @@ export default function RaceFilterCarousel({ onRaceChange }: RaceFilterCarouselP
     function prev() {
         const newIndex = (index - 1 + total) % total;
         setIndex(newIndex);
-        onRaceChange?.(races[newIndex].race_id);
+        onRaceChange?.(races[newIndex].raceId);
     }
 
     function next() {
         const newIndex = (index + 1) % total;
         setIndex(newIndex);
-        onRaceChange?.(races[newIndex].race_id);
+        onRaceChange?.(races[newIndex].raceId);
     }
 
     if (!race || total === 0) {
@@ -85,8 +85,8 @@ export default function RaceFilterCarousel({ onRaceChange }: RaceFilterCarouselP
             </View>
 
             <View style={styles.raceInfo}>
-                <Text style={styles.raceTitle}>{race.race_name}</Text>
-                <Text style={styles.raceDate}>{formatRaceDate(race.race_date)}</Text>
+                <Text style={styles.raceTitle}>{race.raceName}</Text>
+                <Text style={styles.raceDate}>{formatRaceDate(race.raceDate)}</Text>
             </View>
         </View>
     );

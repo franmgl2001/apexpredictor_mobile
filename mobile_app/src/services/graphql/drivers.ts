@@ -12,7 +12,7 @@ export interface Driver {
   PK: string;
   SK: string;
   entityType: string;
-  driver_id: string;
+  driverId: string;
   name: string;
   team?: string;
   number?: number;
@@ -34,7 +34,7 @@ const GET_DRIVERS = `
         PK
         SK
         entityType
-        driver_id
+        driverId
         name
         team
         number

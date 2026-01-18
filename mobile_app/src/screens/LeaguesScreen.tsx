@@ -12,10 +12,9 @@ import {
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { CreateLeagueModal } from '../components/leagues';
-import { createLeague } from '../services/graphql/leagues';
-import { getLeaderboard } from '../services/graphql/leaderboard';
+import { createLeague, getMyLeagues, type LeagueMember } from '../services/graphql/leagues';
 
-// Local League type for this screen (leagues feature is placeholder)
+// Local League type for this screen - using LeagueMember from the service
 interface League {
     PK: string;
     league_id?: string;
@@ -58,9 +57,17 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
             setIsLoading(true);
             setError(null);
 
-            // COMMENTED OUT: const leagues = await getUserLeagues(user.userId);
-            // setMyLeagues(leagues);
-            setMyLeagues([]); // Set to empty since we're not fetching
+            const result = await getMyLeagues(50);
+            // Convert LeagueMember to League format for the UI
+            const leagues: League[] = result.items.map((member: LeagueMember) => ({
+                PK: member.PK,
+                league_id: member.leagueId,
+                league_name: member.leagueName || 'Unnamed League',
+                role: member.role,
+                member_count: 0, // Will be updated when we fetch league details
+                join_code: '', // Will be fetched from league details if needed
+            }));
+            setMyLeagues(leagues);
         } catch (err: any) {
             console.error('Error fetching leagues:', err);
             setError(err.message || 'Failed to load leagues');

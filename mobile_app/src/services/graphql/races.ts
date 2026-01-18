@@ -14,16 +14,16 @@ export type Race = {
   PK: string;
   SK: string;
   entityType: string;
-  race_id: string;
-  race_name: string;
+  raceId: string;
+  raceName: string;
   season: string;
-  qualy_date?: string | null;
-  race_date?: string | null;
+  qualyDate?: string | null;
+  raceDate?: string | null;
   category: string;
   circuit?: string | null;
   country?: string | null;
   status?: string | null;
-  has_sprint?: boolean | null;
+  hasSprint?: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -84,16 +84,16 @@ const GET_RACES = `
         PK
         SK
         entityType
-        race_id
-        race_name
+        raceId
+        raceName
         season
-        qualy_date
-        race_date
+        qualyDate
+        raceDate
         category
         circuit
         country
         status
-        has_sprint
+        hasSprint
         createdAt
         updatedAt
       }

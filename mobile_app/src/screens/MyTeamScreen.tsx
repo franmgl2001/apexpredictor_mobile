@@ -67,7 +67,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
         }
 
         // Find the current race to get category and season
-        const currentRace = localRaces.find(race => race.race_id === currentRaceId);
+        const currentRace = localRaces.find(race => race.raceId === currentRaceId);
         if (!currentRace) {
             Alert.alert('Error', 'Race information not found.');
             return;

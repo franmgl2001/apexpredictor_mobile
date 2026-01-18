@@ -46,7 +46,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Convert GraphQL driver to local Driver type
     const mapDriver = (item: GraphQLDriver): Driver => ({
-        id: String(item.driver_id ?? item.PK ?? item.name ?? ''),
+        id: String(item.driverId ?? item.PK ?? item.name ?? ''),
         name: String(item.name ?? ''),
         team: String(item.team ?? ''),
         number: Number(item.number ?? 0),
@@ -90,18 +90,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 .filter((item): item is Race => item.entityType === 'RACE')
                 .map((item) => ({
                     entityType: 'RACE' as const,
-                    race_id: item.race_id || '',
-                    race_name: item.race_name || '',
+                    raceId: item.raceId || '',
+                    raceName: item.raceName || '',
                     season: item.season || '',
-                    qualy_date: item.qualy_date || '',
-                    race_date: item.race_date || '',
+                    qualyDate: item.qualyDate || '',
+                    raceDate: item.raceDate || '',
                     category: item.category || '',
                     circuit: item.circuit || '',
                     country: item.country || '',
                     status: item.status || 'upcoming',
-                    has_sprint: item.has_sprint || false,
+                    hasSprint: item.hasSprint || false,
                 }))
-                .sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
+                .sort((a, b) => Date.parse(a.qualyDate) - Date.parse(b.qualyDate));
 
             setRaces(allRaceEntities);
             // For now, set racesWithResults to empty - can be updated later if needed

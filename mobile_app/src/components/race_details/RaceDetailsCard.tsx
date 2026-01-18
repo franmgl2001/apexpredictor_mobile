@@ -5,16 +5,16 @@ import PredictionsSection from './PredictionsSection';
 
 export type RaceEntity = {
     entityType: 'RACE';
-    race_id: string;
-    race_name: string;
+    raceId: string;
+    raceName: string;
     season: string;
-    qualy_date: string;
-    race_date: string;
+    qualyDate: string;
+    raceDate: string;
     category: string;
     circuit: string;
     country: string;
     status: 'upcoming' | 'completed' | string;
-    has_sprint?: boolean;
+    hasSprint?: boolean;
 };
 
 function formatTarget(dateIso: string): string {
@@ -32,24 +32,24 @@ function formatTarget(dateIso: string): string {
 type TimeLeft = { days: number; hours: number; minutes: number; seconds: number };
 
 export default function RaceDetailsCard({ race, timeLeft, onPredictionsChange, predictionsByRaceId }: { race: RaceEntity; timeLeft: TimeLeft; onPredictionsChange?: (predictions: string | null) => void; predictionsByRaceId?: Map<string, any> }) {
-    const isClosed = useMemo(() => Date.now() >= Date.parse(race.qualy_date), [race.qualy_date]);
+    const isClosed = useMemo(() => Date.now() >= Date.parse(race.qualyDate), [race.qualyDate]);
 
     return (
         <View style={styles.card}>
-            <RaceHeader name={race.race_name} circuit={race.circuit} country={race.country} hasSprint={race.has_sprint} />
+            <RaceHeader name={race.raceName} circuit={race.circuit} country={race.country} hasSprint={race.hasSprint} />
 
             <View style={styles.divider} />
 
             <Text style={styles.sectionLabel}>RACE DATE</Text>
-            <Text style={styles.whenText}>{formatTarget(race.race_date)}</Text>
+            <Text style={styles.whenText}>{formatTarget(race.raceDate)}</Text>
 
             <View style={{ height: 16 }} />
 
             <PredictionsSection 
-                raceId={race.race_id} 
+                raceId={race.raceId} 
                 timeLeft={timeLeft} 
                 isClosed={isClosed} 
-                hasSprint={race.has_sprint} 
+                hasSprint={race.hasSprint} 
                 onPredictionsChange={onPredictionsChange}
                 predictionsByRaceId={predictionsByRaceId}
             />

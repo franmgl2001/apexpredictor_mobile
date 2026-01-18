@@ -3,7 +3,7 @@ scalar AWSJSON
 scalar AWSDateTime
 
 type UserProfile {
-  user_id: ID!          # Cognito sub
+  userId: ID!          # Cognito sub
   email: AWSEmail!
   username: String!
   country: String!
@@ -21,16 +21,16 @@ type Race {
   PK: String!
   SK: String!
   entityType: String!
-  race_id: String!
-  race_name: String!
+  raceId: String!
+  raceName: String!
   season: String!
-  qualy_date: String
-  race_date: String
+  qualyDate: String
+  raceDate: String
   category: String!
   circuit: String
   country: String
   status: String
-  has_sprint: Boolean
+  hasSprint: Boolean
   createdAt: String
   updatedAt: String
 }
@@ -39,7 +39,7 @@ type Driver {
   PK: String!
   SK: String!
   entityType: String!
-  driver_id: String!
+  driverId: String!
   name: String!
   team: String
   number: Int
@@ -58,7 +58,7 @@ type Result {
   PK: String!
   SK: String!
   entityType: String!
-  race_id: String!
+  raceId: String!
   results: String
   season: String!
   category: String!
@@ -147,6 +147,24 @@ type League {
   description: String
 }
 
+type LeagueMember {
+  PK: String!
+  SK: String!
+  entityType: String!
+  leagueId: String!
+  userId: ID!
+  username: String
+  role: String!
+  leagueName: String
+  createdAt: String
+  updatedAt: String
+}
+
+type LeagueMemberConnection {
+  items: [LeagueMember!]!
+  nextToken: String
+}
+
 input CreateLeagueInput {
   name: String!
   description: String
@@ -158,6 +176,11 @@ input CopyLeaderboardToLeagueInput {
   leagueId: String!
   category: String!
   season: String!
+}
+
+input CreateLeagueMemberInput {
+  leagueId: String!
+  leagueName: String!
 }
 
 type Query {
@@ -172,6 +195,8 @@ type Query {
   # Leaderboard queries
   getLeaderboard(category: String!, season: String!, limit: Int, nextToken: String): LeaderboardConnection!
   getMyLeaderboardEntry(category: String!, season: String!): LeaderboardEntry
+  # League queries
+  getMyLeagues(limit: Int, nextToken: String): LeagueMemberConnection!
 }
 
 type Mutation {
@@ -179,5 +204,6 @@ type Mutation {
   upsertPrediction(input: UpsertPredictionInput!): RacePrediction!
   upsertLeaderboardEntry(input: UpsertLeaderboardEntryInput!): LeaderboardEntry!
   createLeague(input: CreateLeagueInput!): League!
+  createLeagueMember(input: CreateLeagueMemberInput!): LeagueMember!
   copyLeaderboardToLeague(input: CopyLeaderboardToLeagueInput!): Boolean!
 }

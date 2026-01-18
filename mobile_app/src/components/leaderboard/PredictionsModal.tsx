@@ -6,7 +6,7 @@ import { calculateDriverPoints, calculateBonusPoints, type RaceResultsData, type
 
 // Local type for race results from season data
 interface RaceResultEntity {
-    race_id?: string;
+    raceId?: string;
     SK?: string;
     results?: string | RaceResultsData;
 }
@@ -65,8 +65,8 @@ export default function PredictionsModal({ visible, onClose, username, predictio
     // Get hasSprint from race data
     const hasSprint = useMemo(() => {
         if (!raceId) return false;
-        const race = races.find((r) => r.race_id === raceId);
-        return race?.has_sprint || false;
+        const race = races.find((r) => r.raceId === raceId);
+        return race?.hasSprint || false;
     }, [raceId, races]);
 
     // Parse predictions JSON
@@ -108,7 +108,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                 const seasonData = await getSeasonData();
                 // Find the result for this specific race
                 const raceResult = seasonData.results.find((result: RaceResultEntity) => {
-                    const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
+                    const resultRaceId = result.raceId || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
                     return resultRaceId === raceId;
                 });
 

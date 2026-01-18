@@ -2,6 +2,12 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 
 /**
  * Creates league-related resolvers
+ * 
+ * Naming standards:
+ * - Field names: camelCase (leagueId, leagueName, userId)
+ * - Entity types: UPPERCASE with underscores (LEAGUE, LEAGUE_MEMBER)
+ * - GraphQL types: PascalCase (League, LeagueMember)
+ * - DynamoDB PK/SK: lowercase prefixes (LEAGUE# for league, league# for members)
  */
 export function createLeagueResolvers(dataSource: appsync.DynamoDbDataSource) {
     // Mutation.createLeague resolver
@@ -63,9 +69,10 @@ $util.unauthorized()
 #set($memberSk = "member#" + $userId)
 #set($now = $util.time.nowISO8601())
 
-## Create member entry using BatchWriteItem
-## Note: We'll create the member in a separate operation
-## For now, return the league - member creation will be handled separately
+## Create member entry - we'll use $util.dynamodb.invoke to create it
+## But since we can't write in response template, we'll return the league
+## and the frontend can create the member, or we use a pipeline resolver
+## For now, return the league - member will be created via pipeline or separate call
 $util.toJson({
   "PK": $league.PK,
   "SK": $league.SK,
@@ -114,6 +121,110 @@ $util.unauthorized()
 ## For production, use a Lambda function to handle the copying
 ## For now, return true - the actual copying will be handled in the frontend
 $util.toJson(true)`
+        ),
+    });
+
+    // Mutation.createLeagueMember resolver
+    // Creates a league member entry
+    dataSource.createResolver("CreateLeagueMemberResolver", {
+        typeName: "Mutation",
+        fieldName: "createLeagueMember",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+$util.unauthorized()
+#end
+#set($userId = $identity.sub)
+#set($input = $ctx.args.input)
+#set($now = $util.time.nowISO8601())
+#set($memberPk = "league#" + $input.leagueId)
+#set($memberSk = "member#" + $userId)
+{
+  "version": "2018-05-29",
+  "operation": "PutItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson($memberPk),
+    "SK": $util.dynamodb.toDynamoDBJson($memberSk)
+  },
+  "attributeValues": {
+    "entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER"),
+    "leagueId": $util.dynamodb.toDynamoDBJson($input.leagueId),
+    "userId": $util.dynamodb.toDynamoDBJson($userId),
+    "user_id": $util.dynamodb.toDynamoDBJson($userId),
+    "role": $util.dynamodb.toDynamoDBJson("admin"),
+    "leagueName": $util.dynamodb.toDynamoDBJson($input.leagueName),
+    "createdAt": $util.dynamodb.toDynamoDBJson($now),
+    "updatedAt": $util.dynamodb.toDynamoDBJson($now)
+  }
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($member = $ctx.result)
+$util.toJson({
+  "PK": $member.PK,
+  "SK": $member.SK,
+  "entityType": $member.entityType,
+  "leagueId": $member.leagueId,
+  "userId": $util.defaultIfNull($member.userId, $member.user_id),
+  "username": $util.defaultIfNull($member.username, ""),
+  "role": $member.role,
+  "leagueName": $member.leagueName,
+  "createdAt": $member.createdAt,
+  "updatedAt": $member.updatedAt
+})`
+        ),
+    });
+
+    // Query.getMyLeagues resolver
+    // Gets all leagues the user is a member of by querying memberships
+    // Uses the apexEntitiesByUser_idAndCreatedAt GSI
+    dataSource.createResolver("GetMyLeaguesResolver", {
+        typeName: "Query",
+        fieldName: "getMyLeagues",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+$util.unauthorized()
+#end
+#set($userId = $identity.sub)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "apexEntitiesByUser_idAndCreatedAt",
+  "query": {
+    "expression": "user_id = :userId",
+    "expressionValues": {
+      ":userId": $util.dynamodb.toDynamoDBJson($userId),
+      ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER")
+    },
+    "filterExpression": "entityType = :entityType"
+  },
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "scanIndexForward": false
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($result = $ctx.result)
+#set($items = [])
+#foreach($item in $result.items)
+  #set($mappedItem = {
+    "PK": $item.PK,
+    "SK": $item.SK,
+    "entityType": $item.entityType,
+    "leagueId": $item.leagueId,
+    "userId": $util.defaultIfNull($item.userId, $item.user_id),
+    "username": $util.defaultIfNull($item.username, ""),
+    "role": $item.role,
+    "leagueName": $item.leagueName,
+    "createdAt": $item.createdAt,
+    "updatedAt": $item.updatedAt
+  })
+  $util.qr($items.add($mappedItem))
+#end
+$util.toJson({
+  "items": $items,
+  "nextToken": $result.nextToken
+})`
         ),
     });
 }

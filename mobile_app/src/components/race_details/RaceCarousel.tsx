@@ -8,16 +8,16 @@ function loadRaces(): RaceEntity[] {
     const json: any = require('../../mocks/listApexEntities.json');
     const items: any[] = json?.data?.listApexEntities?.items ?? [];
     const races: RaceEntity[] = items.filter((it) => it?.entityType === 'RACE');
-    // Always sort by qualy_date ascending to keep mock data organized by qualy
-    races.sort((a, b) => Date.parse(a.qualy_date) - Date.parse(b.qualy_date));
+    // Always sort by qualyDate ascending to keep mock data organized by qualy
+    races.sort((a, b) => Date.parse(a.qualyDate) - Date.parse(b.qualyDate));
     return races;
 }
 
 function getInitialIndex(races: RaceEntity[]): number {
     const now = Date.now();
     const fortyEightHoursMs = 48 * 60 * 60 * 1000;
-    // Pick the first race whose (qualy_date + 48h) is in the future
-    const idx = races.findIndex((r) => Date.parse(r.qualy_date) + fortyEightHoursMs > now && r.status !== 'completed');
+    // Pick the first race whose (qualyDate + 48h) is in the future
+    const idx = races.findIndex((r) => Date.parse(r.qualyDate) + fortyEightHoursMs > now && r.status !== 'completed');
     return idx === -1 ? 0 : idx;
 }
 
@@ -66,20 +66,20 @@ export default function RaceCarousel({
 
     // Notify parent of current race change
     useEffect(() => {
-        if (race?.race_id && onCurrentRaceChange) {
-            onCurrentRaceChange(race.race_id);
+        if (race?.raceId && onCurrentRaceChange) {
+            onCurrentRaceChange(race.raceId);
         }
-    }, [race?.race_id, onCurrentRaceChange]);
+    }, [race?.raceId, onCurrentRaceChange]);
 
-    const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => (race ? getTimeLeft(race.qualy_date) : { days: 0, hours: 0, minutes: 0, seconds: 0 }));
-    const [isClosed, setIsClosed] = useState(() => race ? Date.now() >= Date.parse(race.qualy_date) : false);
+    const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => (race ? getTimeLeft(race.qualyDate) : { days: 0, hours: 0, minutes: 0, seconds: 0 }));
+    const [isClosed, setIsClosed] = useState(() => race ? Date.now() >= Date.parse(race.qualyDate) : false);
 
     useEffect(() => {
         if (race) {
-            const nowClosed = Date.now() >= Date.parse(race.qualy_date);
+            const nowClosed = Date.now() >= Date.parse(race.qualyDate);
             setIsClosed(nowClosed);
         }
-    }, [race?.qualy_date]);
+    }, [race?.qualyDate]);
 
     useEffect(() => {
         onIsClosedChange?.(isClosed);
@@ -88,8 +88,8 @@ export default function RaceCarousel({
     useEffect(() => {
         if (!race) return;
         const update = () => {
-            setTimeLeft(getTimeLeft(race.qualy_date));
-            const nowClosed = Date.now() >= Date.parse(race.qualy_date);
+            setTimeLeft(getTimeLeft(race.qualyDate));
+            const nowClosed = Date.now() >= Date.parse(race.qualyDate);
             setIsClosed(nowClosed);
         };
         // Update immediately when race changes (no lag)
@@ -97,7 +97,7 @@ export default function RaceCarousel({
         // Then set up interval for continuous updates
         const id = setInterval(update, 1000);
         return () => clearInterval(id);
-    }, [race?.qualy_date]);
+    }, [race?.qualyDate]);
 
     const total = races.length;
 

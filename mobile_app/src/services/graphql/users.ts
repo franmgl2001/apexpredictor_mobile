@@ -9,7 +9,7 @@ import { requestLogger } from './requestLogger';
 import { fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
 
 export interface UserProfile {
-    user_id: string;
+    userId: string;
     email: string;
     username: string;
     country: string;
@@ -20,7 +20,7 @@ export interface UserProfile {
 const GET_MY_PROFILE = `
   query GetMyProfile {
     getMyProfile {
-      user_id
+      userId
       email
       username
       country
@@ -43,7 +43,7 @@ interface UpsertMyProfileResponse {
 const UPSERT_MY_PROFILE = `
   mutation UpsertMyProfile($input: UpsertUserProfileInput!) {
     upsertMyProfile(input: $input) {
-      user_id
+      userId
       email
       username
       country
