@@ -14,7 +14,7 @@ import {
 interface CreateLeagueModalProps {
     visible: boolean;
     onClose: () => void;
-    onCreate: (leagueName: string, description: string, maxMembers: number) => Promise<void>;
+    onCreate: (leagueName: string, description: string) => Promise<void>;
     isLoading?: boolean;
 }
 
@@ -26,12 +26,10 @@ export default function CreateLeagueModal({
 }: CreateLeagueModalProps) {
     const [leagueName, setLeagueName] = useState('');
     const [description, setDescription] = useState('');
-    const [maxMembers, setMaxMembers] = useState('50');
 
     const handleCreate = async () => {
         const trimmedName = leagueName.trim();
         const trimmedDescription = description.trim();
-        const maxMembersNum = parseInt(maxMembers, 10);
 
         if (!trimmedName) {
             Alert.alert('Error', 'Please enter a league name');
@@ -48,17 +46,11 @@ export default function CreateLeagueModal({
             return;
         }
 
-        if (isNaN(maxMembersNum) || maxMembersNum < 2 || maxMembersNum > 100) {
-            Alert.alert('Error', 'Max members must be between 2 and 100');
-            return;
-        }
-
         try {
-            await onCreate(trimmedName, trimmedDescription, maxMembersNum);
+            await onCreate(trimmedName, trimmedDescription);
             // Reset form on success
             setLeagueName('');
             setDescription('');
-            setMaxMembers('50');
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to create league. Please try again.');
         }
@@ -68,7 +60,6 @@ export default function CreateLeagueModal({
         if (!isLoading) {
             setLeagueName('');
             setDescription('');
-            setMaxMembers('50');
             onClose();
         }
     };
@@ -116,20 +107,6 @@ export default function CreateLeagueModal({
                                 editable={!isLoading}
                                 maxLength={200}
                             />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Max Members</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="50"
-                                placeholderTextColor="#9ca3af"
-                                value={maxMembers}
-                                onChangeText={setMaxMembers}
-                                keyboardType="numeric"
-                                editable={!isLoading}
-                            />
-                            <Text style={styles.hint}>Between 2 and 100 members</Text>
                         </View>
 
                         <View style={styles.buttonContainer}>
@@ -210,11 +187,6 @@ const styles = StyleSheet.create({
     textArea: {
         minHeight: 100,
         paddingTop: 12,
-    },
-    hint: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 4,
     },
     buttonContainer: {
         flexDirection: 'row',

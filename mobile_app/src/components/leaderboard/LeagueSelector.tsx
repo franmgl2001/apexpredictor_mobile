@@ -71,18 +71,13 @@ export default function LeagueSelector({
                                 <Text style={styles.selectedLeagueName} numberOfLines={1}>
                                     {selectedLeague.league_name || 'Unnamed League'}
                                 </Text>
-                                <View style={styles.selectedLeagueIcons}>
-                                    {selectedLeague.is_private && (
-                                        <View style={styles.iconBadge}>
-                                            <Text style={styles.iconText}>🔒</Text>
-                                        </View>
-                                    )}
-                                    {selectedLeague.role === 'admin' && (
+                                {selectedLeague.role === 'admin' && (
+                                    <View style={styles.selectedLeagueIcons}>
                                         <View style={[styles.iconBadge, styles.iconBadgeGold]}>
                                             <Text style={styles.iconText}>👑</Text>
                                         </View>
-                                    )}
-                                </View>
+                                    </View>
+                                )}
                             </View>
                             {selectedLeague.member_count !== undefined && (
                                 <Text style={styles.selectedLeagueMeta}>
@@ -146,18 +141,13 @@ export default function LeagueSelector({
                                                     <Text style={[styles.leagueOptionName, isSelected && styles.leagueOptionNameSelected]}>
                                                         {league.league_name || 'Unnamed League'}
                                                     </Text>
-                                                    <View style={styles.leagueOptionIcons}>
-                                                        {league.is_private && (
-                                                            <View style={styles.optionIconBadge}>
-                                                                <Text style={styles.optionIconText}>🔒</Text>
-                                                            </View>
-                                                        )}
-                                                        {league.role === 'admin' && (
+                                                    {league.role === 'admin' && (
+                                                        <View style={styles.leagueOptionIcons}>
                                                             <View style={[styles.optionIconBadge, styles.optionIconBadgeGold]}>
                                                                 <Text style={styles.optionIconText}>👑</Text>
                                                             </View>
-                                                        )}
-                                                    </View>
+                                                        </View>
+                                                    )}
                                                 </View>
                                                 <View style={styles.leagueOptionMeta}>
                                                     {league.member_count !== undefined && (
