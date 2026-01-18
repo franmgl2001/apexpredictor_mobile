@@ -7,11 +7,11 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData, type Driver } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { upsertPrediction, normalizeCategory } from '../services/graphql';
+import { upsertPrediction, listMyRaces, normalizeCategory } from '../services/graphql';
 
 // Local type for cached predictions
 interface CachedPrediction {
-    prediction?: string;
+    predictions?: string; // Use 'predictions' to match PredictionsSection expectation
     points?: number;
 }
 
@@ -47,10 +47,43 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
         const fetchAllPredictions = async () => {
             setIsLoadingPredictions(true);
             try {
-                // COMMENTED OUT: const predictionsMap = await getAllUserPredictions(user.userId);
-                // COMMENTED OUT: setPredictionsByRaceId(predictionsMap);
-                setPredictionsByRaceId(new Map()); // Set to empty since we're not fetching
+                // Get the series and season from the first race (assuming all races are same series/season)
+                const firstRace = localRaces[0];
+                if (!firstRace?.category || !firstRace?.season) {
+                    setPredictionsByRaceId(new Map());
+                    return;
+                }
+
+                const series = normalizeCategory(firstRace.category);
+                const season = firstRace.season;
+
+                // Fetch all predictions for the user
+                const predictions = await listMyRaces(series, season, 100);
+
+                // Create a map keyed by raceId
+                const predictionsMap = new Map<string, CachedPrediction | null>();
+                
+                // Initialize all races with null (no prediction)
+                localRaces.forEach(race => {
+                    predictionsMap.set(race.raceId, null);
+                });
+
+                // Populate with actual predictions
+                predictions.forEach(prediction => {
+                    // Convert prediction to string format expected by PredictionsSection
+                    const predictionString = typeof prediction.prediction === 'string' 
+                        ? prediction.prediction 
+                        : JSON.stringify(prediction.prediction);
+                    
+                    predictionsMap.set(prediction.raceId, {
+                        predictions: predictionString, // Use 'predictions' key to match component expectation
+                        points: prediction.points
+                    });
+                });
+
+                setPredictionsByRaceId(predictionsMap);
             } catch (error) {
+                console.error('Error fetching predictions:', error);
                 setPredictionsByRaceId(new Map());
             } finally {
                 setIsLoadingPredictions(false);
@@ -85,6 +118,17 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
             const season = currentRace.season;
 
             await upsertPrediction(series, season, currentRaceId, currentPredictions);
+            
+            // Update the predictions map with the newly saved prediction
+            setPredictionsByRaceId(prev => {
+                const updated = new Map(prev);
+                updated.set(currentRaceId, {
+                    predictions: currentPredictions, // Use 'predictions' key to match component expectation
+                    points: updated.get(currentRaceId)?.points || 0
+                });
+                return updated;
+            });
+            
             Alert.alert('Success', 'Predictions saved successfully!');
         } catch (error: any) {
             Alert.alert('Error', error?.message || 'Failed to save predictions. Please try again.');

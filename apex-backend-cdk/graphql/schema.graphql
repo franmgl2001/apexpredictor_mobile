@@ -192,6 +192,8 @@ type Query {
   listMyRaces(series: String, season: String, limit: Int = 50, nextToken: String): RacePredictionConnection!
   # optional: fetch my prediction for a specific race
   getMyPrediction(series: String!, season: String!, raceId: String!): RacePrediction
+  # fetch predictions for a given userId (via GSI)
+  getPredictions(userId: ID!, series: String, season: String, limit: Int = 50, nextToken: String): RacePredictionConnection!
   # Leaderboard queries
   getLeaderboard(category: String!, season: String!, limit: Int, nextToken: String): LeaderboardConnection!
   getMyLeaderboardEntry(category: String!, season: String!): LeaderboardEntry

@@ -119,4 +119,41 @@ $util.toJson($ctx.result.items[0])
 #end`
         ),
     });
+
+    // Query.getPredictions resolver
+    dataSource.createResolver("GetPredictionsResolver", {
+        typeName: "Query",
+        fieldName: "getPredictions",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+$util.unauthorized()
+#end
+#set($byUserPK = "USER#" + $ctx.args.userId)
+#set($skPrefix = "RACE#")
+#if($ctx.args.series)
+#set($skPrefix = $skPrefix + $ctx.args.series + "#")
+#end
+#if($ctx.args.season)
+#set($skPrefix = $skPrefix + $ctx.args.season + "#")
+#end
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byUser",
+  "query": {
+    "expression": "byUserPK = :pk AND begins_with(byUserSK, :skPrefix)",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":skPrefix": $util.dynamodb.toDynamoDBJson($skPrefix)
+    }
+  },
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
+    });
 }

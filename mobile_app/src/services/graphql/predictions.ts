@@ -23,6 +23,40 @@ const UPSERT_PREDICTION = /* GraphQL */ `
     }
 `;
 
+const LIST_MY_RACES = /* GraphQL */ `
+    query ListMyRaces($series: String, $season: String, $limit: Int, $nextToken: String) {
+        listMyRaces(series: $series, season: $season, limit: $limit, nextToken: $nextToken) {
+            items {
+                series
+                season
+                raceId
+                userId
+                prediction
+                points
+                createdAt
+                updatedAt
+            }
+            nextToken
+        }
+    }
+`;
+
+interface ListMyRacesResponse {
+    listMyRaces: {
+        items: Array<{
+            series: string;
+            season: string;
+            raceId: string;
+            userId: string;
+            prediction: any;
+            points: number;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        nextToken: string | null;
+    };
+}
+
 interface UpsertPredictionResponse {
     upsertPrediction: {
         series: string;
@@ -55,7 +89,7 @@ export async function upsertPrediction(
     const startTime = Date.now();
 
     // Validate and normalize the JSON string
-    // Storing as String type (simpler than AWSJSON)
+    // AWSJSON type accepts JSON strings or objects
     let predictionJson: string;
     try {
         // Parse to validate, then stringify to ensure clean JSON
@@ -73,7 +107,7 @@ export async function upsertPrediction(
     });
 
     try {
-        // Pass prediction as a JSON string - String type in schema
+        // Pass prediction as a JSON string - AWSJSON type in schema
         const result = await client.graphql({
             query: UPSERT_PREDICTION,
             variables: {
@@ -99,6 +133,56 @@ export async function upsertPrediction(
         const predictionData = result.data.upsertPrediction;
         requestLogger.logSuccess(logId, 1, duration);
         return predictionData;
+    } catch (error: any) {
+        const duration = Date.now() - startTime;
+        requestLogger.logError(logId, error, duration);
+        throw error;
+    }
+}
+
+/**
+ * Fetches all predictions for the authenticated user
+ * @param series Optional series filter (e.g., "f1", "motogp")
+ * @param season Optional season filter (e.g., "2026")
+ * @returns Array of prediction items
+ */
+export async function listMyRaces(
+    series?: string,
+    season?: string,
+    limit: number = 100
+): Promise<ListMyRacesResponse['listMyRaces']['items']> {
+    await fetchAuthSession();
+
+    const startTime = Date.now();
+    const logId = requestLogger.logRequest('listMyRaces', {
+        series,
+        season,
+        limit
+    });
+
+    try {
+        const result = await client.graphql({
+            query: LIST_MY_RACES,
+            variables: {
+                series,
+                season,
+                limit,
+            },
+        }) as GraphQLResult<ListMyRacesResponse>;
+
+        const duration = Date.now() - startTime;
+
+        if (result.errors && result.errors.length > 0) {
+            throw new Error(result.errors[0].message || 'Failed to fetch predictions');
+        }
+
+        if (!result.data?.listMyRaces) {
+            throw new Error('Failed to fetch predictions: No data returned');
+        }
+
+        const predictions = result.data.listMyRaces.items;
+        requestLogger.logSuccess(logId, predictions.length, duration);
+        return predictions;
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);
