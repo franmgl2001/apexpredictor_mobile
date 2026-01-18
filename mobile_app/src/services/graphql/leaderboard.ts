@@ -21,8 +21,8 @@ export interface LeaderboardEntry {
   numberOfRaces: number;
   byUserPK: string;
   byUserSK: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LeaderboardConnection {

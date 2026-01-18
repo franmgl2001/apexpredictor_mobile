@@ -116,8 +116,8 @@ type LeaderboardEntry {
   numberOfRaces: Int!
   byUserPK: String!
   byUserSK: String!
-  createdAt: AWSDateTime!
-  updatedAt: AWSDateTime!
+  createdAt: String
+  updatedAt: String
 }
 
 type LeaderboardConnection {

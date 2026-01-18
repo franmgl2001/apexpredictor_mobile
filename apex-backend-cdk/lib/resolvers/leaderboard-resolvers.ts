@@ -5,124 +5,84 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  */
 export function createLeaderboardResolvers(dataSource: appsync.DynamoDbDataSource) {
     // Mutation.upsertLeaderboardEntry resolver
-    // PK: LEADERBOARD#{category}#{season}
-    // SK: PTS#0000000000
     dataSource.createResolver("UpsertLeaderboardEntryResolver", {
         typeName: "Mutation",
         fieldName: "upsertLeaderboardEntry",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($identity = $ctx.identity)
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
-  $util.unauthorized()
+$util.unauthorized()
 #end
-
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
-
-#set($category = $input.category)
-#set($season = $input.season)
-#set($totalPoints = $input.totalPoints)
-#set($username = $input.username)
-#set($numberOfRaces = $input.numberOfRaces)
-
-## PK: LEADERBOARD#{category}#{season}
-#set($pk = "LEADERBOARD#" + $category + "#" + $season)
-
-## SK: PTS#0000000000 - starts at 0, updated separately when points are calculated
+#set($pk = "LEADERBOARD#" + $input.category + "#" + $input.season)
 #set($sk = "PTS#0000000000")
-
-## GSI keys for user lookup
 #set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "LEADERBOARD#" + $category + "#" + $season)
-
+#set($byUserSK = "LEADERBOARD#" + $input.category + "#" + $input.season)
 #set($now = $util.time.nowISO8601())
-
 {
   "version": "2018-05-29",
   "operation": "PutItem",
   "key": {
-    "PK": $util.dynamodb.toDynamoDB($pk),
-    "SK": $util.dynamodb.toDynamoDB($sk)
+    "PK": $util.dynamodb.toDynamoDBJson($pk),
+    "SK": $util.dynamodb.toDynamoDBJson($sk)
   },
   "attributeValues": {
-    "entityType": $util.dynamodb.toDynamoDB("LeaderboardEntry"),
-    "userId": $util.dynamodb.toDynamoDB($userId),
-    "category": $util.dynamodb.toDynamoDB($category),
-    "season": $util.dynamodb.toDynamoDB($season),
-    "totalPoints": $util.dynamodb.toDynamoDB($totalPoints),
-    "username": $util.dynamodb.toDynamoDB($username),
-    "numberOfRaces": $util.dynamodb.toDynamoDB($numberOfRaces),
-    "byUserPK": $util.dynamodb.toDynamoDB($byUserPK),
-    "byUserSK": $util.dynamodb.toDynamoDB($byUserSK),
-    "createdAt": $util.dynamodb.toDynamoDB($now),
-    "updatedAt": $util.dynamodb.toDynamoDB($now)
+    "entityType": $util.dynamodb.toDynamoDBJson("LeaderboardEntry"),
+    "userId": $util.dynamodb.toDynamoDBJson($userId),
+    "category": $util.dynamodb.toDynamoDBJson($input.category),
+    "season": $util.dynamodb.toDynamoDBJson($input.season),
+    "totalPoints": $util.dynamodb.toDynamoDBJson($input.totalPoints),
+    "username": $util.dynamodb.toDynamoDBJson($input.username),
+    "numberOfRaces": $util.dynamodb.toDynamoDBJson($input.numberOfRaces),
+    "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
+    "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
+    "createdAt": $util.dynamodb.toDynamoDBJson($now),
+    "updatedAt": $util.dynamodb.toDynamoDBJson($now)
   }
-}
-    `),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#if($ctx.error)
-  $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
-#end
-$util.toJson($ctx.result)
-    `),
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
     });
 
-    // Query.getLeaderboard resolver - gets leaderboard entries for a category/season
+    // Query.getLeaderboard resolver
     dataSource.createResolver("GetLeaderboardResolver", {
         typeName: "Query",
         fieldName: "getLeaderboard",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($category = $ctx.args.category)
-#set($season = $ctx.args.season)
-#set($limit = $util.defaultIfNull($ctx.args.limit, 50))
-
-#set($pk = "LEADERBOARD#" + $category + "#" + $season)
-
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($pk = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
   "query": {
     "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
     "expressionValues": {
-      ":pk": $util.dynamodb.toDynamoDB($pk),
-      ":skPrefix": $util.dynamodb.toDynamoDB("PTS#")
+      ":pk": $util.dynamodb.toDynamoDBJson($pk),
+      ":skPrefix": { "S": "PTS#" }
     }
   },
-  "limit": $limit
-  #if($ctx.args.nextToken)
-  ,"nextToken": "$ctx.args.nextToken"
-  #end
-}
-    `),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#if($ctx.error)
-  $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
-#end
-#set($result = {
-  "items": $ctx.result.items,
-  "nextToken": $ctx.result.nextToken
-})
-$util.toJson($result)
-    `),
+  "limit": $util.defaultIfNull($ctx.args.limit, 50)
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
     });
 
-    // Query.getMyLeaderboardEntry resolver - gets the current user's leaderboard entry via GSI
+    // Query.getMyLeaderboardEntry resolver
     dataSource.createResolver("GetMyLeaderboardEntryResolver", {
         typeName: "Query",
         fieldName: "getMyLeaderboardEntry",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($identity = $ctx.identity)
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
-  $util.unauthorized()
+$util.unauthorized()
 #end
-
 #set($userId = $identity.sub)
-#set($category = $ctx.args.category)
-#set($season = $ctx.args.season)
-
 #set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "LEADERBOARD#" + $category + "#" + $season)
-
+#set($byUserSK = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
@@ -130,22 +90,19 @@ $util.toJson($result)
   "query": {
     "expression": "byUserPK = :pk AND byUserSK = :sk",
     "expressionValues": {
-      ":pk": $util.dynamodb.toDynamoDB($byUserPK),
-      ":sk": $util.dynamodb.toDynamoDB($byUserSK)
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":sk": $util.dynamodb.toDynamoDBJson($byUserSK)
     }
   },
   "limit": 1
-}
-    `),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#if($ctx.error)
-  $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
-#end
-#if($ctx.result.items.isEmpty())
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `#if($ctx.result.items.size() == 0)
 $util.toJson(null)
 #else
 $util.toJson($ctx.result.items[0])
-#end
-    `),
+#end`
+        ),
     });
 }
