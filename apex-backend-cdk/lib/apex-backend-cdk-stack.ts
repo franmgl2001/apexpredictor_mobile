@@ -7,6 +7,7 @@ import path from "path";
 import { createProfileResolvers } from "./resolvers/profile-resolvers";
 import { createAssetsResolvers } from "./resolvers/assets-resolvers";
 import { createPredictionsResolvers } from "./resolvers/predictions-resolvers";
+import { createLeaderboardResolvers } from "./resolvers/leaderboard-resolvers";
 
 export class ApexBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -64,6 +65,9 @@ export class ApexBackendStack extends cdk.Stack {
 
     // Create predictions resolvers (race prediction queries and mutations)
     createPredictionsResolvers(profileDS);
+
+    // Create leaderboard resolvers (total points leaderboard queries and mutations)
+    createLeaderboardResolvers(profileDS);
 
 
     // =========================

@@ -86,7 +86,7 @@ type RacePrediction {
   season: String!
   raceId: String!
   userId: ID!
-  prediction: AWSJSON!
+  prediction: String!  # JSON string stored as String (simpler)
   points: Int!          # starts at 0
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!
@@ -101,7 +101,36 @@ input UpsertPredictionInput {
   series: String!
   season: String!
   raceId: String!
-  prediction: AWSJSON!
+  prediction: String!  # JSON string
+}
+
+type LeaderboardEntry {
+  PK: String!
+  SK: String!
+  entityType: String!
+  userId: ID!
+  category: String!
+  season: String!
+  totalPoints: Int!
+  username: String!
+  numberOfRaces: Int!
+  byUserPK: String!
+  byUserSK: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type LeaderboardConnection {
+  items: [LeaderboardEntry!]!
+  nextToken: String
+}
+
+input UpsertLeaderboardEntryInput {
+  category: String!
+  season: String!
+  totalPoints: Int!
+  username: String!
+  numberOfRaces: Int!
 }
 
 type Query {
@@ -113,9 +142,13 @@ type Query {
   listMyRaces(series: String, season: String, limit: Int = 50, nextToken: String): RacePredictionConnection!
   # optional: fetch my prediction for a specific race
   getMyPrediction(series: String!, season: String!, raceId: String!): RacePrediction
+  # Leaderboard queries
+  getLeaderboard(category: String!, season: String!, limit: Int, nextToken: String): LeaderboardConnection!
+  getMyLeaderboardEntry(category: String!, season: String!): LeaderboardEntry
 }
 
 type Mutation {
   upsertMyProfile(input: UpsertUserProfileInput!): UserProfile
   upsertPrediction(input: UpsertPredictionInput!): RacePrediction!
+  upsertLeaderboardEntry(input: UpsertLeaderboardEntryInput!): LeaderboardEntry!
 }

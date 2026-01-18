@@ -3,51 +3,82 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 /**
  * Creates prediction-related resolvers (race prediction queries and mutations)
  */
-export function createPredictionsResolvers(
-    dataSource: appsync.DynamoDbDataSource
-) {
-    // Mutation.upsertPrediction resolver
+export function createPredictionsResolvers(dataSource: appsync.DynamoDbDataSource) {
     dataSource.createResolver("UpsertPredictionResolver", {
         typeName: "Mutation",
         fieldName: "upsertPrediction",
         requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($userId = $ctx.identity.sub)
-#set($series = $ctx.args.input.series)
-#set($season = $ctx.args.input.season)
-#set($raceId = $ctx.args.input.raceId)
+#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+  $util.unauthorized()
+#end
+
+#set($userId = $identity.sub)
+#set($input = $ctx.args.input)
+
+#set($series = $input.series)
+#set($season = $input.season)
+#set($raceId = $input.raceId)
+
+## prediction is a STRING in your schema, store exactly as string
+#set($prediction = $input.prediction)
+
 #set($pk = "prediction#" + $userId + "#" + $series + "#" + $season + "#" + $raceId)
-#set($paddedPoints = "0000000000")
-#set($points = 0)
-#set($sk = "PTS#" + $paddedPoints)
+#set($sk = "PTS#0000000000")
+
 #set($now = $util.time.nowISO8601())
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "RACE#" + $series + "#" + $season + "#" + $raceId)
+
 {
   "version": "2018-05-29",
-  "operation": "PutItem",
+  "operation": "UpdateItem",
   "key": {
     "PK": $util.dynamodb.toDynamoDB($pk),
     "SK": $util.dynamodb.toDynamoDB($sk)
   },
-  "attributeValues": {
-    "entityType": $util.dynamodb.toDynamoDB("RacePrediction"),
-
-    "userId": $util.dynamodb.toDynamoDB($userId),
-    "series": $util.dynamodb.toDynamoDB($series),
-    "season": $util.dynamodb.toDynamoDB($season),
-    "raceId": $util.dynamodb.toDynamoDB($raceId),
-
-    "prediction": $util.dynamodb.toDynamoDB($ctx.args.input.prediction),
-    "points": $util.dynamodb.toDynamoDB($points),
-
-    "byUserPK": $util.dynamodb.toDynamoDB("USER#" + $userId),
-    "byUserSK": $util.dynamodb.toDynamoDB("RACE#" + $series + "#" + $season + "#" + $raceId),
-
-    "createdAt": $util.dynamodb.toDynamoDB($now),
-    "updatedAt": $util.dynamodb.toDynamoDB($now)
-  }
+  "update": {
+    "expression": "SET #et=:et, #userId=:userId, #series=:series, #season=:season, #raceId=:raceId, #prediction=:prediction, #byUserPK=:byUserPK, #byUserSK=:byUserSK, #updatedAt=:now, #createdAt=if_not_exists(#createdAt,:now), #points=if_not_exists(#points,:zero)",
+    "expressionNames": {
+      "#et": "entityType",
+      "#userId": "userId",
+      "#series": "series",
+      "#season": "season",
+      "#raceId": "raceId",
+      "#prediction": "prediction",
+      "#byUserPK": "byUserPK",
+      "#byUserSK": "byUserSK",
+      "#createdAt": "createdAt",
+      "#updatedAt": "updatedAt",
+      "#points": "points"
+    },
+    "expressionValues": {
+      ":et": $util.dynamodb.toDynamoDB("RacePrediction"),
+      ":userId": $util.dynamodb.toDynamoDB($userId),
+      ":series": $util.dynamodb.toDynamoDB($series),
+      ":season": $util.dynamodb.toDynamoDB($season),
+      ":raceId": $util.dynamodb.toDynamoDB($raceId),
+      ":prediction": $util.dynamodb.toDynamoDB($prediction),
+      ":byUserPK": $util.dynamodb.toDynamoDB($byUserPK),
+      ":byUserSK": $util.dynamodb.toDynamoDB($byUserSK),
+      ":now": $util.dynamodb.toDynamoDB($now),
+      ":zero": $util.dynamodb.toDynamoDB(0)
+    }
+  },
+  "returnValues": "ALL_NEW"
 }
     `),
         responseMappingTemplate: appsync.MappingTemplate.fromString(`
-$util.toJson($ctx.result)
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
+#end
+
+#if($util.isNull($ctx.result) || $util.isNull($ctx.result.attributes))
+  $util.toJson(null)
+#else
+  $util.toJson($util.dynamodb.toMapValues($ctx.result.attributes))
+#end
+
     `),
     });
 }
