@@ -4,81 +4,119 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  * Creates prediction-related resolvers (race prediction queries and mutations)
  */
 export function createPredictionsResolvers(dataSource: appsync.DynamoDbDataSource) {
+    // Mutation.upsertPrediction resolver
     dataSource.createResolver("UpsertPredictionResolver", {
         typeName: "Mutation",
         fieldName: "upsertPrediction",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($identity = $ctx.identity)
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
-  $util.unauthorized()
+$util.unauthorized()
 #end
-
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
-
-#set($series = $input.series)
-#set($season = $input.season)
-#set($raceId = $input.raceId)
-
-## prediction is a STRING in your schema, store exactly as string
-#set($prediction = $input.prediction)
-
-#set($pk = "PREDICTION#" + $userId + "#" + $series + "#" + $season + "#" + $raceId)
-#set($sk = "PTS#0000000000")
-
-#set($now = $util.time.nowISO8601())
+#set($pk = "PREDICTION#" + $input.series + "#" + $input.raceId)
+#set($sk = "PTS#0000000000#" + $userId)
 #set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "RACE#" + $series + "#" + $season + "#" + $raceId)
-
+#set($byUserSK = "RACE#" + $input.series + "#" + $input.season + "#" + $input.raceId)
+#set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
-  "operation": "UpdateItem",
+  "operation": "PutItem",
   "key": {
-    "PK": $util.dynamodb.toDynamoDB($pk),
-    "SK": $util.dynamodb.toDynamoDB($sk)
+    "PK": $util.dynamodb.toDynamoDBJson($pk),
+    "SK": $util.dynamodb.toDynamoDBJson($sk)
   },
-  "update": {
-    "expression": "SET #et=:et, #userId=:userId, #series=:series, #season=:season, #raceId=:raceId, #prediction=:prediction, #byUserPK=:byUserPK, #byUserSK=:byUserSK, #updatedAt=:now, #createdAt=if_not_exists(#createdAt,:now), #points=if_not_exists(#points,:zero)",
-    "expressionNames": {
-      "#et": "entityType",
-      "#userId": "userId",
-      "#series": "series",
-      "#season": "season",
-      "#raceId": "raceId",
-      "#prediction": "prediction",
-      "#byUserPK": "byUserPK",
-      "#byUserSK": "byUserSK",
-      "#createdAt": "createdAt",
-      "#updatedAt": "updatedAt",
-      "#points": "points"
-    },
+  "attributeValues": {
+    "entityType": $util.dynamodb.toDynamoDBJson("RacePrediction"),
+    "userId": $util.dynamodb.toDynamoDBJson($userId),
+    "series": $util.dynamodb.toDynamoDBJson($input.series),
+    "season": $util.dynamodb.toDynamoDBJson($input.season),
+    "raceId": $util.dynamodb.toDynamoDBJson($input.raceId),
+    "prediction": $util.dynamodb.toDynamoDBJson($input.prediction),
+    "points": $util.dynamodb.toDynamoDBJson(0),
+    "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
+    "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
+    "createdAt": $util.dynamodb.toDynamoDBJson($now),
+    "updatedAt": $util.dynamodb.toDynamoDBJson($now)
+  }
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
+    });
+
+    // Query.listMyRaces resolver
+    dataSource.createResolver("ListMyRacesResolver", {
+        typeName: "Query",
+        fieldName: "listMyRaces",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+$util.unauthorized()
+#end
+#set($userId = $identity.sub)
+#set($byUserPK = "USER#" + $userId)
+#set($skPrefix = "RACE#")
+#if($ctx.args.series)
+#set($skPrefix = $skPrefix + $ctx.args.series + "#")
+#end
+#if($ctx.args.season)
+#set($skPrefix = $skPrefix + $ctx.args.season + "#")
+#end
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byUser",
+  "query": {
+    "expression": "byUserPK = :pk AND begins_with(byUserSK, :skPrefix)",
     "expressionValues": {
-      ":et": $util.dynamodb.toDynamoDB("RacePrediction"),
-      ":userId": $util.dynamodb.toDynamoDB($userId),
-      ":series": $util.dynamodb.toDynamoDB($series),
-      ":season": $util.dynamodb.toDynamoDB($season),
-      ":raceId": $util.dynamodb.toDynamoDB($raceId),
-      ":prediction": $util.dynamodb.toDynamoDB($prediction),
-      ":byUserPK": $util.dynamodb.toDynamoDB($byUserPK),
-      ":byUserSK": $util.dynamodb.toDynamoDB($byUserSK),
-      ":now": $util.dynamodb.toDynamoDB($now),
-      ":zero": $util.dynamodb.toDynamoDB(0)
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":skPrefix": $util.dynamodb.toDynamoDBJson($skPrefix)
     }
   },
-  "returnValues": "ALL_NEW"
-}
-    `),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#if($ctx.error)
-  $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
-#end
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
+    });
 
-#if($util.isNull($ctx.result) || $util.isNull($ctx.result.attributes))
-  $util.toJson(null)
+    // Query.getMyPrediction resolver
+    dataSource.createResolver("GetMyPredictionResolver", {
+        typeName: "Query",
+        fieldName: "getMyPrediction",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($identity = $ctx.identity)
+#if($util.isNull($identity) || $util.isNull($identity.sub))
+$util.unauthorized()
+#end
+#set($userId = $identity.sub)
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "RACE#" + $ctx.args.series + "#" + $ctx.args.season + "#" + $ctx.args.raceId)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byUser",
+  "query": {
+    "expression": "byUserPK = :pk AND byUserSK = :sk",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":sk": $util.dynamodb.toDynamoDBJson($byUserSK)
+    }
+  },
+  "limit": 1
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `#if($ctx.result.items.size() == 0)
+$util.toJson(null)
 #else
-  $util.toJson($util.dynamodb.toMapValues($ctx.result.attributes))
-#end
-
-    `),
+$util.toJson($ctx.result.items[0])
+#end`
+        ),
     });
 }

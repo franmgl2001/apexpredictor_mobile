@@ -86,7 +86,7 @@ type RacePrediction {
   season: String!
   raceId: String!
   userId: ID!
-  prediction: String!  # JSON string stored as String (simpler)
+  prediction: AWSJSON!
   points: Int!          # starts at 0
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!
@@ -101,7 +101,7 @@ input UpsertPredictionInput {
   series: String!
   season: String!
   raceId: String!
-  prediction: String!  # JSON string
+  prediction: AWSJSON!
 }
 
 type LeaderboardEntry {
