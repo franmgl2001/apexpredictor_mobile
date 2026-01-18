@@ -46,13 +46,15 @@ export default function LeaderboardEntry({ entry, rank, showSeparator, onPress }
             <View style={[styles.rankBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
                 <Text style={[styles.rankNumber, { color: badgeStyle.color }]}>{rank}</Text>
             </View>
-            {entry.nationality && (
-                <Text style={styles.flag}>{getFlagEmoji(entry.nationality)}</Text>
-            )}
             <View style={styles.userInfo}>
-                <Text style={[styles.username, entry.races !== undefined && styles.usernameWithSubtext]}>
-                    {entry.username}
-                </Text>
+                <View style={styles.usernameRow}>
+                    <Text style={[styles.username, entry.races !== undefined && styles.usernameWithSubtext]}>
+                        {entry.username}
+                    </Text>
+                    {entry.nationality && (
+                        <Text style={styles.flag}>{getFlagEmoji(entry.nationality)}</Text>
+                    )}
+                </View>
                 {entry.races !== undefined && (
                     <Text style={styles.raceCount}>{entry.races} races</Text>
                 )}
@@ -97,8 +99,8 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     flag: {
-        fontSize: 22,
-        marginRight: 10,
+        fontSize: 16,
+        marginLeft: 6,
     },
     rankNumber: {
         fontSize: 16,
@@ -107,6 +109,10 @@ const styles = StyleSheet.create({
     userInfo: {
         flex: 1,
         justifyContent: 'center',
+    },
+    usernameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     username: {
         fontSize: 16,
