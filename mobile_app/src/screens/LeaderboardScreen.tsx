@@ -10,14 +10,12 @@ import {
 import PredictionsModal from '../components/leaderboard/PredictionsModal';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import {
     getLeaderboard,
-    getLeaderboardPredictions,
-    getUserLeagues,
-    getLeagueLeaderboard,
-    getLeagueRacePredictions,
-    type ApexEntity,
-} from '../services/graphql';
+    ensureLeaderboardEntry,
+    type LeaderboardEntry,
+} from '../services/graphql/leaderboard';
 
 type LeaderboardScreenProps = {
     onProfilePress: () => void;
@@ -25,6 +23,7 @@ type LeaderboardScreenProps = {
 
 export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenProps) {
     const { user } = useAuth();
+    const { profile } = useData();
     const [filterType, setFilterType] = useState<FilterType>('global');
     const [timeFilter, setTimeFilter] = useState<TimeFilterType>('season');
     const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
@@ -32,15 +31,39 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     const [showPredictionsModal, setShowPredictionsModal] = useState(false);
 
     // League state
-    const [leagues, setLeagues] = useState<ApexEntity[]>([]);
+    const [leagues, setLeagues] = useState<any[]>([]);
     const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
     const [isLoadingLeagues, setIsLoadingLeagues] = useState(false);
 
     // Data state
-    const [seasonLeaderboard, setSeasonLeaderboard] = useState<ApexEntity[]>([]);
+    const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
+    const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
     const [raceLeaderboard, setRaceLeaderboard] = useState<LeaderboardEntryData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Constants for category and season
+    const category = 'F1';
+    const season = new Date().getFullYear().toString();
+
+    // Ensure user has a leaderboard entry when screen loads
+    useEffect(() => {
+        const initializeUserLeaderboardEntry = async () => {
+            if (!user?.userId || !profile?.username) {
+                return;
+            }
+
+            try {
+                const entry = await ensureLeaderboardEntry(category, season, profile.username);
+                setMyEntry(entry);
+            } catch (err: any) {
+                console.error('Error ensuring leaderboard entry:', err);
+                // Don't set error state here - it's not critical
+            }
+        };
+
+        initializeUserLeaderboardEntry();
+    }, [user?.userId, profile?.username]);
 
     // Fetch leagues when league filter is activated
     const fetchLeagues = async () => {
@@ -51,16 +74,8 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
 
         try {
             setIsLoadingLeagues(true);
-            // COMMENTED OUT: const data = await getUserLeagues(user.userId, { includeDetails: false });
-            // COMMENTED OUT: setLeagues(data);
-            setLeagues([]); // Set to empty since we're not fetching
-            // Auto-select first league if available
-            // COMMENTED OUT: if (data.length > 0 && !selectedLeagueId) {
-            //     const firstLeagueId = data[0].league_id || data[0].PK?.replace('league#', '') || null;
-            //     if (firstLeagueId) {
-            //         setSelectedLeagueId(firstLeagueId);
-            //     }
-            // }
+            // TODO: Implement league fetching when leagues are available
+            setLeagues([]);
         } catch (err: any) {
             console.error('Error fetching leagues:', err);
             setError(err.message || 'Failed to load leagues');
@@ -74,17 +89,15 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
         try {
             setIsLoading(true);
             setError(null);
-            
-            // COMMENTED OUT: if (filterType === 'league' && selectedLeagueId) {
-            //     // Fetch league leaderboard
-            //     const data = await getLeagueLeaderboard(selectedLeagueId, 1000);
-            //     setSeasonLeaderboard(data);
-            // } else {
-            //     // Fetch global leaderboard
-            //     const data = await getLeaderboard('LEADERBOARD', 'DESC', 1000);
-            //     setSeasonLeaderboard(data);
-            // }
-            setSeasonLeaderboard([]); // Set to empty since we're not fetching
+
+            if (filterType === 'league' && selectedLeagueId) {
+                // TODO: Implement league leaderboard when leagues are available
+                setLeaderboardEntries([]);
+            } else {
+                // Fetch global leaderboard
+                const data = await getLeaderboard(category, season, 100);
+                setLeaderboardEntries(data.items);
+            }
         } catch (err: any) {
             console.error('Error fetching season leaderboard:', err);
             setError(err.message || 'Failed to load leaderboard');
@@ -98,37 +111,11 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
         try {
             setIsLoading(true);
             setError(null);
-            
-            // COMMENTED OUT: let data: ApexEntity[];
-            // COMMENTED OUT: if (filterType === 'league' && selectedLeagueId) {
-            //     // Fetch league race predictions
-            //     data = await getLeagueRacePredictions(selectedLeagueId, raceId, 1000);
-            // } else {
-            //     // Use getLeaderboardPredictions which only fetches necessary fields (excludes createdAt/updatedAt)
-            //     data = await getLeaderboardPredictions(raceId, 1000);
-            // }
-            
-            // COMMENTED OUT: Transform data immediately to only include needed fields
-            // COMMENTED OUT: if (Array.isArray(data)) {
-            //     const transformedData: LeaderboardEntryData[] = data
-            //         .map((item) => {
-            //             // Extract only what we need: username, points, and predictions (for gridOrder)
-            //             return {
-            //                 username: item.username || 'Unknown',
-            //                 points: item.points ?? 0,
-            //                 predictions: item.predictions, // Keep as string JSON for modal
-            //             };
-            //         })
-            //         .sort((a, b) => b.points - a.points); // Sort by points descending
-            //     setRaceLeaderboard(transformedData);
-            // } else {
-            //     console.warn('Race leaderboard data is not an array:', data);
-            //     setRaceLeaderboard([]);
-            // }
-            setRaceLeaderboard([]); // Set to empty since we're not fetching
+
+            // TODO: Implement race-specific leaderboard
+            setRaceLeaderboard([]);
         } catch (err: any) {
             console.error('Error fetching race leaderboard:', err);
-            // Extract error message more carefully
             const errorMessage = err?.message || err?.errors?.[0]?.message || 'Failed to load race leaderboard';
             setError(errorMessage);
             setRaceLeaderboard([]);
@@ -183,14 +170,14 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             }
             return raceLeaderboard;
         } else {
-            // Load season leaderboard
-            return seasonLeaderboard.map((item) => ({
+            // Load season leaderboard from LeaderboardEntry type
+            return leaderboardEntries.map((item) => ({
                 username: item.username || 'Unknown',
-                points: item.points || 0,
-                races: item.races,
+                points: item.totalPoints || 0,
+                races: item.numberOfRaces || 0,
             }));
         }
-    }, [timeFilter, selectedRaceId, seasonLeaderboard, raceLeaderboard]);
+    }, [timeFilter, selectedRaceId, leaderboardEntries, raceLeaderboard]);
 
     const handleRaceChange = (raceId: string) => {
         setSelectedRaceId(raceId);

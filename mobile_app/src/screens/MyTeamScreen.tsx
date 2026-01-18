@@ -7,7 +7,13 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData, type Driver } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import type { ApexEntity } from '../services/graphql';
+import { upsertPrediction, normalizeCategory } from '../services/graphql';
+
+// Local type for cached predictions
+interface CachedPrediction {
+    prediction?: string;
+    points?: number;
+}
 
 type MyTeamScreenProps = {
     onProfilePress: () => void;
@@ -19,7 +25,7 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [currentRaceId, setCurrentRaceId] = useState<string | null>(null);
     const [currentPredictions, setCurrentPredictions] = useState<string | null>(null);
-    const [predictionsByRaceId, setPredictionsByRaceId] = useState<Map<string, ApexEntity | null>>(new Map());
+    const [predictionsByRaceId, setPredictionsByRaceId] = useState<Map<string, CachedPrediction | null>>(new Map());
     const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
     const { profile, races, drivers, isLoading, racesError, driversError } = useData();
     const { user } = useAuth();
@@ -60,16 +66,26 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
             return;
         }
 
-        if (!profile?.username) {
-            Alert.alert('Error', 'Username not available.');
+        // Find the current race to get category and season
+        const currentRace = localRaces.find(race => race.race_id === currentRaceId);
+        if (!currentRace) {
+            Alert.alert('Error', 'Race information not found.');
+            return;
+        }
+
+        if (!currentRace.category || !currentRace.season) {
+            Alert.alert('Error', 'Race category or season information is missing.');
             return;
         }
 
         setIsSaving(true);
         try {
-            // COMMENTED OUT: await saveUserPredictions(user.userId, profile.username, currentRaceId, currentPredictions);
-            // COMMENTED OUT: Alert.alert('Success', 'Predictions saved successfully!');
-            Alert.alert('Info', 'Save functionality is currently disabled.');
+            // Normalize the category to ensure it's in the correct format (e.g., "f1", "motogp")
+            const series = normalizeCategory(currentRace.category);
+            const season = currentRace.season;
+
+            await upsertPrediction(series, season, currentRaceId, currentPredictions);
+            Alert.alert('Success', 'Predictions saved successfully!');
         } catch (error: any) {
             Alert.alert('Error', error?.message || 'Failed to save predictions. Please try again.');
         } finally {

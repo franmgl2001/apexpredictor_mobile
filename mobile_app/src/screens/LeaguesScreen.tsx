@@ -11,7 +11,19 @@ import {
 } from 'react-native';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserLeagues, getLeagues, type ApexEntity } from '../services/graphql';
+
+// Local League type for this screen (leagues feature is placeholder)
+interface League {
+    PK: string;
+    league_id?: string;
+    league_name?: string;
+    description?: string;
+    is_private?: boolean;
+    role?: string;
+    member_count?: number;
+    max_members?: number;
+    join_code?: string;
+}
 
 type LeaguesScreenProps = {
     onProfilePress: () => void;
@@ -22,8 +34,8 @@ type TabType = 'my' | 'public';
 export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('my');
-    const [myLeagues, setMyLeagues] = useState<ApexEntity[]>([]);
-    const [publicLeagues, setPublicLeagues] = useState<ApexEntity[]>([]);
+    const [myLeagues, setMyLeagues] = useState<League[]>([]);
+    const [publicLeagues, setPublicLeagues] = useState<League[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +96,7 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     };
 
     const currentLeagues = activeTab === 'my' ? myLeagues : publicLeagues;
-    const capacityPercentage = (league: ApexEntity) => {
+    const capacityPercentage = (league: League) => {
         const members = league.member_count || 0;
         const max = league.max_members || 100;
         return Math.round((members / max) * 100);
@@ -181,7 +193,7 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
 }
 
 interface LeagueCardProps {
-    league: ApexEntity;
+    league: League;
     capacityPercentage: number;
     onCopyCode: (code: string) => void;
     onLeaderboard: (leagueId: string) => void;

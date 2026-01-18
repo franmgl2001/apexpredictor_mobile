@@ -2,7 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import RaceFilterCarousel from './RaceFilterCarousel';
 import LeagueSelector from './LeagueSelector';
-import type { ApexEntity } from '../../services/graphql';
+
+// Local League type for this component (leagues feature is placeholder)
+interface League {
+    PK?: string;
+    league_id?: string;
+    league_name?: string;
+}
 
 export type FilterType = 'global' | 'league';
 export type TimeFilterType = 'season' | 'race';
@@ -13,7 +19,7 @@ interface LeaderboardFiltersProps {
     onFilterTypeChange: (type: FilterType) => void;
     onTimeFilterChange: (type: TimeFilterType) => void;
     onRaceChange?: (raceId: string) => void;
-    leagues?: ApexEntity[];
+    leagues?: League[];
     selectedLeagueId?: string | null;
     onLeagueChange?: (leagueId: string) => void;
     isLoadingLeagues?: boolean;

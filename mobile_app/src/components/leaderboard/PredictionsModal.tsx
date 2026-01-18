@@ -1,8 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useData, Driver as ContextDriver } from '../../contexts/DataContext';
-import { getSeasonData, ApexEntity } from '../../services/graphql';
+import { getSeasonData } from '../../services/graphql';
 import { calculateDriverPoints, calculateBonusPoints, type RaceResultsData, type PredictionData as PointsPredictionData, type BonusPoints } from '../../utils/pointsCalculator';
+
+// Local type for race results from season data
+interface RaceResultEntity {
+    race_id?: string;
+    SK?: string;
+    results?: string | RaceResultsData;
+}
 
 type PredictionData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
@@ -100,7 +107,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                 // Use getSeasonData to fetch all data in one query (more efficient)
                 const seasonData = await getSeasonData();
                 // Find the result for this specific race
-                const raceResult = seasonData.results.find((result: ApexEntity) => {
+                const raceResult = seasonData.results.find((result: RaceResultEntity) => {
                     const resultRaceId = result.race_id || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
                     return resultRaceId === raceId;
                 });
@@ -141,7 +148,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                     setRaceResults(parsedResults);
                 } catch (error) {
                     console.error('[PredictionsModal] Error parsing race results JSON:', error);
-                    console.error('[PredictionsModal] Raw results (first 200 chars):', 
+                    console.error('[PredictionsModal] Raw results (first 200 chars):',
                         typeof raceResult.results === 'string' ? raceResult.results.substring(0, 200) : raceResult.results
                     );
                     setRaceResults(null);

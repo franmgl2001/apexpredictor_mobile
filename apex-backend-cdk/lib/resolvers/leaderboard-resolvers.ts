@@ -6,7 +6,7 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 export function createLeaderboardResolvers(dataSource: appsync.DynamoDbDataSource) {
     // Mutation.upsertLeaderboardEntry resolver
     // PK: LEADERBOARD#{category}#{season}
-    // SK: PTS#{paddedPoints} (padded to 10 digits for proper sorting, inverted for descending order)
+    // SK: PTS#0000000000
     dataSource.createResolver("UpsertLeaderboardEntryResolver", {
         typeName: "Mutation",
         fieldName: "upsertLeaderboardEntry",
@@ -63,7 +63,6 @@ export function createLeaderboardResolvers(dataSource: appsync.DynamoDbDataSourc
 #if($ctx.error)
   $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
 #end
-
 $util.toJson($ctx.result)
     `),
     });
@@ -89,22 +88,21 @@ $util.toJson($ctx.result)
       ":skPrefix": $util.dynamodb.toDynamoDB("PTS#")
     }
   },
-  "limit": $limit,
+  "limit": $limit
   #if($ctx.args.nextToken)
-  "nextToken": "$ctx.args.nextToken",
+  ,"nextToken": "$ctx.args.nextToken"
   #end
-  "scanIndexForward": true
 }
     `),
         responseMappingTemplate: appsync.MappingTemplate.fromString(`
 #if($ctx.error)
   $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
 #end
-
-{
-  "items": $util.toJson($ctx.result.items),
-  "nextToken": $util.toJson($ctx.result.nextToken)
-}
+#set($result = {
+  "items": $ctx.result.items,
+  "nextToken": $ctx.result.nextToken
+})
+$util.toJson($result)
     `),
     });
 
@@ -143,13 +141,11 @@ $util.toJson($ctx.result)
 #if($ctx.error)
   $util.error($ctx.error.message, $ctx.error.type, $ctx.error.data)
 #end
-
 #if($ctx.result.items.isEmpty())
-  $util.toJson(null)
+$util.toJson(null)
 #else
-  $util.toJson($ctx.result.items[0])
+$util.toJson($ctx.result.items[0])
 #end
     `),
     });
 }
-

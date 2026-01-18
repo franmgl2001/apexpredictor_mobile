@@ -4,10 +4,18 @@
  */
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
-import type { ApexEntity } from './types';
 import { client } from './client';
 import { requestLogger } from './requestLogger';
 import { fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
+
+export interface UserProfile {
+    user_id: string;
+    email: string;
+    username: string;
+    country: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
 
 const GET_MY_PROFILE = `
   query GetMyProfile {
@@ -29,14 +37,7 @@ interface UpsertUserProfileInput {
 }
 
 interface UpsertMyProfileResponse {
-    upsertMyProfile: {
-        user_id: string;
-        email?: string;
-        username: string;
-        country: string;
-        createdAt?: string;
-        updatedAt?: string;
-    };
+    upsertMyProfile: UserProfile;
 }
 
 const UPSERT_MY_PROFILE = `
@@ -56,7 +57,7 @@ const UPSERT_MY_PROFILE = `
  * Fetches current user profile from the GraphQL API (uses auth context)
  * @returns The user profile or null if not found
  */
-export async function getMyProfile(): Promise<ApexEntity | null> {
+export async function getMyProfile(): Promise<UserProfile | null> {
     await fetchAuthSession();
 
     const startTime = Date.now();
@@ -67,14 +68,7 @@ export async function getMyProfile(): Promise<ApexEntity | null> {
             query: GET_MY_PROFILE,
             variables: {},
         }) as GraphQLResult<{
-            getMyProfile: {
-                user_id: string;
-                email: string;
-                username: string;
-                country: string;
-                createdAt: string;
-                updatedAt: string;
-            } | null;
+            getMyProfile: UserProfile | null;
         }>;
 
         const duration = Date.now() - startTime;
@@ -83,26 +77,9 @@ export async function getMyProfile(): Promise<ApexEntity | null> {
             throw new Error(result.errors[0].message);
         }
 
-        const p = result.data?.getMyProfile;
-        if (!p) {
-            requestLogger.logSuccess(logId, 0, duration);
-            return null;
-        }
-
-        const entity: ApexEntity = {
-            PK: `user#${p.user_id}`,
-            SK: 'PROFILE',
-            entityType: 'USER',
-            user_id: p.user_id,
-            email: p.email,
-            username: p.username,
-            country: p.country,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt,
-        };
-
-        requestLogger.logSuccess(logId, 1, duration);
-        return entity;
+        const profile = result.data?.getMyProfile || null;
+        requestLogger.logSuccess(logId, profile ? 1 : 0, duration);
+        return profile;
     } catch (e: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, e, duration);
@@ -114,12 +91,12 @@ export async function getMyProfile(): Promise<ApexEntity | null> {
  * Saves or updates user profile (creates or updates)
  * @param username The username
  * @param country The user's country
- * @returns The created/updated profile entity
+ * @returns The created/updated profile
  */
 export async function saveUserProfile(
     username: string,
     country: string
-): Promise<ApexEntity> {
+): Promise<UserProfile> {
     const startTime = Date.now();
 
     const userAttributes = await fetchUserAttributes();
@@ -153,21 +130,8 @@ export async function saveUserProfile(
             throw new Error('Failed to save profile: No data returned');
         }
 
-        const profileData = result.data.upsertMyProfile;
-        const apexEntity: ApexEntity = {
-            PK: `user#${profileData.user_id}`,
-            SK: 'PROFILE',
-            entityType: 'USER',
-            user_id: profileData.user_id,
-            username: profileData.username,
-            email: profileData.email,
-            country: profileData.country,
-            createdAt: profileData.createdAt,
-            updatedAt: profileData.updatedAt,
-        };
-
         requestLogger.logSuccess(logId, 1, duration);
-        return apexEntity;
+        return result.data.upsertMyProfile;
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);

@@ -5,9 +5,27 @@
 
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client } from './client';
-import type { ApexEntity } from './types';
 import { requestLogger } from './requestLogger';
 import { normalizeCategory } from './races';
+
+export interface Driver {
+  PK: string;
+  SK: string;
+  entityType: string;
+  driver_id: string;
+  name: string;
+  team?: string;
+  number?: number;
+  imageUrl?: string;
+  teamColor?: string;
+  isActive?: boolean;
+  nationality?: string;
+  birthDate?: string;
+  season: string;
+  category: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 const GET_DRIVERS = `
   query GetDrivers($category: String!, $season: String!, $limit: Int, $nextToken: String) {
@@ -38,7 +56,7 @@ const GET_DRIVERS = `
 
 interface GetDriversResponse {
   getDrivers: {
-    items: ApexEntity[];
+    items: Driver[];
     nextToken: string | null;
     __typename: string;
   };
@@ -58,7 +76,7 @@ export async function getDrivers(
   season: string,
   limit: number = 100,
   nextToken?: string
-): Promise<ApexEntity[]> {
+): Promise<Driver[]> {
   const startTime = Date.now();
 
   // Normalize category to ensure it's one of the valid prefixes
@@ -105,4 +123,3 @@ export async function getDrivers(
     throw error;
   }
 }
-

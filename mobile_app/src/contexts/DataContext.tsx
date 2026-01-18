@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getRaces, getDrivers, getMyProfile, ApexEntity, type Race } from '../services/graphql';
+import { getRaces, getDrivers, getMyProfile, type UserProfile, type Race, type Driver as GraphQLDriver } from '../services/graphql';
 import { RaceEntity } from '../components/race_details/RaceDetailsCard';
 import { useAuth } from './AuthContext';
 import { RaceResultsData } from '../utils/pointsCalculator';
@@ -18,7 +18,7 @@ interface DataContextType {
     races: RaceEntity[];
     racesWithResults: RaceEntity[];
     raceResultsByRaceId: Map<string, RaceResultsData>;
-    profile: ApexEntity | null;
+    profile: UserProfile | null;
     isLoading: boolean;
     profileLoading: boolean;
     driversError: string | null;
@@ -37,15 +37,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [races, setRaces] = useState<RaceEntity[]>([]);
     const [racesWithResults, setRacesWithResults] = useState<RaceEntity[]>([]);
     const [raceResultsByRaceId, setRaceResultsByRaceId] = useState<Map<string, RaceResultsData>>(new Map());
-    const [profile, setProfile] = useState<ApexEntity | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [profileLoading, setProfileLoading] = useState(false);
     const [driversError, setDriversError] = useState<string | null>(null);
     const [racesError, setRacesError] = useState<string | null>(null);
     const [profileError, setProfileError] = useState<string | null>(null);
 
-    // Convert ApexEntity driver to Driver type
-    const mapDriver = (item: ApexEntity): Driver => ({
+    // Convert GraphQL driver to local Driver type
+    const mapDriver = (item: GraphQLDriver): Driver => ({
         id: String(item.driver_id ?? item.PK ?? item.name ?? ''),
         name: String(item.name ?? ''),
         team: String(item.team ?? ''),
@@ -196,4 +196,3 @@ export function useData() {
     }
     return context;
 }
-

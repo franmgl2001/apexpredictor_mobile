@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, ActivityIndicator } from 'react-native';
-import type { ApexEntity } from '../../services/graphql';
+
+// Local League type for this component (leagues feature is placeholder)
+interface League {
+    PK?: string;
+    league_id?: string;
+    league_name?: string;
+    description?: string;
+    is_private?: boolean;
+    role?: string;
+    member_count?: number;
+}
 
 interface LeagueSelectorProps {
-    leagues: ApexEntity[];
+    leagues: League[];
     selectedLeagueId: string | null;
     onLeagueChange: (leagueId: string) => void;
     isLoading?: boolean;
