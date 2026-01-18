@@ -27,8 +27,8 @@ export function createPredictionsResolvers(dataSource: appsync.DynamoDbDataSourc
 #set($sk = "PTS#0000000000")
 
 #set($now = $util.time.nowISO8601())
-#set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "RACE#" + $series + "#" + $season + "#" + $raceId)
+#set($byUserPK = "user#" + $userId)
+#set($byUserSK = "race#" + $series + "#" + $season + "#" + $raceId)
 
 {
   "version": "2018-05-29",

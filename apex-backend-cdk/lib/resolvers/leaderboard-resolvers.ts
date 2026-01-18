@@ -15,10 +15,10 @@ $util.unauthorized()
 #end
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
-#set($pk = "LEADERBOARD#" + $input.category + "#" + $input.season)
-#set($sk = "PTS#0000000000")
-#set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "LEADERBOARD#" + $input.category + "#" + $input.season)
+#set($pk = "leaderboard#" + $input.category + "#" + $input.season)
+#set($sk = "PTS#0000000000#" + $userId)
+#set($byUserPK = "user#" + $userId)
+#set($byUserSK = "leaderboard#" + $input.category + "#" + $input.season)
 #set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
@@ -35,6 +35,7 @@ $util.unauthorized()
     "totalPoints": $util.dynamodb.toDynamoDBJson($input.totalPoints),
     "username": $util.dynamodb.toDynamoDBJson($input.username),
     "numberOfRaces": $util.dynamodb.toDynamoDBJson($input.numberOfRaces),
+    "nationality": $util.dynamodb.toDynamoDBJson($input.nationality),
     "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
     "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
@@ -52,7 +53,7 @@ $util.unauthorized()
         typeName: "Query",
         fieldName: "getLeaderboard",
         requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($pk = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
+            `#set($pk = "leaderboard#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
@@ -81,8 +82,8 @@ $util.unauthorized()
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
-#set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
+#set($byUserPK = "user#" + $userId)
+#set($byUserSK = "leaderboard#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",

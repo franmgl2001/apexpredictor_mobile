@@ -114,6 +114,7 @@ type LeaderboardEntry {
   totalPoints: Int!
   username: String!
   numberOfRaces: Int!
+  nationality: String
   byUserPK: String!
   byUserSK: String!
   createdAt: String
@@ -131,6 +132,7 @@ input UpsertLeaderboardEntryInput {
   totalPoints: Int!
   username: String!
   numberOfRaces: Int!
+  nationality: String
 }
 
 type Query {
