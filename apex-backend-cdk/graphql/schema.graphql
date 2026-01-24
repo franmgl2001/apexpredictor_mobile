@@ -208,6 +208,7 @@ type Query {
 
 type Mutation {
   upsertMyProfile(input: UpsertUserProfileInput!): UserProfile
+  initMyLeaderboards: Boolean!
   upsertPrediction(input: UpsertPredictionInput!): RacePrediction!
   upsertLeaderboardEntry(input: UpsertLeaderboardEntryInput!): LeaderboardEntry!
   createLeague(input: CreateLeagueInput!): League!
