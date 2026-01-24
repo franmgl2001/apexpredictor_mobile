@@ -36,6 +36,13 @@ export class ApexBackendStack extends cdk.Stack {
       sortKey: { name: "byUserSK", type: dynamodb.AttributeType.STRING },
     });
 
+    // Add GSI2: LEAGUE#<code>
+    table.addGlobalSecondaryIndex({
+      indexName: "byCode",
+      partitionKey: { name: "byCode", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // 3) AppSync API using Cognito User Pool auth
     const api = new appsync.GraphqlApi(this, "ApexApi", {
       name: "ApexApi",

@@ -143,7 +143,7 @@ type League {
   name: String!
   createdByUserId: ID!
   createdAt: String!
-  code: String!
+  byCode: String!
   description: String
 }
 
@@ -156,7 +156,7 @@ type LeagueMember {
   username: String
   role: String!
   leagueName: String
-  code: String
+  byCode: String
   description: String
   createdAt: String
   updatedAt: String
@@ -184,7 +184,7 @@ input CreateLeagueMemberInput {
   leagueId: String!
   leagueName: String!
   role: String
-  code: String
+  byCode: String
 }
 
 type Query {
@@ -203,6 +203,7 @@ type Query {
   getMyLeaderboardEntry(category: String!, season: String!): LeaderboardEntry
   # League queries
   getMyLeagues(limit: Int, nextToken: String): LeagueMemberConnection!
+  getLeagueByCode(byCode: String!): League
 }
 
 type Mutation {

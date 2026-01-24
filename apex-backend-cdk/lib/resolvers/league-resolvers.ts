@@ -10,13 +10,13 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  * - DynamoDB PK/SK: UPPERCASE prefixes, lowercase values (LEAGUE#<lowercaseId>, MEMBER#<lowercaseId>)
  */
 export function createLeagueResolvers(dataSource: appsync.DynamoDbDataSource) {
-    // Mutation.createLeague resolver
-    // This creates the league and adds the creator as admin member
-    dataSource.createResolver("CreateLeagueResolver", {
-        typeName: "Mutation",
-        fieldName: "createLeague",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Mutation.createLeague resolver
+  // This creates the league and adds the creator as admin member
+  dataSource.createResolver("CreateLeagueResolver", {
+    typeName: "Mutation",
+    fieldName: "createLeague",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -55,13 +55,13 @@ $util.unauthorized()
     "name": $util.dynamodb.toDynamoDBJson($input.name),
     "createdByUserId": $util.dynamodb.toDynamoDBJson($userId),
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
-    "code": $util.dynamodb.toDynamoDBJson($code),
+    "byCode": $util.dynamodb.toDynamoDBJson($code),
     "description": $util.dynamodb.toDynamoDBJson($util.defaultIfNull($input.description, ""))
   }
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($league = $ctx.result)
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($league = $ctx.result)
 #set($userId = $ctx.stash.userId)
 #set($leagueId = $ctx.stash.leagueId)
 #set($memberPk = "LEAGUE#" + $leagueId.toLowerCase())
@@ -80,21 +80,21 @@ $util.toJson({
   "name": $league.name,
   "createdByUserId": $league.createdByUserId,
   "createdAt": $league.createdAt,
-  "code": $league.code,
+  "byCode": $league.byCode,
   "description": $league.description
 })`
-        ),
-    });
+    ),
+  });
 
-    // Mutation.copyLeaderboardToLeague resolver
-    // This copies all leaderboard entries from total points to the league
-    // Note: This is a simplified version - for production, consider using a Lambda function
-    // to handle batching and pagination
-    dataSource.createResolver("CopyLeaderboardToLeagueResolver", {
-        typeName: "Mutation",
-        fieldName: "copyLeaderboardToLeague",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Mutation.copyLeaderboardToLeague resolver
+  // This copies all leaderboard entries from total points to the league
+  // Note: This is a simplified version - for production, consider using a Lambda function
+  // to handle batching and pagination
+  dataSource.createResolver("CopyLeaderboardToLeagueResolver", {
+    typeName: "Mutation",
+    fieldName: "copyLeaderboardToLeague",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -114,24 +114,24 @@ $util.unauthorized()
   },
   "limit": 1000
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `## This resolver queries the leaderboard but doesn't copy entries
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `## This resolver queries the leaderboard but doesn't copy entries
 ## For production, use a Lambda function to handle the copying
 ## For now, return true - the actual copying will be handled in the frontend
 $util.toJson(true)`
-        ),
-    });
+    ),
+  });
 
-    // Mutation.createLeagueMember resolver
-    // Creates a league member entry
-    // Note: role defaults to "member" unless explicitly set to "admin" (for league creators)
-    // If role is "admin", the code should be passed in the input to store on the member
-    dataSource.createResolver("CreateLeagueMemberResolver", {
-        typeName: "Mutation",
-        fieldName: "createLeagueMember",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Mutation.createLeagueMember resolver
+  // Creates a league member entry
+  // Note: role defaults to "member" unless explicitly set to "admin" (for league creators)
+  // If role is "admin", the code should be passed in the input to store on the member
+  dataSource.createResolver("CreateLeagueMemberResolver", {
+    typeName: "Mutation",
+    fieldName: "createLeagueMember",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -159,8 +159,8 @@ $util.unauthorized()
 })
 
 ## Store code if provided (for now, show to everyone)
-#if($input.code)
-  $util.qr($attributeValues.put("code", $input.code))
+#if($input.byCode)
+  $util.qr($attributeValues.put("byCode", $input.byCode))
 #end
 
 {
@@ -171,10 +171,11 @@ $util.unauthorized()
     "SK": $util.dynamodb.toDynamoDBJson($memberSk)
   },
   "attributeValues": $util.dynamodb.toMapValuesJson($attributeValues)
-}`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($member = $ctx.result)
+}
+`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($member = $ctx.result)
 #set($response = {
   "PK": $member.PK,
   "SK": $member.SK,
@@ -189,21 +190,21 @@ $util.unauthorized()
   "updatedAt": $member.updatedAt
 })
 ## Include code if it exists on member (for now, show to everyone)
-#if($member.code)
-  $util.qr($response.put("code", $member.code))
+#if($member.byCode)
+  $util.qr($response.put("byCode", $member.byCode))
 #end
 $util.toJson($response)`
-        ),
-    });
+    ),
+  });
 
-    // Query.getMyLeagues resolver
-    // Gets all leagues the user is a member of by querying memberships
-    // Uses the byUser GSI
-    dataSource.createResolver("GetMyLeaguesResolver", {
-        typeName: "Query",
-        fieldName: "getMyLeagues",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Query.getMyLeagues resolver
+  // Gets all leagues the user is a member of by querying memberships
+  // Uses the byUser GSI
+  dataSource.createResolver("GetMyLeaguesResolver", {
+    typeName: "Query",
+    fieldName: "getMyLeagues",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -230,9 +231,9 @@ $util.unauthorized()
   "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
   "scanIndexForward": false
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($result = $ctx.result)
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($result = $ctx.result)
 #set($items = [])
 #foreach($item in $result.items)
   #set($mappedItem = {
@@ -249,8 +250,8 @@ $util.unauthorized()
     "updatedAt": $item.updatedAt
   })
   ## Include code if it exists on member (for now, show to everyone)
-  #if($item.code)
-    $util.qr($mappedItem.put("code", $item.code))
+  #if($item.byCode)
+    $util.qr($mappedItem.put("byCode", $item.byCode))
   #end
   $util.qr($items.add($mappedItem))
 #end
@@ -258,7 +259,52 @@ $util.toJson({
   "items": $items,
   "nextToken": $result.nextToken
 })`
-        ),
-    });
+    ),
+  });
+
+  // Query.getLeagueByCode resolver
+  // Finds a league by its join code using the byCode GSI
+  dataSource.createResolver("GetLeagueByCodeResolver", {
+    typeName: "Query",
+    fieldName: "getLeagueByCode",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byCode",
+  "query": {
+    "expression": "byCode = :code",
+    "expressionValues": {
+      ":code": $util.dynamodb.toDynamoDBJson($ctx.args.byCode)
+    }
+  },
+  "filter": {
+    "expression": "entityType = :entityType",
+    "expressionValues": {
+      ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE")
+    }
+  },
+  "limit": 1
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($items = $ctx.result.items)
+#if($items.isEmpty())
+  #return
+#end
+#set($league = $items.get(0))
+$util.toJson({
+  "PK": $league.PK,
+  "SK": $league.SK,
+  "entityType": $league.entityType,
+  "leagueId": $league.leagueId,
+  "name": $league.name,
+  "createdByUserId": $league.createdByUserId,
+  "createdAt": $league.createdAt,
+  "byCode": $league.byCode,
+  "description": $league.description
+})`
+    ),
+  });
 }
 
