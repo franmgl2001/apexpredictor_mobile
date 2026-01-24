@@ -40,6 +40,10 @@ interface UpsertMyProfileResponse {
     upsertMyProfile: UserProfile;
 }
 
+interface InitMyLeaderboardsResponse {
+    initMyLeaderboards: boolean;
+}
+
 const UPSERT_MY_PROFILE = `
   mutation UpsertMyProfile($input: UpsertUserProfileInput!) {
     upsertMyProfile(input: $input) {
@@ -50,6 +54,12 @@ const UPSERT_MY_PROFILE = `
       createdAt
       updatedAt
     }
+  }
+`;
+
+const INIT_MY_LEADERBOARDS = `
+  mutation InitMyLeaderboards {
+    initMyLeaderboards
   }
 `;
 
@@ -130,8 +140,21 @@ export async function saveUserProfile(
             throw new Error('Failed to save profile: No data returned');
         }
 
+        const profile = result.data.upsertMyProfile;
+
+        // Step 2: Initialize leaderboards for all categories
+        try {
+            await client.graphql({
+                query: INIT_MY_LEADERBOARDS,
+                variables: {},
+            });
+        } catch (initError) {
+            // Log but don't fail the whole process if leaderboards fail to init
+            console.warn('Failed to initialize leaderboards:', initError);
+        }
+
         requestLogger.logSuccess(logId, 1, duration);
-        return result.data.upsertMyProfile;
+        return profile;
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);
