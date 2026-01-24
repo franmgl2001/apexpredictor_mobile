@@ -159,8 +159,8 @@ $util.unauthorized()
 })
 
 ## Store code if provided (for now, show to everyone)
-#if($input.byCode)
-  $util.qr($attributeValues.put("byCode", $input.byCode))
+#if($input.code)
+  $util.qr($attributeValues.put("code", $input.code))
 #end
 
 {
@@ -190,8 +190,8 @@ $util.unauthorized()
   "updatedAt": $member.updatedAt
 })
 ## Include code if it exists on member (for now, show to everyone)
-#if($member.byCode)
-  $util.qr($response.put("byCode", $member.byCode))
+#if($member.code)
+  $util.qr($response.put("code", $member.code))
 #end
 $util.toJson($response)`
     ),
@@ -250,8 +250,8 @@ $util.unauthorized()
     "updatedAt": $item.updatedAt
   })
   ## Include code if it exists on member (for now, show to everyone)
-  #if($item.byCode)
-    $util.qr($mappedItem.put("byCode", $item.byCode))
+  #if($item.code)
+    $util.qr($mappedItem.put("code", $item.code))
   #end
   $util.qr($items.add($mappedItem))
 #end

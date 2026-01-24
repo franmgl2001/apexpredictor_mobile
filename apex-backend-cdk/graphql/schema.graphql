@@ -156,7 +156,7 @@ type LeagueMember {
   username: String
   role: String!
   leagueName: String
-  byCode: String
+  code: String
   description: String
   createdAt: String
   updatedAt: String
@@ -184,7 +184,7 @@ input CreateLeagueMemberInput {
   leagueId: String!
   leagueName: String!
   role: String
-  byCode: String
+  code: String
 }
 
 type Query {
