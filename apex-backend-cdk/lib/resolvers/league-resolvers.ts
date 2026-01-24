@@ -7,7 +7,7 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  * - Field names: camelCase (leagueId, leagueName, userId)
  * - Entity types: UPPERCASE with underscores (LEAGUE, LEAGUE_MEMBER)
  * - GraphQL types: PascalCase (League, LeagueMember)
- * - DynamoDB PK/SK: lowercase prefixes (LEAGUE# for league, league# for members)
+ * - DynamoDB PK/SK: UPPERCASE prefixes, lowercase values (LEAGUE#<lowercaseId>, MEMBER#<lowercaseId>)
  */
 export function createLeagueResolvers(dataSource: appsync.DynamoDbDataSource) {
     // Mutation.createLeague resolver
@@ -24,11 +24,11 @@ $util.unauthorized()
 #set($input = $ctx.args.input)
 #set($timestamp = $util.time.nowEpochMilliSeconds())
 #set($randomSuffix = $util.autoId())
-#set($leagueId = "L" + $timestamp + "_" + $randomSuffix)
+#set($leagueId = "l" + $timestamp + "_" + $randomSuffix.toLowerCase())
 #set($codeStr = $randomSuffix.toUpperCase())
 #set($code = $codeStr.substring(0, 6))
 #set($now = $util.time.nowISO8601())
-#set($pk = "LEAGUE#" + $leagueId)
+#set($pk = "LEAGUE#" + $leagueId.toLowerCase())
 #set($sk = "META")
 
 ## Store values for response template
@@ -57,7 +57,7 @@ $util.unauthorized()
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
     "code": $util.dynamodb.toDynamoDBJson($code),
     "description": $util.dynamodb.toDynamoDBJson($util.defaultIfNull($input.description, "")),
-    "member_count": $util.dynamodb.toDynamoDBJson(1)
+    "memberCount": $util.dynamodb.toDynamoDBJson(1)
   }
 }`
         ),
@@ -65,8 +65,8 @@ $util.unauthorized()
             `#set($league = $ctx.result)
 #set($userId = $ctx.stash.userId)
 #set($leagueId = $ctx.stash.leagueId)
-#set($memberPk = "league#" + $leagueId)
-#set($memberSk = "member#" + $userId)
+#set($memberPk = "LEAGUE#" + $leagueId.toLowerCase())
+#set($memberSk = "MEMBER#" + $userId.toLowerCase())
 #set($now = $util.time.nowISO8601())
 
 ## Create member entry - we'll use $util.dynamodb.invoke to create it
@@ -126,6 +126,8 @@ $util.toJson(true)`
 
     // Mutation.createLeagueMember resolver
     // Creates a league member entry
+    // Note: role defaults to "member" unless explicitly set to "admin" (for league creators)
+    // If role is "admin", the code should be passed in the input to store on the member
     dataSource.createResolver("CreateLeagueMemberResolver", {
         typeName: "Mutation",
         fieldName: "createLeagueMember",
@@ -137,8 +139,31 @@ $util.unauthorized()
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
 #set($now = $util.time.nowISO8601())
-#set($memberPk = "league#" + $input.leagueId)
-#set($memberSk = "member#" + $userId)
+#set($memberPk = "LEAGUE#" + $input.leagueId.toLowerCase())
+#set($memberSk = "MEMBER#" + $userId.toLowerCase())
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "LEAGUE#" + $input.leagueId.toLowerCase())
+#set($role = $util.defaultIfNull($input.role, "member"))
+
+## Build attribute values
+#set($attributeValues = {
+  "entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER"),
+  "leagueId": $util.dynamodb.toDynamoDBJson($input.leagueId),
+  "userId": $util.dynamodb.toDynamoDBJson($userId),
+  "user_id": $util.dynamodb.toDynamoDBJson($userId),
+  "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
+  "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
+  "role": $util.dynamodb.toDynamoDBJson($role),
+  "leagueName": $util.dynamodb.toDynamoDBJson($input.leagueName),
+  "createdAt": $util.dynamodb.toDynamoDBJson($now),
+  "updatedAt": $util.dynamodb.toDynamoDBJson($now)
+})
+
+## Store code if provided (for now, show to everyone)
+#if($input.code)
+  $util.qr($attributeValues.put("code", $util.dynamodb.toDynamoDBJson($input.code)))
+#end
+
 {
   "version": "2018-05-29",
   "operation": "PutItem",
@@ -146,21 +171,12 @@ $util.unauthorized()
     "PK": $util.dynamodb.toDynamoDBJson($memberPk),
     "SK": $util.dynamodb.toDynamoDBJson($memberSk)
   },
-  "attributeValues": {
-    "entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER"),
-    "leagueId": $util.dynamodb.toDynamoDBJson($input.leagueId),
-    "userId": $util.dynamodb.toDynamoDBJson($userId),
-    "user_id": $util.dynamodb.toDynamoDBJson($userId),
-    "role": $util.dynamodb.toDynamoDBJson("admin"),
-    "leagueName": $util.dynamodb.toDynamoDBJson($input.leagueName),
-    "createdAt": $util.dynamodb.toDynamoDBJson($now),
-    "updatedAt": $util.dynamodb.toDynamoDBJson($now)
-  }
+  "attributeValues": $attributeValues
 }`
         ),
         responseMappingTemplate: appsync.MappingTemplate.fromString(
             `#set($member = $ctx.result)
-$util.toJson({
+#set($response = {
   "PK": $member.PK,
   "SK": $member.SK,
   "entityType": $member.entityType,
@@ -169,15 +185,21 @@ $util.toJson({
   "username": $util.defaultIfNull($member.username, ""),
   "role": $member.role,
   "leagueName": $member.leagueName,
+  "description": $util.defaultIfNull($member.description, ""),
   "createdAt": $member.createdAt,
   "updatedAt": $member.updatedAt
-})`
+})
+## Include code if it exists on member (for now, show to everyone)
+#if($member.code)
+  $util.qr($response.put("code", $member.code))
+#end
+$util.toJson($response)`
         ),
     });
 
     // Query.getMyLeagues resolver
     // Gets all leagues the user is a member of by querying memberships
-    // Uses the apexEntitiesByUser_idAndCreatedAt GSI
+    // Uses the byUser GSI
     dataSource.createResolver("GetMyLeaguesResolver", {
         typeName: "Query",
         fieldName: "getMyLeagues",
@@ -187,19 +209,26 @@ $util.toJson({
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
+#set($byUserPK = "USER#" + $userId)
 {
   "version": "2018-05-29",
   "operation": "Query",
-  "index": "apexEntitiesByUser_idAndCreatedAt",
+  "index": "byUser",
   "query": {
-    "expression": "user_id = :userId",
+    "expression": "byUserPK = :pk AND begins_with(byUserSK, :skPrefix)",
     "expressionValues": {
-      ":userId": $util.dynamodb.toDynamoDBJson($userId),
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":skPrefix": $util.dynamodb.toDynamoDBJson("LEAGUE#")
+    }
+  },
+  "filter": {
+    "expression": "entityType = :entityType",
+    "expressionValues": {
       ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER")
-    },
-    "filterExpression": "entityType = :entityType"
+    }
   },
   "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
   "scanIndexForward": false
 }`
         ),
@@ -216,9 +245,14 @@ $util.unauthorized()
     "username": $util.defaultIfNull($item.username, ""),
     "role": $item.role,
     "leagueName": $item.leagueName,
+    "description": $util.defaultIfNull($item.description, ""),
     "createdAt": $item.createdAt,
     "updatedAt": $item.updatedAt
   })
+  ## Include code if it exists on member (for now, show to everyone)
+  #if($item.code)
+    $util.qr($mappedItem.put("code", $item.code))
+  #end
   $util.qr($items.add($mappedItem))
 #end
 $util.toJson({

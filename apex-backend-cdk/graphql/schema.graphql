@@ -156,6 +156,9 @@ type LeagueMember {
   username: String
   role: String!
   leagueName: String
+  memberCount: Int
+  code: String
+  description: String
   createdAt: String
   updatedAt: String
 }
@@ -181,6 +184,8 @@ input CopyLeaderboardToLeagueInput {
 input CreateLeagueMemberInput {
   leagueId: String!
   leagueName: String!
+  role: String
+  code: String
 }
 
 type Query {
