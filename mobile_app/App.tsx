@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Modal, Image, Text } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Modal, Image, Text, Alert } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -50,7 +50,7 @@ type AuthScreen = 'signin' | 'signup' | 'verification';
 
 function AppContent() {
   const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode, user } = useAuth();
-  const { profile, profileLoading, refetchProfile } = useData();
+  const { profile, profileLoading, profileError, refetchProfile } = useData();
   const [route, setRoute] = useState<RouteKey>('myteam');
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
   const [pendingEmail, setPendingEmail] = useState<string>('');
@@ -73,20 +73,37 @@ function AppContent() {
   // If profile exists, user goes directly to my team screen
   useEffect(() => {
     // Wait for profile to finish loading before making decision
-    if (isAuthenticated && !profileLoading) {
-      // Profile loading is complete - check if profile exists
+    // We only show the modal if:
+    // 1. User is authenticated
+    // 2. Profile has been attempted (profile is not undefined)
+    // 3. Profile is not currently loading
+    // 4. There was no error fetching the profile
+    // 5. Profile is null (confirmed not found)
+    if (isAuthenticated && !profileLoading && !profileError) {
       if (profile === null) {
         // No profile found - show username prompt modal
         setShowUsernameModal(true);
-      } else {
-        // Profile exists - hide modal and show my team screen
+      } else if (profile !== undefined) {
+        // Profile exists - hide modal
         setShowUsernameModal(false);
       }
+      // If profile is undefined, it hasn't been fetched yet, so we keep modal hidden
     } else {
-      // Hide modal while profile is still loading or not authenticated
+      // Hide modal while profile is still loading, has error, or not authenticated
       setShowUsernameModal(false);
     }
-  }, [isAuthenticated, profileLoading, profile]);
+  }, [isAuthenticated, profileLoading, profile, profileError]);
+
+  // Show error alert if profile fails to load (only once when it happens)
+  useEffect(() => {
+    if (isAuthenticated && profileError && !profileLoading) {
+      Alert.alert(
+        'Profile Error',
+        'We couldn\'t load your profile. Some features might be limited.',
+        [{ text: 'Retry', onPress: () => refetchProfile() }, { text: 'OK' }]
+      );
+    }
+  }, [profileError, profileLoading, isAuthenticated]);
 
   const handleSaveUsername = async (username: string, country: string) => {
     if (!user?.userId) {

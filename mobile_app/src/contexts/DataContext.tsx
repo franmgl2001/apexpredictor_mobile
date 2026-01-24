@@ -18,7 +18,7 @@ interface DataContextType {
     races: RaceEntity[];
     racesWithResults: RaceEntity[];
     raceResultsByRaceId: Map<string, RaceResultsData>;
-    profile: UserProfile | null;
+    profile: UserProfile | null | undefined;
     isLoading: boolean;
     profileLoading: boolean;
     driversError: string | null;
@@ -37,7 +37,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [races, setRaces] = useState<RaceEntity[]>([]);
     const [racesWithResults, setRacesWithResults] = useState<RaceEntity[]>([]);
     const [raceResultsByRaceId, setRaceResultsByRaceId] = useState<Map<string, RaceResultsData>>(new Map());
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const [profileLoading, setProfileLoading] = useState(false);
     const [driversError, setDriversError] = useState<string | null>(null);
