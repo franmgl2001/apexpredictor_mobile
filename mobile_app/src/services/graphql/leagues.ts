@@ -19,7 +19,7 @@ export interface League {
   name: string;
   createdByUserId: string;
   createdAt: string;
-  code: string;
+  byCode: string;
   description?: string;
 }
 
@@ -34,7 +34,7 @@ const CREATE_LEAGUE = /* GraphQL */ `
             name
             createdByUserId
             createdAt
-            code
+            byCode
             description
         }
     }
@@ -82,6 +82,22 @@ const GET_MY_LEAGUES = /* GraphQL */ `
     }
 `;
 
+const GET_LEAGUE_BY_CODE = /* GraphQL */ `
+    query GetLeagueByCode($byCode: String!) {
+        getLeagueByCode(byCode: $byCode) {
+            PK
+            SK
+            entityType
+            leagueId
+            name
+            createdByUserId
+            createdAt
+            byCode
+            description
+        }
+    }
+`;
+
 // Response types
 interface CreateLeagueResponse {
   createLeague: League;
@@ -89,6 +105,10 @@ interface CreateLeagueResponse {
 
 interface CreateLeagueMemberResponse {
   createLeagueMember: LeagueMember;
+}
+
+interface GetLeagueByCodeResponse {
+  getLeagueByCode: League | null;
 }
 
 export interface LeagueMember {
@@ -176,7 +196,7 @@ export async function createLeague(
             leagueId: league.leagueId,
             leagueName: league.name,
             role: 'admin',
-            code: league.code
+            code: league.byCode
           },
         },
       }) as GraphQLResult<CreateLeagueMemberResponse>;
@@ -196,7 +216,7 @@ export async function createLeague(
       console.log('League member created successfully:', memberResult.data.createLeagueMember);
     } catch (memberError: any) {
       console.error('Detailed error in createLeagueMember:', memberError);
-      
+
       // Extract the most useful error message
       let message = 'Unknown error';
       if (typeof memberError === 'string') {
@@ -208,7 +228,7 @@ export async function createLeague(
       } else {
         message = JSON.stringify(memberError);
       }
-      
+
       throw new Error(`League created but failed to add you as a member: ${message}`);
     }
 
@@ -253,6 +273,90 @@ export async function getMyLeagues(
     const data = result.data?.getMyLeagues || { items: [], nextToken: null };
     requestLogger.logSuccess(logId, data.items.length, duration);
     return data;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Fetches league metadata by join code
+ * @param byCode 6-character join code
+ * @returns League if found, null otherwise
+ */
+export async function getLeagueByCode(byCode: string): Promise<League | null> {
+  await fetchAuthSession();
+
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('getLeagueByCode', { byCode });
+
+  try {
+    const result = await client.graphql({
+      query: GET_LEAGUE_BY_CODE,
+      variables: { byCode },
+    }) as GraphQLResult<GetLeagueByCodeResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to fetch league by code');
+    }
+
+    const league = result.data?.getLeagueByCode || null;
+    requestLogger.logSuccess(logId, league ? 1 : 0, duration);
+    return league;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Joins a league by code: first fetches metadata, then creates membership
+ * @param byCode 6-character join code
+ * @returns Created LeagueMember
+ */
+export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
+  await fetchAuthSession();
+
+  // Step 1: Get the league metadata
+  const league = await getLeagueByCode(byCode);
+
+  if (!league) {
+    throw new Error('No league found with this code');
+  }
+
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('joinLeagueByCode', { byCode, leagueId: league.leagueId });
+
+  try {
+    // Step 2: Create the membership
+    const result = await client.graphql({
+      query: CREATE_LEAGUE_MEMBER,
+      variables: {
+        input: {
+          leagueId: league.leagueId,
+          leagueName: league.name,
+          role: 'member',
+          code: byCode
+        },
+      },
+    }) as GraphQLResult<CreateLeagueMemberResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to join league');
+    }
+
+    if (!result.data?.createLeagueMember) {
+      throw new Error('Failed to join league: No data returned');
+    }
+
+    requestLogger.logSuccess(logId, 1, duration);
+    return result.data.createLeagueMember;
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

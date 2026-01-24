@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
-import { CreateLeagueModal } from '../components/leagues';
-import { createLeague, getMyLeagues, type LeagueMember } from '../services/graphql/leagues';
+import { CreateLeagueModal, JoinLeagueModal } from '../components/leagues';
+import { createLeague, getMyLeagues, joinLeagueByCode, type LeagueMember } from '../services/graphql/leagues';
 
 // Local League type for this screen - using LeagueMember from the service
 interface League {
@@ -36,7 +36,9 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showJoinModal, setShowJoinModal] = useState(false);
     const [isCreatingLeague, setIsCreatingLeague] = useState(false);
+    const [isJoiningLeague, setIsJoiningLeague] = useState(false);
 
     // Constants for category and season
     const category = 'F1';
@@ -93,7 +95,7 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
             // League member is created automatically by the service
             // TODO: Copy leaderboard entries if needed
 
-            Alert.alert('Success', `League "${league.name}" created! Join code: ${league.code}`, [
+            Alert.alert('Success', `League "${league.name}" created! Join code: ${league.byCode}`, [
                 {
                     text: 'OK', onPress: () => {
                         setShowCreateModal(false);
@@ -110,8 +112,33 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     };
 
     const handleJoinLeague = () => {
-        // TODO: Implement join league functionality
-        Alert.alert('Join League', 'This feature is coming soon!');
+        setShowJoinModal(true);
+    };
+
+    const handleJoinLeagueSubmit = async (joinCode: string) => {
+        if (!user?.userId) {
+            Alert.alert('Error', 'You must be logged in to join a league');
+            return;
+        }
+
+        setIsJoiningLeague(true);
+        try {
+            const member = await joinLeagueByCode(joinCode);
+
+            Alert.alert('Success', `You have joined the league!`, [
+                {
+                    text: 'OK', onPress: () => {
+                        setShowJoinModal(false);
+                        fetchLeagues(); // Refresh leagues list
+                    }
+                }
+            ]);
+        } catch (err: any) {
+            console.error('Error joining league:', err);
+            throw err; // Let the modal handle the error message
+        } finally {
+            setIsJoiningLeague(false);
+        }
     };
 
     const handleCopyJoinCode = (code: string) => {
@@ -198,6 +225,13 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
                 onClose={() => setShowCreateModal(false)}
                 onCreate={handleCreateLeagueSubmit}
                 isLoading={isCreatingLeague}
+            />
+
+            <JoinLeagueModal
+                visible={showJoinModal}
+                onClose={() => setShowJoinModal(false)}
+                onJoin={handleJoinLeagueSubmit}
+                isLoading={isJoiningLeague}
             />
         </View>
     );
