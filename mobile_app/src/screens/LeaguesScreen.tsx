@@ -89,15 +89,17 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
         try {
             // Create the league
             const league = await createLeague(leagueName, description, category, season);
-            
+
             // League member is created automatically by the service
             // TODO: Copy leaderboard entries if needed
-            
+
             Alert.alert('Success', `League "${league.name}" created! Join code: ${league.code}`, [
-                { text: 'OK', onPress: () => {
-                    setShowCreateModal(false);
-                    fetchLeagues(); // Refresh leagues list
-                }}
+                {
+                    text: 'OK', onPress: () => {
+                        setShowCreateModal(false);
+                        fetchLeagues(); // Refresh leagues list
+                    }
+                }
             ]);
         } catch (err: any) {
             console.error('Error creating league:', err);
@@ -114,7 +116,6 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
 
     const handleCopyJoinCode = (code: string) => {
         Clipboard.setString(code);
-        Alert.alert('Copied!', 'Join code copied to clipboard');
     };
 
     const handleLeaderboard = (leagueId: string) => {
@@ -215,11 +216,18 @@ function LeagueCard({
     onLeaderboard,
     onManage,
 }: LeagueCardProps) {
+    const [copied, setCopied] = useState(false);
     const leagueId = league.league_id || league.PK;
     const leagueName = league.league_name || 'Unnamed League';
     const description = league.description || '';
     const isAdmin = league.role === 'Admin' || league.role === 'admin';
     const joinCode = league.join_code || '';
+
+    const handleCopy = (code: string) => {
+        onCopyCode(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <View style={styles.leagueCard}>
@@ -244,15 +252,17 @@ function LeagueCard({
             {/* Join Code */}
             {joinCode && (
                 <View style={styles.joinCodeContainer}>
-                    <Text style={styles.joinCodeLabel}>Join Code</Text>
-                    <View style={styles.joinCodeRow}>
+                    <Text style={styles.joinCodeLabel}>INVITATION CODE</Text>
+                    <View style={styles.joinCodeChip}>
                         <Text style={styles.joinCodeText}>{joinCode}</Text>
                         <TouchableOpacity
-                            style={styles.copyButton}
-                            onPress={() => onCopyCode(joinCode)}
+                            style={[styles.copyButton, copied && styles.copyButtonSuccess]}
+                            onPress={() => handleCopy(joinCode)}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.copyIcon}>📋</Text>
+                            <Text style={[styles.copyButtonText, copied && styles.copyButtonTextSuccess]}>
+                                {copied ? 'COPIED' : 'COPY'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -265,16 +275,14 @@ function LeagueCard({
                     onPress={() => onLeaderboard(leagueId)}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.leaderboardButtonIcon}>📊</Text>
-                    <Text style={styles.leaderboardButtonText}>Leaderboard</Text>
+                    <Text style={styles.leaderboardButtonText}>LEADERBOARD</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.manageButton}
                     onPress={() => onManage(leagueId)}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.manageButtonIcon}>⚙️</Text>
-                    <Text style={styles.manageButtonText}>Manage</Text>
+                    <Text style={styles.manageButtonText}>MANAGE</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -403,31 +411,51 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     joinCodeContainer: {
-        marginBottom: 16,
+        marginBottom: 20,
     },
     joinCodeLabel: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginBottom: 6,
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#64748b',
+        marginBottom: 8,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
     },
-    joinCodeRow: {
+    joinCodeChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        backgroundColor: '#f8fafc',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        paddingLeft: 16,
+        paddingRight: 6,
+        paddingVertical: 6,
     },
     joinCodeText: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1e293b',
         flex: 1,
+        letterSpacing: 2,
     },
     copyButton: {
-        padding: 8,
-        backgroundColor: '#f9fafb',
-        borderRadius: 6,
+        backgroundColor: '#1e293b',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 8,
     },
-    copyIcon: {
-        fontSize: 16,
+    copyButtonSuccess: {
+        backgroundColor: '#10b981',
+    },
+    copyButtonText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#ffffff',
+        letterSpacing: 0.5,
+    },
+    copyButtonTextSuccess: {
+        color: '#ffffff',
     },
     actionButtons: {
         flexDirection: 'row',
@@ -436,43 +464,33 @@ const styles = StyleSheet.create({
     },
     leaderboardButton: {
         flex: 1,
-        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#dc2626',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-    },
-    leaderboardButtonIcon: {
-        fontSize: 16,
-        marginRight: 6,
+        borderRadius: 10,
+        paddingVertical: 14,
     },
     leaderboardButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 12,
+        fontWeight: '800',
         color: '#ffffff',
+        letterSpacing: 1,
     },
     manageButton: {
         flex: 1,
-        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#ffffff',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    manageButtonIcon: {
-        fontSize: 16,
-        marginRight: 6,
+        borderRadius: 10,
+        paddingVertical: 14,
+        borderWidth: 1.5,
+        borderColor: '#e2e8f0',
     },
     manageButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#6b7280',
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#64748b',
+        letterSpacing: 1,
     },
     centerContainer: {
         flex: 1,
