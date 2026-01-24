@@ -9,7 +9,6 @@ interface League {
     description?: string;
     is_private?: boolean;
     role?: string;
-    member_count?: number;
 }
 
 interface LeagueSelectorProps {
@@ -79,11 +78,6 @@ export default function LeagueSelector({
                                     </View>
                                 )}
                             </View>
-                            {selectedLeague.member_count !== undefined && (
-                                <Text style={styles.selectedLeagueMeta}>
-                                    {selectedLeague.member_count} {selectedLeague.member_count === 1 ? 'member' : 'members'}
-                                </Text>
-                            )}
                         </View>
                         <View style={styles.chevronContainer}>
                             <Text style={styles.chevron}>▼</Text>
@@ -150,11 +144,6 @@ export default function LeagueSelector({
                                                     )}
                                                 </View>
                                                 <View style={styles.leagueOptionMeta}>
-                                                    {league.member_count !== undefined && (
-                                                        <Text style={styles.leagueOptionMetaText}>
-                                                            {league.member_count} {league.member_count === 1 ? 'member' : 'members'}
-                                                        </Text>
-                                                    )}
                                                     {league.description && (
                                                         <Text style={styles.leagueOptionDescription} numberOfLines={1}>
                                                             {league.description}
@@ -256,12 +245,6 @@ const styles = StyleSheet.create({
     },
     iconText: {
         fontSize: 12,
-    },
-    selectedLeagueMeta: {
-        fontSize: 13,
-        color: '#6b7280',
-        fontWeight: '500',
-        letterSpacing: 0.2,
     },
     chevronContainer: {
         paddingLeft: 8,
@@ -415,12 +398,6 @@ const styles = StyleSheet.create({
     },
     leagueOptionMeta: {
         gap: 4,
-    },
-    leagueOptionMetaText: {
-        fontSize: 13,
-        color: '#6b7280',
-        fontWeight: '600',
-        letterSpacing: 0.2,
     },
     leagueOptionDescription: {
         fontSize: 13,

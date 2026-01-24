@@ -22,7 +22,6 @@ interface League {
     description?: string;
     is_private?: boolean;
     role?: string;
-    member_count?: number;
     max_members?: number;
     join_code?: string;
 }
@@ -63,9 +62,9 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
                 PK: member.PK,
                 league_id: member.leagueId,
                 league_name: member.leagueName || 'Unnamed League',
+                description: member.description,
                 role: member.role,
-                member_count: 0, // Will be updated when we fetch league details
-                join_code: '', // Will be fetched from league details if needed
+                join_code: member.code,
             }));
             setMyLeagues(leagues);
         } catch (err: any) {
@@ -91,8 +90,8 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
             // Create the league
             const league = await createLeague(leagueName, description, category, season);
             
-            // TODO: Create league member and copy leaderboard entries
-            // For now, we'll handle this in a follow-up step
+            // League member is created automatically by the service
+            // TODO: Copy leaderboard entries if needed
             
             Alert.alert('Success', `League "${league.name}" created! Join code: ${league.code}`, [
                 { text: 'OK', onPress: () => {
@@ -220,7 +219,6 @@ function LeagueCard({
     const leagueName = league.league_name || 'Unnamed League';
     const description = league.description || '';
     const isAdmin = league.role === 'Admin' || league.role === 'admin';
-    const memberCount = league.member_count || 0;
     const joinCode = league.join_code || '';
 
     return (
@@ -240,14 +238,6 @@ function LeagueCard({
                     {description ? (
                         <Text style={styles.leagueDescription}>{description}</Text>
                     ) : null}
-                </View>
-            </View>
-
-            {/* Membership Info */}
-            <View style={styles.membershipInfo}>
-                <View style={styles.membershipBox}>
-                    <Text style={styles.membershipNumber}>{memberCount}</Text>
-                    <Text style={styles.membershipLabel}>Members</Text>
                 </View>
             </View>
 
@@ -411,28 +401,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#6b7280',
         marginTop: 4,
-    },
-    membershipInfo: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-    },
-    membershipBox: {
-        flex: 1,
-        backgroundColor: '#f9fafb',
-        borderRadius: 8,
-        padding: 12,
-        alignItems: 'center',
-    },
-    membershipNumber: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#dc2626',
-        marginBottom: 4,
-    },
-    membershipLabel: {
-        fontSize: 12,
-        color: '#6b7280',
     },
     joinCodeContainer: {
         marginBottom: 16,

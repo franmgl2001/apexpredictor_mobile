@@ -51,6 +51,8 @@ const CREATE_LEAGUE_MEMBER = /* GraphQL */ `
             username
             role
             leagueName
+            code
+            description
             createdAt
             updatedAt
         }
@@ -70,6 +72,8 @@ const GET_MY_LEAGUES = /* GraphQL */ `
                 username
                 role
                 leagueName
+                code
+                description
                 createdAt
                 updatedAt
             }
@@ -96,6 +100,8 @@ export interface LeagueMember {
   username?: string;
   role: string;
   leagueName?: string;
+  code?: string;
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -162,31 +168,48 @@ export async function createLeague(
 
     // Step 2: Create the league member (admin role)
     try {
+      console.log('Creating league member for league:', league.leagueId, league.name);
       const memberResult = await client.graphql({
         query: CREATE_LEAGUE_MEMBER,
         variables: {
           input: {
             leagueId: league.leagueId,
             leagueName: league.name,
+            role: 'admin',
+            code: league.code
           },
         },
       }) as GraphQLResult<CreateLeagueMemberResponse>;
 
       if (memberResult.errors && memberResult.errors.length > 0) {
-        console.error('Failed to create league member:', memberResult.errors);
-        throw new Error(`Failed to create league member: ${memberResult.errors[0].message}`);
+        console.error('GraphQL errors in createLeagueMember:', memberResult.errors);
+        const firstError = memberResult.errors[0];
+        const errorMessage = firstError.message || JSON.stringify(firstError);
+        throw new Error(`Failed to create league member: ${errorMessage}`);
       }
 
       if (!memberResult.data?.createLeagueMember) {
-        console.error('No data returned from createLeagueMember');
+        console.error('No data returned from createLeagueMember. Result:', memberResult);
         throw new Error('Failed to create league member: No data returned');
       }
 
       console.log('League member created successfully:', memberResult.data.createLeagueMember);
     } catch (memberError: any) {
-      console.error('Error creating league member:', memberError);
-      // Throw the error so the user knows something went wrong
-      throw new Error(`League created but failed to add you as a member: ${memberError.message}`);
+      console.error('Detailed error in createLeagueMember:', memberError);
+      
+      // Extract the most useful error message
+      let message = 'Unknown error';
+      if (typeof memberError === 'string') {
+        message = memberError;
+      } else if (memberError.message) {
+        message = memberError.message;
+      } else if (memberError.errors && memberError.errors[0] && memberError.errors[0].message) {
+        message = memberError.errors[0].message;
+      } else {
+        message = JSON.stringify(memberError);
+      }
+      
+      throw new Error(`League created but failed to add you as a member: ${message}`);
     }
 
     return league;

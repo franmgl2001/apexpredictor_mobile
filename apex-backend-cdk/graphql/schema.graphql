@@ -156,7 +156,6 @@ type LeagueMember {
   username: String
   role: String!
   leagueName: String
-  memberCount: Int
   code: String
   description: String
   createdAt: String

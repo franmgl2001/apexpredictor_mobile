@@ -56,8 +56,7 @@ $util.unauthorized()
     "createdByUserId": $util.dynamodb.toDynamoDBJson($userId),
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
     "code": $util.dynamodb.toDynamoDBJson($code),
-    "description": $util.dynamodb.toDynamoDBJson($util.defaultIfNull($input.description, "")),
-    "memberCount": $util.dynamodb.toDynamoDBJson(1)
+    "description": $util.dynamodb.toDynamoDBJson($util.defaultIfNull($input.description, ""))
   }
 }`
         ),
@@ -147,21 +146,21 @@ $util.unauthorized()
 
 ## Build attribute values
 #set($attributeValues = {
-  "entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER"),
-  "leagueId": $util.dynamodb.toDynamoDBJson($input.leagueId),
-  "userId": $util.dynamodb.toDynamoDBJson($userId),
-  "user_id": $util.dynamodb.toDynamoDBJson($userId),
-  "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
-  "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
-  "role": $util.dynamodb.toDynamoDBJson($role),
-  "leagueName": $util.dynamodb.toDynamoDBJson($input.leagueName),
-  "createdAt": $util.dynamodb.toDynamoDBJson($now),
-  "updatedAt": $util.dynamodb.toDynamoDBJson($now)
+  "entityType": "LEAGUE_MEMBER",
+  "leagueId": $input.leagueId,
+  "userId": $userId,
+  "user_id": $userId,
+  "byUserPK": $byUserPK,
+  "byUserSK": $byUserSK,
+  "role": $role,
+  "leagueName": $input.leagueName,
+  "createdAt": $now,
+  "updatedAt": $now
 })
 
 ## Store code if provided (for now, show to everyone)
 #if($input.code)
-  $util.qr($attributeValues.put("code", $util.dynamodb.toDynamoDBJson($input.code)))
+  $util.qr($attributeValues.put("code", $input.code))
 #end
 
 {
@@ -171,7 +170,7 @@ $util.unauthorized()
     "PK": $util.dynamodb.toDynamoDBJson($memberPk),
     "SK": $util.dynamodb.toDynamoDBJson($memberSk)
   },
-  "attributeValues": $attributeValues
+  "attributeValues": $util.dynamodb.toMapValuesJson($attributeValues)
 }`
         ),
         responseMappingTemplate: appsync.MappingTemplate.fromString(
