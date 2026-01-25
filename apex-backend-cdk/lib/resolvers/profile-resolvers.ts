@@ -11,7 +11,8 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  */
 export function createProfileResolvers(
   dataSource: appsync.DynamoDbDataSource,
-  tableName: string
+  tableName: string,
+  api: appsync.GraphqlApi
 ) {
   // 1. Mutation.upsertMyProfile (Simple profile metadata update)
   dataSource.createResolver("UpsertMyProfileResolver", {
@@ -49,7 +50,10 @@ $util.toJson($ctx.result)
 
   // 2. Mutation.initMyLeaderboards (Standalone call to initialize all categories)
   // Uses pipeline resolver to first get the profile username, then create leaderboards
-  const getProfileFunction = dataSource.createFunction("InitMyLeaderboardsGetProfileFunction", {
+  const getProfileFunction = new appsync.AppsyncFunction(api, "InitMyLeaderboardsGetProfileFunction", {
+    name: "InitMyLeaderboardsGetProfileFunction",
+    api: api,
+    dataSource: dataSource,
     requestMappingTemplate: appsync.MappingTemplate.fromString(`
 #set($userId = $ctx.identity.sub)
 {
@@ -70,7 +74,10 @@ $util.toJson($profile)
     `),
   });
 
-  const createLeaderboardsFunction = dataSource.createFunction("InitMyLeaderboardsCreateEntriesFunction", {
+  const createLeaderboardsFunction = new appsync.AppsyncFunction(api, "InitMyLeaderboardsCreateEntriesFunction", {
+    name: "InitMyLeaderboardsCreateEntriesFunction",
+    api: api,
+    dataSource: dataSource,
     requestMappingTemplate: appsync.MappingTemplate.fromString(`
 #set($userId = $ctx.stash.userId)
 #set($username = $ctx.stash.username)
@@ -117,10 +124,11 @@ $util.toJson(true)
     `),
   });
 
-  dataSource.createResolver("InitMyLeaderboardsResolver", {
+  // Create pipeline resolver on the API, not on the data source
+  new appsync.Resolver(api, "InitMyLeaderboardsResolver", {
+    api: api,
     typeName: "Mutation",
     fieldName: "initMyLeaderboards",
-    kind: appsync.ResolverKind.PIPELINE,
     pipelineConfig: [getProfileFunction, createLeaderboardsFunction],
     requestMappingTemplate: appsync.MappingTemplate.fromString(`
 ## Pipeline resolver - pass through

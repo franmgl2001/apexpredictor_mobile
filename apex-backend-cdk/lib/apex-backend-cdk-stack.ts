@@ -66,7 +66,7 @@ export class ApexBackendStack extends cdk.Stack {
     const profileDS = api.addDynamoDbDataSource("UserProfileDS", table);
 
     // Create profile resolvers (user profile queries and mutations)
-    createProfileResolvers(profileDS, table.tableName);
+    createProfileResolvers(profileDS, table.tableName, api);
 
     // Create assets resolvers (races, drivers, results queries)
     createAssetsResolvers(profileDS);
