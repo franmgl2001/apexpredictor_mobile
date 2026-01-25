@@ -19,6 +19,21 @@ $util.unauthorized()
 #set($sk = "USER#" + $userId)
 #set($byUserPK = "USER#" + $userId)
 #set($byUserSK = "LEADERBOARD#" + $input.category + "#" + $input.season)
+## Calculate padded points: 1000000 - points, padded to 7 digits (for GSI sorting)
+#set($points = $input.totalPoints)
+#set($score = 1000000 - $points)
+#set($scoreStr = $score.toString())
+#set($zeros = "0000000")
+#set($scoreLen = $scoreStr.length())
+#set($padLen = 7 - $scoreLen)
+#if($padLen > 0)
+  #set($padding = $zeros.substring(0, $padLen))
+  #set($paddedPoints = $padding + $scoreStr)
+#else
+  #set($paddedPoints = $scoreStr)
+#end
+#set($byLeaderboardPK = "LEADERBOARD#" + $input.category + "#" + $input.season)
+#set($byLeaderboardSK = $paddedPoints + "#USER#" + $userId)
 #set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
@@ -38,6 +53,8 @@ $util.unauthorized()
     "nationality": $util.dynamodb.toDynamoDBJson($input.nationality),
     "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
     "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
+    "byLeaderboardPK": $util.dynamodb.toDynamoDBJson($byLeaderboardPK),
+    "byLeaderboardSK": $util.dynamodb.toDynamoDBJson($byLeaderboardSK),
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
     "updatedAt": $util.dynamodb.toDynamoDBJson($now)
   }
@@ -49,22 +66,25 @@ $util.unauthorized()
   });
 
   // Query.getLeaderboard resolver
+  // Uses byLeaderboard GSI to get sorted leaderboard entries (sorted by points descending)
   dataSource.createResolver("GetLeaderboardResolver", {
     typeName: "Query",
     fieldName: "getLeaderboard",
     requestMappingTemplate: appsync.MappingTemplate.fromString(
-      `#set($pk = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
+      `#set($byLeaderboardPK = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
   "operation": "Query",
+  "index": "byLeaderboard",
   "query": {
-    "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
+    "expression": "byLeaderboardPK = :pk",
     "expressionValues": {
-      ":pk": $util.dynamodb.toDynamoDBJson($pk),
-      ":skPrefix": { "S": "USER#" }
+      ":pk": $util.dynamodb.toDynamoDBJson($byLeaderboardPK)
     }
   },
-  "limit": $util.defaultIfNull($ctx.args.limit, 50)
+  "scanIndexForward": true,
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
 }`
     ),
     responseMappingTemplate: appsync.MappingTemplate.fromString(
@@ -73,6 +93,7 @@ $util.unauthorized()
   });
 
   // Query.getMyLeaderboardEntry resolver
+  // Uses byUser GSI to get the user's leaderboard entry for a specific category/season
   dataSource.createResolver("GetMyLeaderboardEntryResolver", {
     typeName: "Query",
     fieldName: "getMyLeaderboardEntry",
@@ -82,22 +103,27 @@ $util.unauthorized()
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
-#set($pk = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
-#set($sk = "USER#" + $userId)
+#set($byUserPK = "USER#" + $userId)
+#set($byUserSK = "LEADERBOARD#" + $ctx.args.category + "#" + $ctx.args.season)
 {
   "version": "2018-05-29",
-  "operation": "GetItem",
-  "key": {
-    "PK": $util.dynamodb.toDynamoDBJson($pk),
-    "SK": $util.dynamodb.toDynamoDBJson($sk)
-  }
+  "operation": "Query",
+  "index": "byUser",
+  "query": {
+    "expression": "byUserPK = :pk AND byUserSK = :sk",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":sk": $util.dynamodb.toDynamoDBJson($byUserSK)
+    }
+  },
+  "limit": 1
 }`
     ),
     responseMappingTemplate: appsync.MappingTemplate.fromString(
-      `#if($ctx.result == null || $util.isNull($ctx.result))
+      `#if($ctx.result.items.size() == 0)
 $util.toJson(null)
 #else
-$util.toJson($ctx.result)
+$util.toJson($ctx.result.items[0])
 #end`
     ),
   });
