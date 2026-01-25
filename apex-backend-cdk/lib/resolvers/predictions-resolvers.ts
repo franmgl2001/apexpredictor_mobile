@@ -4,35 +4,19 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  * Creates prediction-related resolvers (race prediction queries and mutations)
  */
 export function createPredictionsResolvers(dataSource: appsync.DynamoDbDataSource) {
-    // Mutation.upsertPrediction resolver
-    dataSource.createResolver("UpsertPredictionResolver", {
-        typeName: "Mutation",
-        fieldName: "upsertPrediction",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Mutation.upsertPrediction resolver
+  dataSource.createResolver("UpsertPredictionResolver", {
+    typeName: "Mutation",
+    fieldName: "upsertPrediction",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
 #set($pk = "PREDICTION#" + $input.series + "#" + $input.raceId)
-## Try to get existing prediction to preserve points if it exists
-## We'll use a temporary SK to query, but for upsert we need to handle this differently
-## For now, use points = 0 for new predictions (points are updated separately when race results are calculated)
-#set($points = 0)
-## Calculate padded points: 1000000 - points, padded to 7 digits
-#set($score = 1000000 - $points)
-#set($scoreStr = $score.toString())
-#set($zeros = "0000000")
-#set($scoreLen = $scoreStr.length())
-#set($padLen = 7 - $scoreLen)
-#if($padLen > 0)
-  #set($padding = $zeros.substring(0, $padLen))
-  #set($paddedPoints = $padding + $scoreStr)
-#else
-  #set($paddedPoints = $scoreStr)
-#end
-#set($sk = "PTS#" + $paddedPoints + "#" + $userId)
+#set($sk = "PTS#0000000000#" + $userId)
 #set($byUserPK = "USER#" + $userId)
 #set($byUserSK = "RACE#" + $input.series + "#" + $input.season + "#" + $input.raceId)
 #set($now = $util.time.nowISO8601())
@@ -57,18 +41,18 @@ $util.unauthorized()
     "updatedAt": $util.dynamodb.toDynamoDBJson($now)
   }
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `$util.toJson($ctx.result)`
-        ),
-    });
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `$util.toJson($ctx.result)`
+    ),
+  });
 
-    // Query.listMyRaces resolver
-    dataSource.createResolver("ListMyRacesResolver", {
-        typeName: "Query",
-        fieldName: "listMyRaces",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Query.listMyRaces resolver
+  dataSource.createResolver("ListMyRacesResolver", {
+    typeName: "Query",
+    fieldName: "listMyRaces",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -95,18 +79,18 @@ $util.unauthorized()
   "limit": $util.defaultIfNull($ctx.args.limit, 50),
   "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `$util.toJson($ctx.result)`
-        ),
-    });
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `$util.toJson($ctx.result)`
+    ),
+  });
 
-    // Query.getMyPrediction resolver
-    dataSource.createResolver("GetMyPredictionResolver", {
-        typeName: "Query",
-        fieldName: "getMyPrediction",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Query.getMyPrediction resolver
+  dataSource.createResolver("GetMyPredictionResolver", {
+    typeName: "Query",
+    fieldName: "getMyPrediction",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -126,22 +110,22 @@ $util.unauthorized()
   },
   "limit": 1
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `#if($ctx.result.items.size() == 0)
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#if($ctx.result.items.size() == 0)
 $util.toJson(null)
 #else
 $util.toJson($ctx.result.items[0])
 #end`
-        ),
-    });
+    ),
+  });
 
-    // Query.getPredictions resolver
-    dataSource.createResolver("GetPredictionsResolver", {
-        typeName: "Query",
-        fieldName: "getPredictions",
-        requestMappingTemplate: appsync.MappingTemplate.fromString(
-            `#set($identity = $ctx.identity)
+  // Query.getPredictions resolver
+  dataSource.createResolver("GetPredictionsResolver", {
+    typeName: "Query",
+    fieldName: "getPredictions",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($identity = $ctx.identity)
 #if($util.isNull($identity) || $util.isNull($identity.sub))
 $util.unauthorized()
 #end
@@ -167,9 +151,9 @@ $util.unauthorized()
   "limit": $util.defaultIfNull($ctx.args.limit, 50),
   "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
 }`
-        ),
-        responseMappingTemplate: appsync.MappingTemplate.fromString(
-            `$util.toJson($ctx.result)`
-        ),
-    });
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `$util.toJson($ctx.result)`
+    ),
+  });
 }

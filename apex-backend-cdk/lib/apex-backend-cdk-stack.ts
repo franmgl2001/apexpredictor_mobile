@@ -43,6 +43,14 @@ export class ApexBackendStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // Add GSI3: LEADERBOARD#<category>#<season> / <paddedPoints>#USER#<userId> (for sorted leaderboard queries)
+    table.addGlobalSecondaryIndex({
+      indexName: "byLeaderboard",
+      partitionKey: { name: "byLeaderboardPK", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "byLeaderboardSK", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // 3) AppSync API using Cognito User Pool auth
     const api = new appsync.GraphqlApi(this, "ApexApi", {
       name: "ApexApi",

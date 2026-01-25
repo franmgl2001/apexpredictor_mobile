@@ -66,13 +66,23 @@ $util.toJson($ctx.result)
 }
     `),
     responseMappingTemplate: appsync.MappingTemplate.fromString(`
-#set($profile = $ctx.result)
-#set($username = $util.defaultIfNullOrBlank($profile.username, $ctx.identity.sub))
-#set($nationality = $util.defaultIfNullOrBlank($profile.country, ""))
+#if($ctx.error)
+  ## If profile doesn't exist, use defaults from identity
+  #set($username = $ctx.identity.sub)
+  #set($nationality = "")
+#else
+  #set($profile = $ctx.result)
+  #set($username = $util.defaultIfNullOrBlank($profile.username, $ctx.identity.sub))
+  #set($nationality = $util.defaultIfNullOrBlank($profile.country, ""))
+#end
 #set($ctx.stash.username = $username)
 #set($ctx.stash.nationality = $nationality)
 #set($ctx.stash.userId = $ctx.identity.sub)
-$util.toJson($profile)
+#if($ctx.error)
+  $util.toJson({})
+#else
+  $util.toJson($profile)
+#end
     `),
   });
 
@@ -100,41 +110,41 @@ $util.toJson($profile)
 #else
   #set($paddedPoints = $scoreStr)
 #end
-#set($initialSk = "PTS#" + $paddedPoints + "#" + $userId)
+## Initialize items list
+#set($items = [])
+
+#foreach($cat in $categories)
+  ## Build GSI SK string with padded points
+  #set($byLeaderboardSK = $paddedPoints + "#USER#" + $userId)
+  ## Build item map with plain values first
+  #set($itemMap = {
+    "PK": "LEADERBOARD#$cat#$season",
+    "SK": "USER#$userId",
+    "entityType": "LeaderboardEntry",
+    "userId": $userId,
+    "category": $cat,
+    "season": $season,
+    "totalPoints": 0,
+    "username": $username,
+    "numberOfRaces": 0,
+    "nationality": $nationality,
+    "byUserPK": "USER#$userId",
+    "byUserSK": "LEADERBOARD#$cat#$season",
+    "byLeaderboardPK": "LEADERBOARD#$cat#$season",
+    "byLeaderboardSK": $byLeaderboardSK,
+    "createdAt": $now,
+    "updatedAt": $now
+  })
+  ## Convert the entire map to DynamoDB format and add to items list
+  $util.qr($items.add($util.dynamodb.toMapValues($itemMap)))
+#end
 
 {
   "version": "2018-05-29",
-  "operation": "TransactWriteItems",
-  "transactItems": [
-    #foreach($cat in $categories)
-    #if($foreach.index > 0) , #end
-    {
-      "table": "${tableName}",
-      "operation": "PutItem",
-      "key": {
-        "PK": $util.dynamodb.toDynamoDBJson("LEADERBOARD#$cat#$season"),
-        "SK": $util.dynamodb.toDynamoDBJson($initialSk)
-      },
-      "attributeValues": {
-        "entityType": $util.dynamodb.toDynamoDBJson("LeaderboardEntry"),
-        "userId": $util.dynamodb.toDynamoDBJson($userId),
-        "category": $util.dynamodb.toDynamoDBJson($cat),
-        "season": $util.dynamodb.toDynamoDBJson($season),
-        "totalPoints": $util.dynamodb.toDynamoDBJson(0),
-        "username": $util.dynamodb.toDynamoDBJson($username),
-        "numberOfRaces": $util.dynamodb.toDynamoDBJson(0),
-        "nationality": $util.dynamodb.toDynamoDBJson($nationality),
-        "byUserPK": $util.dynamodb.toDynamoDBJson("USER#$userId"),
-        "byUserSK": $util.dynamodb.toDynamoDBJson("LEADERBOARD#$cat#$season"),
-        "createdAt": $util.dynamodb.toDynamoDBJson($now),
-        "updatedAt": $util.dynamodb.toDynamoDBJson($now)
-      },
-      "condition": {
-        "expression": "attribute_not_exists(PK)"
-      }
-    }
-    #end
-  ]
+  "operation": "BatchPutItem",
+  "tables": {
+    "${tableName}": $util.toJson($items)
+  }
 }
     `),
     responseMappingTemplate: appsync.MappingTemplate.fromString(`
@@ -154,11 +164,7 @@ $util.toJson({})
     `),
     responseMappingTemplate: appsync.MappingTemplate.fromString(`
 #if($ctx.error)
-  #if($ctx.error.type == "DynamoDB:TransactionCanceledException" && $ctx.error.message.contains("ConditionCheckFailed"))
-    $util.toJson(true)
-  #else
-    $util.error($ctx.error.message, $ctx.error.type)
-  #end
+  $util.error($ctx.error.message, $ctx.error.type)
 #else
   $util.toJson(true)
 #end

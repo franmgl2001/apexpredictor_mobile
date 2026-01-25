@@ -196,7 +196,6 @@ input LeagueLeaderboardEntryInput {
   nationality: String
   category: String!
   season: String!
-  sourceSK: String
 }
 
 type Query {
