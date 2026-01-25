@@ -13,7 +13,7 @@ interface RaceResultEntity {
 
 type PredictionData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
-    sprintPositions: Array<any>;
+    sprintPositions: Array<{ position: number; driverNumber: number }>;
     additionalPredictions: {
         pole?: number | null;
         fastestLap?: number | null;
@@ -318,7 +318,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                 {predictions.sprintPositions && predictions.sprintPositions.length > 0 && (
                                     <View style={styles.section}>
                                         <Text style={styles.sectionTitle}>Sprint Positions</Text>
-                                        {predictions.sprintPositions.map((item: any, idx: number) => {
+                                        {predictions.sprintPositions.map((item, idx: number) => {
                                             const driver = getDriverByNumber(drivers, item.driverNumber);
                                             const driverPoints = item.driverNumber ? pointsData.get(item.driverNumber) : null;
                                             const sprintPoints = driverPoints?.breakdown?.sprintPosition || 0;

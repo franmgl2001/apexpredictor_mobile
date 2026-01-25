@@ -21,7 +21,7 @@ type RacePredictions = {
 
 type ApiPredictionsData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
-    sprintPositions: Array<{ position?: number; driverNumber: number | null }>;
+    sprintPositions: Array<{ position: number; driverNumber: number }>;
     additionalPredictions: {
         pole?: number | null;
         fastestLap?: number | null;
@@ -139,9 +139,10 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
             // Convert sprintPositions to sprintPodium array
             const sprintPodium: Array<DriverSummary | null> = new Array(3).fill(null);
             if (apiData.sprintPositions && Array.isArray(apiData.sprintPositions)) {
-                apiData.sprintPositions.forEach((item, idx) => {
-                    if (idx < 3) {
-                        sprintPodium[idx] = getDriverByNumber(item.driverNumber);
+                apiData.sprintPositions.forEach((item) => {
+                    const positionIndex = item.position - 1; // Convert 1-based to 0-based
+                    if (positionIndex >= 0 && positionIndex < 3) {
+                        sprintPodium[positionIndex] = getDriverByNumber(item.driverNumber);
                     }
                 });
             }
@@ -315,10 +316,16 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                         position: index + 1,
                         driverNumber: driver?.number || null,
                     })),
-                    sprintPositions: sprintPodium.map((driver, index) => ({
-                        position: index + 1,
-                        driverNumber: driver?.number || null,
-                    })),
+                    sprintPositions: sprintPodium
+                        .map((driver, index) => ({
+                            position: index + 1,
+                            driverNumber: driver?.number || null,
+                        }))
+                        .filter((item) => item.driverNumber !== null)
+                        .map((item) => ({
+                            position: item.position,
+                            driverNumber: item.driverNumber as number,
+                        })),
                     additionalPredictions: {
                         pole: pole?.number || null,
                         fastestLap: fastest?.number || null,
@@ -356,10 +363,16 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                     position: index + 1,
                     driverNumber: driver?.number || null,
                 })),
-                sprintPositions: sprintPodium.map((driver, index) => ({
-                    position: index + 1,
-                    driverNumber: driver?.number || null,
-                })),
+                sprintPositions: sprintPodium
+                    .map((driver, index) => ({
+                        position: index + 1,
+                        driverNumber: driver?.number || null,
+                    }))
+                    .filter((item) => item.driverNumber !== null)
+                    .map((item) => ({
+                        position: item.position,
+                        driverNumber: item.driverNumber as number,
+                    })),
                 additionalPredictions: {
                     pole: pole?.number || null,
                     fastestLap: fastest?.number || null,

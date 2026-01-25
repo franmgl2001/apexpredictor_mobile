@@ -13,7 +13,7 @@ export type RaceResultsData = {
 
 export type PredictionData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
-    sprintPositions?: Array<{ position?: number; driverNumber: number | null }>;
+    sprintPositions?: Array<{ position: number; driverNumber: number }>;
     additionalPredictions?: {
         pole?: number | null;
         fastestLap?: number | null;
@@ -96,7 +96,7 @@ export function calculateDriverPoints(
     // Calculate sprint position points (if sprint exists)
     if (hasSprint && raceResults.sprintPositions && predictions.sprintPositions) {
         predictions.sprintPositions.forEach((pred) => {
-            if (pred.driverNumber === null || pred.position === undefined) return;
+            if (!pred.driverNumber || !pred.position) return;
 
             const actualSprint = raceResults.sprintPositions?.find((r) => r.driverNumber === pred.driverNumber);
             if (actualSprint) {
@@ -130,8 +130,8 @@ export function calculateDriverPoints(
     // Position 1 in gridOrder is the race winner, which may be different from the pole sitter
     const actualPole = raceResults.additionalPredictions?.pole;
     const predictedPole = predictions.additionalPredictions?.pole;
-    if (actualPole !== null && actualPole !== undefined && 
-        predictedPole !== null && predictedPole !== undefined && 
+    if (actualPole !== null && actualPole !== undefined &&
+        predictedPole !== null && predictedPole !== undefined &&
         actualPole === predictedPole) {
         const driverPoints = driverPointsMap.get(actualPole);
         if (driverPoints) {
