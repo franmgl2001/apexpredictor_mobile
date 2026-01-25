@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 // Local League type for this component (leagues feature is placeholder)
 interface League {
@@ -24,7 +24,7 @@ export default function LeagueSelector({
     onLeagueChange,
     isLoading = false,
 }: LeagueSelectorProps) {
-    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
     const selectedLeague = leagues.find(
         (league) => (league.league_id || league.PK?.replace('league#', '')) === selectedLeagueId
@@ -32,7 +32,7 @@ export default function LeagueSelector({
 
     const handleSelectLeague = (leagueId: string) => {
         onLeagueChange(leagueId);
-        setIsModalVisible(false);
+        setIsOpen(false);
     };
 
     if (isLoading) {
@@ -40,7 +40,7 @@ export default function LeagueSelector({
             <View style={styles.container}>
                 <View style={styles.inputContainer}>
                     <ActivityIndicator size="small" color="#dc2626" />
-                    <Text style={styles.loadingText}>Loading leagues...</Text>
+                    <Text style={styles.loadingText}>LOADING LEAGUES...</Text>
                 </View>
             </View>
         );
@@ -50,7 +50,7 @@ export default function LeagueSelector({
         return (
             <View style={styles.container}>
                 <View style={[styles.inputContainer, styles.inputContainerDisabled]}>
-                    <Text style={styles.emptyText}>No leagues available</Text>
+                    <Text style={styles.emptyText}>NO LEAGUES AVAILABLE</Text>
                 </View>
             </View>
         );
@@ -58,9 +58,15 @@ export default function LeagueSelector({
 
     return (
         <View style={styles.container}>
+            <Text style={styles.label}>SELECT YOUR LEAGUE</Text>
+            
             <TouchableOpacity
-                style={[styles.inputContainer, selectedLeagueId && styles.inputContainerActive]}
-                onPress={() => setIsModalVisible(true)}
+                style={[
+                    styles.inputContainer, 
+                    selectedLeagueId && styles.inputContainerActive,
+                    isOpen && styles.inputContainerOpen
+                ]}
+                onPress={() => setIsOpen(!isOpen)}
                 activeOpacity={0.8}
             >
                 {selectedLeague ? (
@@ -71,104 +77,74 @@ export default function LeagueSelector({
                                     {selectedLeague.league_name || 'Unnamed League'}
                                 </Text>
                                 {selectedLeague.role === 'admin' && (
-                                    <View style={styles.selectedLeagueIcons}>
-                                        <View style={[styles.iconBadge, styles.iconBadgeGold]}>
-                                            <Text style={styles.iconText}>👑</Text>
-                                        </View>
+                                    <View style={[styles.iconBadge, styles.iconBadgeGold]}>
+                                        <Text style={styles.iconText}>👑</Text>
                                     </View>
                                 )}
                             </View>
                         </View>
                         <View style={styles.chevronContainer}>
-                            <Text style={styles.chevron}>▼</Text>
+                            <Text style={[styles.chevron, isOpen && styles.chevronUpside]}>▼</Text>
                         </View>
                     </View>
                 ) : (
                     <View style={styles.placeholderContent}>
                         <Text style={styles.placeholderText}>Select a league</Text>
-                        <Text style={styles.chevron}>▼</Text>
+                        <Text style={[styles.chevron, isOpen && styles.chevronUpside]}>▼</Text>
                     </View>
                 )}
             </TouchableOpacity>
 
-            {/* Premium Dropdown Modal */}
-            <Modal
-                visible={isModalVisible}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => setIsModalVisible(false)}
-                >
-                    <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                        <View style={styles.modalHeader}>
-                            <View style={styles.modalHeaderContent}>
-                                <Text style={styles.modalTitle}>Select League</Text>
-                                <Text style={styles.modalSubtitle}>{leagues.length} {leagues.length === 1 ? 'league' : 'leagues'} available</Text>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.modalCloseButton}
-                                onPress={() => setIsModalVisible(false)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.modalClose}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <FlatList
-                            data={leagues}
-                            keyExtractor={(item) => item.league_id || item.PK?.replace('league#', '') || ''}
-                            renderItem={({ item: league }) => {
-                                const leagueId = league.league_id || league.PK?.replace('league#', '') || '';
-                                const isSelected = selectedLeagueId === leagueId;
-                                return (
-                                    <TouchableOpacity
-                                        style={[styles.leagueOption, isSelected && styles.leagueOptionSelected]}
-                                        onPress={() => handleSelectLeague(leagueId)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View style={styles.leagueOptionContent}>
-                                            <View style={styles.leagueOptionLeft}>
-                                                <View style={styles.leagueOptionHeader}>
-                                                    <Text style={[styles.leagueOptionName, isSelected && styles.leagueOptionNameSelected]}>
-                                                        {league.league_name || 'Unnamed League'}
-                                                    </Text>
-                                                    {league.role === 'admin' && (
-                                                        <View style={styles.leagueOptionIcons}>
-                                                            <View style={[styles.optionIconBadge, styles.optionIconBadgeGold]}>
-                                                                <Text style={styles.optionIconText}>👑</Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                                <View style={styles.leagueOptionMeta}>
-                                                    {league.description && (
-                                                        <Text style={styles.leagueOptionDescription} numberOfLines={1}>
-                                                            {league.description}
-                                                        </Text>
-                                                    )}
-                                                </View>
-                                            </View>
-                                            {isSelected && (
-                                                <View style={styles.checkmarkContainer}>
-                                                    <View style={styles.checkmark}>
-                                                        <Text style={styles.checkmarkText}>✓</Text>
+            {/* Dropdown Content */}
+            {isOpen && (
+                <View style={styles.dropdownContainer}>
+                    <View style={styles.dropdownHeader}>
+                        <Text style={styles.dropdownTitle}>MY LEAGUES</Text>
+                    </View>
+                    <View style={styles.listWrapper}>
+                        {leagues.map((league) => {
+                            const leagueId = league.league_id || league.PK?.replace('league#', '') || '';
+                            const isSelected = selectedLeagueId === leagueId;
+                            return (
+                                <TouchableOpacity
+                                    key={leagueId}
+                                    style={[styles.leagueOption, isSelected && styles.leagueOptionSelected]}
+                                    onPress={() => handleSelectLeague(leagueId)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={styles.leagueOptionContent}>
+                                        <View style={styles.leagueOptionLeft}>
+                                            <View style={styles.leagueOptionHeader}>
+                                                <Text 
+                                                    style={[styles.leagueOptionName, isSelected && styles.leagueOptionNameSelected]}
+                                                    numberOfLines={1}
+                                                >
+                                                    {league.league_name || 'Unnamed League'}
+                                                </Text>
+                                                {league.role === 'admin' && (
+                                                    <View style={[styles.optionIconBadge, styles.optionIconBadgeGold]}>
+                                                        <Text style={styles.optionIconText}>👑</Text>
                                                     </View>
-                                                </View>
+                                                )}
+                                            </View>
+                                            {league.description && (
+                                                <Text style={styles.leagueOptionDescription} numberOfLines={1}>
+                                                    {league.description}
+                                                </Text>
                                             )}
                                         </View>
-                                    </TouchableOpacity>
-                                );
-                            }}
-                            ItemSeparatorComponent={() => <View style={styles.separator} />}
-                            contentContainerStyle={styles.modalListContent}
-                            showsVerticalScrollIndicator={false}
-                        />
+                                        {isSelected && (
+                                            <View style={styles.checkmark}>
+                                                <Text style={styles.checkmarkText}>✓</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
-                </TouchableOpacity>
-            </Modal>
+                </View>
+            )}
         </View>
     );
 }
@@ -177,33 +153,44 @@ const styles = StyleSheet.create({
     container: {
         marginTop: 8,
         marginBottom: 12,
+        zIndex: 1000,
+    },
+    label: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#64748b',
+        marginBottom: 8,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
     },
     inputContainer: {
         backgroundColor: '#ffffff',
-        borderWidth: 2,
-        borderColor: '#e5e7eb',
-        borderRadius: 14,
-        paddingHorizontal: 18,
-        paddingVertical: 16,
-        minHeight: 64,
+        borderWidth: 1.5,
+        borderColor: '#e2e8f0',
+        borderRadius: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        minHeight: 52,
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
         elevation: 2,
     },
     inputContainerActive: {
         borderColor: '#dc2626',
-        backgroundColor: '#fef2f2',
-        shadowColor: '#dc2626',
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 4,
+        backgroundColor: '#fff',
+    },
+    inputContainerOpen: {
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderColor: '#dc2626',
+        shadowOpacity: 0,
     },
     inputContainerDisabled: {
         opacity: 0.6,
-        borderColor: '#f3f4f6',
+        backgroundColor: '#f8fafc',
     },
     selectedLeagueContent: {
         flexDirection: 'row',
@@ -212,31 +199,23 @@ const styles = StyleSheet.create({
     },
     selectedLeagueMain: {
         flex: 1,
-        marginRight: 12,
+        marginRight: 8,
     },
     selectedLeagueHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 6,
     },
     selectedLeagueName: {
-        fontSize: 17,
-        fontWeight: '800',
+        fontSize: 16,
+        fontWeight: '700',
         color: '#111827',
-        flex: 1,
         marginRight: 8,
     },
-    selectedLeagueIcons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
     iconBadge: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#f3f4f6',
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#fef3c7',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -244,15 +223,19 @@ const styles = StyleSheet.create({
         backgroundColor: '#fef3c7',
     },
     iconText: {
-        fontSize: 12,
+        fontSize: 10,
     },
     chevronContainer: {
-        paddingLeft: 8,
+        paddingLeft: 4,
     },
     chevron: {
         fontSize: 10,
-        color: '#9ca3af',
-        fontWeight: '700',
+        color: '#94a3b8',
+        fontWeight: '800',
+    },
+    chevronUpside: {
+        transform: [{ rotate: '180deg' }],
+        color: '#dc2626',
     },
     placeholderContent: {
         flexDirection: 'row',
@@ -260,102 +243,66 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     placeholderText: {
-        fontSize: 16,
-        color: '#9ca3af',
+        fontSize: 15,
+        color: '#94a3b8',
         fontWeight: '500',
     },
     loadingText: {
-        fontSize: 14,
-        color: '#6b7280',
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#64748b',
         marginLeft: 12,
-        fontWeight: '500',
+        letterSpacing: 0.5,
     },
     emptyText: {
-        fontSize: 14,
-        color: '#9ca3af',
-        fontWeight: '500',
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#94a3b8',
+        letterSpacing: 0.5,
     },
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.55)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
+    dropdownContainer: {
         backgroundColor: '#ffffff',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        maxHeight: '88%',
-        paddingBottom: 40,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 16,
+        borderWidth: 1.5,
+        borderColor: '#dc2626',
+        borderTopWidth: 0,
+        borderBottomLeftRadius: 10,
+        borderBottomRightRadius: 10,
+        overflow: 'hidden',
         elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
     },
-    modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: 20,
+    dropdownHeader: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: '#f1f5f9',
     },
-    modalHeaderContent: {
-        flex: 1,
-    },
-    modalTitle: {
-        fontSize: 24,
+    dropdownTitle: {
+        fontSize: 9,
         fontWeight: '900',
-        color: '#111827',
-        marginBottom: 4,
-        letterSpacing: -0.5,
+        color: '#94a3b8',
+        letterSpacing: 1.5,
     },
-    modalSubtitle: {
-        fontSize: 14,
-        color: '#6b7280',
-        fontWeight: '500',
-    },
-    modalCloseButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#f3f4f6',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 12,
-    },
-    modalClose: {
-        fontSize: 20,
-        color: '#6b7280',
-        fontWeight: '400',
-        lineHeight: 20,
-    },
-    modalListContent: {
-        padding: 20,
+    listWrapper: {
+        maxHeight: 280,
     },
     leagueOption: {
-        backgroundColor: '#ffffff',
-        borderRadius: 14,
-        borderWidth: 2,
-        borderColor: '#e5e7eb',
-        overflow: 'hidden',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f8fafc',
     },
     leagueOptionSelected: {
-        borderColor: '#dc2626',
         backgroundColor: '#fef2f2',
-        shadowColor: '#dc2626',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 3,
     },
     leagueOptionContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 18,
     },
     leagueOptionLeft: {
         flex: 1,
@@ -364,29 +311,22 @@ const styles = StyleSheet.create({
     leagueOptionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: 2,
     },
     leagueOptionName: {
-        fontSize: 17,
-        fontWeight: '800',
-        color: '#111827',
-        flex: 1,
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1e293b',
         marginRight: 8,
     },
     leagueOptionNameSelected: {
         color: '#dc2626',
     },
-    leagueOptionIcons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
     optionIconBadge: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: '#f3f4f6',
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#fef3c7',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -394,39 +334,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#fef3c7',
     },
     optionIconText: {
-        fontSize: 11,
-    },
-    leagueOptionMeta: {
-        gap: 4,
+        fontSize: 8,
     },
     leagueOptionDescription: {
-        fontSize: 13,
-        color: '#9ca3af',
-        fontStyle: 'italic',
+        fontSize: 12,
+        color: '#64748b',
         fontWeight: '400',
     },
-    checkmarkContainer: {
-        marginLeft: 8,
-    },
     checkmark: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         backgroundColor: '#dc2626',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#dc2626',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 3,
     },
     checkmarkText: {
         color: '#ffffff',
-        fontSize: 16,
+        fontSize: 11,
         fontWeight: '900',
-    },
-    separator: {
-        height: 10,
     },
 });
