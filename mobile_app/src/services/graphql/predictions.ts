@@ -11,7 +11,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 const UPSERT_PREDICTION = /* GraphQL */ `
     mutation UpsertPrediction($input: UpsertPredictionInput!) {
         upsertPrediction(input: $input) {
-            series
+            category
             season
             raceId
             userId
@@ -23,11 +23,24 @@ const UPSERT_PREDICTION = /* GraphQL */ `
     }
 `;
 
+interface UpsertPredictionResponse {
+    upsertPrediction: {
+        category: string;
+        season: string;
+        raceId: string;
+        userId: string;
+        prediction: any;
+        points: number;
+        createdAt: string;
+        updatedAt: string;
+    };
+}
+
 const LIST_MY_RACES = /* GraphQL */ `
-    query ListMyRaces($series: String, $season: String, $limit: Int, $nextToken: String) {
-        listMyRaces(series: $series, season: $season, limit: $limit, nextToken: $nextToken) {
+    query ListMyRaces($category: String, $season: String, $limit: Int, $nextToken: String) {
+        listMyRaces(category: $category, season: $season, limit: $limit, nextToken: $nextToken) {
             items {
-                series
+                category
                 season
                 raceId
                 userId
@@ -41,45 +54,34 @@ const LIST_MY_RACES = /* GraphQL */ `
     }
 `;
 
-interface ListMyRacesResponse {
-    listMyRaces: {
-        items: Array<{
-            series: string;
-            season: string;
-            raceId: string;
-            userId: string;
-            prediction: any;
-            points: number;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        nextToken: string | null;
-    };
+interface RacePrediction {
+    category: string;
+    season: string;
+    raceId: string;
+    userId: string;
+    prediction: any;
+    points: number;
+    createdAt: string;
+    updatedAt: string;
 }
 
-interface UpsertPredictionResponse {
-    upsertPrediction: {
-        series: string;
-        season: string;
-        raceId: string;
-        userId: string;
-        prediction: any;
-        points: number;
-        createdAt: string;
-        updatedAt: string;
+interface ListMyRacesResponse {
+    listMyRaces: {
+        items: RacePrediction[];
+        nextToken: string | null;
     };
 }
 
 /**
  * Saves or updates a race prediction
- * @param series The racing series (e.g., "f1", "motogp")
+ * @param category The racing category (e.g., "F1", "MotoGP")
  * @param season The season year (e.g., "2026")
  * @param raceId The race ID
  * @param prediction JSON string of the prediction data
  * @returns The created/updated prediction
  */
 export async function upsertPrediction(
-    series: string,
+    category: string,
     season: string,
     raceId: string,
     prediction: string
@@ -89,7 +91,7 @@ export async function upsertPrediction(
     const startTime = Date.now();
 
     // Validate and normalize the JSON string
-    // AWSJSON type accepts JSON strings or objects
+    // Storing as String type (simpler than AWSJSON)
     let predictionJson: string;
     try {
         // Parse to validate, then stringify to ensure clean JSON
@@ -100,19 +102,19 @@ export async function upsertPrediction(
     }
 
     const logId = requestLogger.logRequest('upsertPrediction', {
-        series,
+        category,
         season,
         raceId,
         hasPrediction: !!prediction
     });
 
     try {
-        // Pass prediction as a JSON string - AWSJSON type in schema
+        // Pass prediction as a JSON string - String type in schema
         const result = await client.graphql({
             query: UPSERT_PREDICTION,
             variables: {
                 input: {
-                    series,
+                    category,
                     season,
                     raceId,
                     prediction: predictionJson, // JSON string
@@ -141,33 +143,51 @@ export async function upsertPrediction(
 }
 
 /**
- * Fetches all predictions for the authenticated user
- * @param series Optional series filter (e.g., "f1", "motogp")
+ * Fetches all race predictions for the logged-in user
+ * Uses the byUser GSI to query predictions
+ * @param category Optional category filter (e.g., "F1", "MotoGP")
  * @param season Optional season filter (e.g., "2026")
- * @returns Array of prediction items
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns Array of race predictions
  */
-export async function listMyRaces(
-    series?: string,
+export async function listMyPredictions(
+    category?: string,
     season?: string,
-    limit: number = 100
-): Promise<ListMyRacesResponse['listMyRaces']['items']> {
+    limit: number = 50,
+    nextToken?: string
+): Promise<RacePrediction[]> {
     await fetchAuthSession();
 
     const startTime = Date.now();
-    const logId = requestLogger.logRequest('listMyRaces', {
-        series,
-        season,
-        limit
-    });
+
+    const variables: {
+        category?: string;
+        season?: string;
+        limit: number;
+        nextToken?: string;
+    } = {
+        limit,
+    };
+
+    if (category) {
+        variables.category = category;
+    }
+
+    if (season) {
+        variables.season = season;
+    }
+
+    if (nextToken) {
+        variables.nextToken = nextToken;
+    }
+
+    const logId = requestLogger.logRequest('listMyPredictions', variables);
 
     try {
         const result = await client.graphql({
             query: LIST_MY_RACES,
-            variables: {
-                series,
-                season,
-                limit,
-            },
+            variables,
         }) as GraphQLResult<ListMyRacesResponse>;
 
         const duration = Date.now() - startTime;
@@ -176,13 +196,9 @@ export async function listMyRaces(
             throw new Error(result.errors[0].message || 'Failed to fetch predictions');
         }
 
-        if (!result.data?.listMyRaces) {
-            throw new Error('Failed to fetch predictions: No data returned');
-        }
-
-        const predictions = result.data.listMyRaces.items;
-        requestLogger.logSuccess(logId, predictions.length, duration);
-        return predictions;
+        const items = result.data?.listMyRaces.items || [];
+        requestLogger.logSuccess(logId, items.length, duration);
+        return items;
     } catch (error: any) {
         const duration = Date.now() - startTime;
         requestLogger.logError(logId, error, duration);

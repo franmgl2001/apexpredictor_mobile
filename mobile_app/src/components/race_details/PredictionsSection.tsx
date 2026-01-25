@@ -99,6 +99,13 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
             return;
         }
 
+        // If predictionsByRaceId is provided but empty, wait for it to be populated
+        // But only wait if we haven't checked for this raceId yet
+        if (predictionsByRaceId !== undefined && predictionsByRaceId.size === 0) {
+            console.log('[PredictionsSection] Predictions map is empty, waiting for predictions to load...');
+            // Don't return early - let it try to fetch, it will set empty state if not found
+        }
+
         // Helper to get driver by number
         const getDriverByNumber = (driverNumber: number | null): DriverSummary | null => {
             if (driverNumber === null || driverNumber === undefined) return null;
@@ -188,9 +195,12 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 // If predictionsByRaceId is provided, use it exclusively - don't make individual requests
                 // This means predictions are being loaded centrally (e.g., in MyTeamScreen)
                 if (predictionsByRaceId !== undefined) {
+                    console.log('[PredictionsSection] Looking for raceId:', raceId);
+                    console.log('[PredictionsSection] Available keys:', Array.from(predictionsByRaceId.keys()));
                     // Check if prediction exists in the map
                     if (predictionsByRaceId.has(raceId)) {
                         predictionEntity = predictionsByRaceId.get(raceId);
+                        console.log('[PredictionsSection] Found prediction entity:', predictionEntity ? 'exists' : 'null');
                         // If null, it means no prediction exists (expected case)
                         if (!predictionEntity) {
                             setEmptyState();
@@ -198,6 +208,7 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                         }
                     } else {
                         // RaceId not in map - no prediction exists for this race
+                        console.log('[PredictionsSection] RaceId not found in map');
                         // Don't make individual request, just set empty state
                         setEmptyState();
                         return;
@@ -215,15 +226,22 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                     return;
                 }
 
-                // Entity exists but predictions field is null/empty (normal case)
-                if (!predictionEntity.predictions || predictionEntity.predictions.trim() === '') {
+                // Entity exists but prediction field is null/empty (normal case)
+                // Handle both 'prediction' (from CachedPrediction) and 'predictions' (legacy) field names
+                const predictionString = predictionEntity.prediction || predictionEntity.predictions;
+                console.log('[PredictionsSection] Prediction string exists:', !!predictionString);
+                console.log('[PredictionsSection] Prediction string type:', typeof predictionString);
+                if (!predictionString || (typeof predictionString === 'string' && predictionString.trim() === '')) {
+                    console.log('[PredictionsSection] Prediction string is empty, setting empty state');
                     setEmptyState();
                     return;
                 }
 
                 // Try to parse and load predictions
                 try {
-                    const apiData: ApiPredictionsData = JSON.parse(predictionEntity.predictions);
+                    console.log('[PredictionsSection] Parsing prediction string, length:', predictionString.length);
+                    const apiData: ApiPredictionsData = JSON.parse(predictionString);
+                    console.log('[PredictionsSection] Parsed API data:', apiData);
                     const racePredictions = convertApiPredictionsToRacePredictions(apiData);
 
                     // Update local state
@@ -277,7 +295,15 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
         // Close any open modals when switching races
         setOpenSprintFor(null);
         setOpenPickerFor(null);
-    }, [raceId, user?.userId, drivers, predictionsByRaceId]);
+    }, [
+        raceId, 
+        user?.userId, 
+        drivers, 
+        predictionsByRaceId,
+        // Force re-run when map size changes or when the specific raceId becomes available
+        predictionsByRaceId?.size,
+        predictionsByRaceId?.has(raceId) ? predictionsByRaceId.get(raceId) : null
+    ]);
 
     // Close modals when race becomes closed
     useEffect(() => {

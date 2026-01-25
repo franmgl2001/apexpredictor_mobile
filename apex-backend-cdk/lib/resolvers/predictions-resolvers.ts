@@ -15,11 +15,11 @@ $util.unauthorized()
 #end
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
-#set($pk = "PREDICTION#" + $input.series + "#" + $input.raceId)
+#set($pk = "PREDICTION#" + $input.category + "#" + $input.raceId)
 ## New stable SK structure: USER#<userId> (doesn't change when points update)
 #set($sk = "USER#" + $userId)
 #set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "RACE#" + $input.series + "#" + $input.season + "#" + $input.raceId)
+#set($byUserSK = "RACE#" + $input.category + "#" + $input.season + "#" + $input.raceId)
 ## Calculate padded points: 1000000 - points, padded to 7 digits (for GSI sorting)
 ## For new predictions, points start at 0 (points are updated separately when race results are calculated)
 #set($points = 0)
@@ -34,7 +34,7 @@ $util.unauthorized()
 #else
   #set($paddedPoints = $scoreStr)
 #end
-#set($byLeaderboardPK = "PREDICTION#" + $input.series + "#" + $input.raceId)
+#set($byLeaderboardPK = "PREDICTION#" + $input.category + "#" + $input.raceId)
 #set($byLeaderboardSK = $paddedPoints + "#USER#" + $userId)
 #set($now = $util.time.nowISO8601())
 ## Ensure prediction is stored as a JSON string
@@ -54,7 +54,7 @@ $util.unauthorized()
   "attributeValues": {
     "entityType": $util.dynamodb.toDynamoDBJson("RacePrediction"),
     "userId": $util.dynamodb.toDynamoDBJson($userId),
-    "series": $util.dynamodb.toDynamoDBJson($input.series),
+    "category": $util.dynamodb.toDynamoDBJson($input.category),
     "season": $util.dynamodb.toDynamoDBJson($input.season),
     "raceId": $util.dynamodb.toDynamoDBJson($input.raceId),
     "prediction": $util.dynamodb.toDynamoDBJson($predictionStr),
@@ -83,7 +83,7 @@ $util.error($ctx.error.message, $ctx.error.type)
 #end
 ## Create result object and set prediction as string
 #set($result = {})
-#set($result.series = $ctx.result.series)
+#set($result.category = $ctx.result.category)
 #set($result.season = $ctx.result.season)
 #set($result.raceId = $ctx.result.raceId)
 #set($result.userId = $ctx.result.userId)
@@ -110,8 +110,8 @@ $util.unauthorized()
 #set($userId = $identity.sub)
 #set($byUserPK = "USER#" + $userId)
 #set($skPrefix = "RACE#")
-#if($ctx.args.series)
-#set($skPrefix = $skPrefix + $ctx.args.series + "#")
+#if($ctx.args.category)
+#set($skPrefix = $skPrefix + $ctx.args.category + "#")
 #end
 #if($ctx.args.season)
 #set($skPrefix = $skPrefix + $ctx.args.season + "#")
@@ -148,7 +148,7 @@ $util.error($ctx.error.message, $ctx.error.type)
   #end
   ## Create item object and set prediction as string
   #set($itemObj = {})
-  #set($itemObj.series = $item.series)
+  #set($itemObj.category = $item.category)
   #set($itemObj.season = $item.season)
   #set($itemObj.raceId = $item.raceId)
   #set($itemObj.userId = $item.userId)
@@ -182,7 +182,7 @@ $util.toJson($result)
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
-#set($pk = "PREDICTION#" + $ctx.args.series + "#" + $ctx.args.raceId)
+#set($pk = "PREDICTION#" + $ctx.args.category + "#" + $ctx.args.raceId)
 #set($sk = "USER#" + $userId)
 {
   "version": "2018-05-29",
@@ -208,7 +208,7 @@ $util.error($ctx.error.message, $ctx.error.type)
 #end
 ## Create result object and set prediction as string
 #set($result = {})
-#set($result.series = $ctx.result.series)
+#set($result.category = $ctx.result.category)
 #set($result.season = $ctx.result.season)
 #set($result.raceId = $ctx.result.raceId)
 #set($result.userId = $ctx.result.userId)
@@ -234,8 +234,8 @@ $util.unauthorized()
 #end
 #set($byUserPK = "USER#" + $ctx.args.userId)
 #set($skPrefix = "RACE#")
-#if($ctx.args.series)
-#set($skPrefix = $skPrefix + $ctx.args.series + "#")
+#if($ctx.args.category)
+#set($skPrefix = $skPrefix + $ctx.args.category + "#")
 #end
 #if($ctx.args.season)
 #set($skPrefix = $skPrefix + $ctx.args.season + "#")
@@ -272,7 +272,7 @@ $util.error($ctx.error.message, $ctx.error.type)
   #end
   ## Create item object and set prediction as string
   #set($itemObj = {})
-  #set($itemObj.series = $item.series)
+  #set($itemObj.category = $item.category)
   #set($itemObj.season = $item.season)
   #set($itemObj.raceId = $item.raceId)
   #set($itemObj.userId = $item.userId)

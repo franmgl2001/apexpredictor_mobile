@@ -29,7 +29,7 @@ export class ApexBackendStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Add GSI1: USER#<userId> / RACE#<series>#<season>#<raceId>
+    // Add GSI1: USER#<userId> / RACE#<category>#<season>#<raceId>
     table.addGlobalSecondaryIndex({
       indexName: "byUser",
       partitionKey: { name: "byUserPK", type: dynamodb.AttributeType.STRING },

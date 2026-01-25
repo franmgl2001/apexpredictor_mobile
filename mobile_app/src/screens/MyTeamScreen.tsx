@@ -7,11 +7,11 @@ import RulesScoringModal from '../components/rules_modal/RulesScoringModal';
 import AppHeader from '../components/AppHeader';
 import { useData, type Driver } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { upsertPrediction, listMyRaces, normalizeCategory } from '../services/graphql';
+import { upsertPrediction, listMyPredictions } from '../services/graphql';
 
 // Local type for cached predictions
 interface CachedPrediction {
-    predictions?: string; // Use 'predictions' to match PredictionsSection expectation
+    prediction?: string;
     points?: number;
 }
 
@@ -47,43 +47,37 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
         const fetchAllPredictions = async () => {
             setIsLoadingPredictions(true);
             try {
-                // Get the series and season from the first race (assuming all races are same series/season)
-                const firstRace = localRaces[0];
-                if (!firstRace?.category || !firstRace?.season) {
-                    setPredictionsByRaceId(new Map());
-                    return;
-                }
+                // Fetch all predictions using the byUser GSI
+                const predictions = await listMyPredictions(undefined, undefined, 100);
+                console.log('[MyTeamScreen] Fetched predictions:', predictions.length);
+                console.log('[MyTeamScreen] Prediction raceIds:', predictions.map(p => p.raceId));
+                console.log('[MyTeamScreen] Local race raceIds:', localRaces.map(r => r.raceId));
 
-                const series = normalizeCategory(firstRace.category);
-                const season = firstRace.season;
-
-                // Fetch all predictions for the user
-                const predictions = await listMyRaces(series, season, 100);
-
-                // Create a map keyed by raceId
+                // Convert predictions array to a Map keyed by raceId
                 const predictionsMap = new Map<string, CachedPrediction | null>();
-                
-                // Initialize all races with null (no prediction)
-                localRaces.forEach(race => {
-                    predictionsMap.set(race.raceId, null);
-                });
 
-                // Populate with actual predictions
-                predictions.forEach(prediction => {
-                    // Convert prediction to string format expected by PredictionsSection
-                    const predictionString = typeof prediction.prediction === 'string' 
-                        ? prediction.prediction 
-                        : JSON.stringify(prediction.prediction);
-                    
-                    predictionsMap.set(prediction.raceId, {
-                        predictions: predictionString, // Use 'predictions' key to match component expectation
-                        points: prediction.points
+                predictions.forEach((pred) => {
+                    console.log('[MyTeamScreen] Setting prediction for raceId:', pred.raceId);
+                    predictionsMap.set(pred.raceId, {
+                        prediction: typeof pred.prediction === 'string'
+                            ? pred.prediction
+                            : JSON.stringify(pred.prediction),
+                        points: pred.points,
                     });
                 });
 
+                // Also set null for races that don't have predictions (so we know they were checked)
+                localRaces.forEach((race) => {
+                    if (!predictionsMap.has(race.raceId)) {
+                        predictionsMap.set(race.raceId, null);
+                    }
+                });
+
+                console.log('[MyTeamScreen] Final predictionsMap keys:', Array.from(predictionsMap.keys()));
                 setPredictionsByRaceId(predictionsMap);
             } catch (error) {
-                console.error('Error fetching predictions:', error);
+                console.error('Failed to fetch predictions:', error);
+                // Set empty map on error - predictions will be loaded individually if needed
                 setPredictionsByRaceId(new Map());
             } finally {
                 setIsLoadingPredictions(false);
@@ -113,22 +107,11 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
 
         setIsSaving(true);
         try {
-            // Normalize the category to ensure it's in the correct format (e.g., "f1", "motogp")
-            const series = normalizeCategory(currentRace.category);
+            // Pass category directly (e.g., "F1", "MotoGP")
+            const category = currentRace.category;
             const season = currentRace.season;
 
-            await upsertPrediction(series, season, currentRaceId, currentPredictions);
-            
-            // Update the predictions map with the newly saved prediction
-            setPredictionsByRaceId(prev => {
-                const updated = new Map(prev);
-                updated.set(currentRaceId, {
-                    predictions: currentPredictions, // Use 'predictions' key to match component expectation
-                    points: updated.get(currentRaceId)?.points || 0
-                });
-                return updated;
-            });
-            
+            await upsertPrediction(category, season, currentRaceId, currentPredictions);
             Alert.alert('Success', 'Predictions saved successfully!');
         } catch (error: any) {
             Alert.alert('Error', error?.message || 'Failed to save predictions. Please try again.');

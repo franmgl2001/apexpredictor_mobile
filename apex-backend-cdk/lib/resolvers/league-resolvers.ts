@@ -196,14 +196,14 @@ $util.toJson({
     #end
   #end
   ## PK groups all predictions for a race in a league (similar to leaderboard grouping by category/season)
-  #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.raceId)
+  #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.category.toLowerCase() + "#" + $entry.raceId)
   ## Stable SK structure: USER#<userId> (doesn't change when points update, matches leaderboard pattern)
   #set($sk = "USER#" + $entry.userId.toLowerCase())
   ## byUser GSI for querying all league predictions for a user
   #set($byUserPK = "USER#" + $entry.userId.toLowerCase())
-  #set($byUserSK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.season + "#" + $entry.raceId)
+  #set($byUserSK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.category.toLowerCase() + "#" + $entry.season + "#" + $entry.raceId)
   ## byLeaderboard GSI for querying predictions for a race sorted by points
-  #set($byLeaderboardPK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.raceId)
+  #set($byLeaderboardPK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.category.toLowerCase() + "#" + $entry.raceId)
   #set($byLeaderboardSK = $paddedPoints + "#USER#" + $entry.userId.toLowerCase())
   
   ## Build item map with plain values first
@@ -213,7 +213,7 @@ $util.toJson({
     "entityType": "LEAGUE_PREDICTION_ENTRY",
     "leagueId": $entry.leagueId,
     "userId": $entry.userId,
-    "series": $entry.series,
+    "category": $entry.category,
     "season": $entry.season,
     "raceId": $entry.raceId,
     "prediction": $entry.prediction,

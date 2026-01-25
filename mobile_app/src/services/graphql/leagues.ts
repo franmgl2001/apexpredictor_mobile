@@ -9,7 +9,7 @@ import { requestLogger } from './requestLogger';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { getLeaderboard, getLeaderboardsByUserId, type LeaderboardEntry } from './leaderboard';
 import { getMyProfile } from './users';
-import { listMyRaces } from './predictions';
+import { listMyPredictions } from './predictions';
 
 // Types for leagues
 export interface League {
@@ -441,7 +441,7 @@ export async function createLeague(
       console.log('[League Creation] Copying predictions to league:', league.leagueId);
 
       // Get all predictions for the current user
-      const userPredictions = await listMyRaces(undefined, undefined, 100);
+      const userPredictions = await listMyPredictions(undefined, undefined, 100);
       console.log(`[League Creation] Found ${userPredictions.length} predictions for user`);
 
       if (userPredictions.length > 0) {
@@ -458,7 +458,7 @@ export async function createLeague(
           return {
             leagueId: league.leagueId,
             userId: prediction.userId,
-            series: prediction.series,
+            category: prediction.category,
             season: prediction.season,
             raceId: prediction.raceId,
             prediction: prediction.prediction,
@@ -755,7 +755,7 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
       console.log('[League Join] Copying predictions to league:', league.leagueId);
 
       // Get all predictions for the current user
-      const userPredictions = await listMyRaces(undefined, undefined, 100);
+      const userPredictions = await listMyPredictions(undefined, undefined, 100);
       console.log(`[League Join] Found ${userPredictions.length} predictions for user`);
 
       if (userPredictions.length > 0) {
@@ -772,7 +772,7 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
           return {
             leagueId: league.leagueId,
             userId: prediction.userId,
-            series: prediction.series,
+            category: prediction.category,
             season: prediction.season,
             raceId: prediction.raceId,
             prediction: prediction.prediction,
