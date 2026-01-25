@@ -16,6 +16,7 @@ import {
     ensureLeaderboardEntry,
     type LeaderboardEntry,
 } from '../services/graphql/leaderboard';
+import { getMyLeagues, getLeagueLeaderboard, type LeagueMember, type LeagueLeaderboardEntry } from '../services/graphql/leagues';
 
 type LeaderboardScreenProps = {
     onProfilePress: () => void;
@@ -31,7 +32,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     const [showPredictionsModal, setShowPredictionsModal] = useState(false);
 
     // League state
-    const [leagues, setLeagues] = useState<any[]>([]);
+    const [leagues, setLeagues] = useState<Array<{ league_id: string; league_name: string; role?: string; description?: string }>>([]);
     const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
     const [isLoadingLeagues, setIsLoadingLeagues] = useState(false);
 
@@ -74,8 +75,15 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
 
         try {
             setIsLoadingLeagues(true);
-            // TODO: Implement league fetching when leagues are available
-            setLeagues([]);
+            const result = await getMyLeagues(50);
+            // Map LeagueMember to the format expected by LeagueSelector
+            const mappedLeagues = result.items.map((member: LeagueMember) => ({
+                league_id: member.leagueId,
+                league_name: member.leagueName || 'Unnamed League',
+                role: member.role,
+                description: member.description,
+            }));
+            setLeagues(mappedLeagues);
         } catch (err: any) {
             console.error('Error fetching leagues:', err);
             setError(err.message || 'Failed to load leagues');
@@ -91,8 +99,22 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             setError(null);
 
             if (filterType === 'league' && selectedLeagueId) {
-                // TODO: Implement league leaderboard when leagues are available
-                setLeaderboardEntries([]);
+                // Fetch league leaderboard using byLeaderboard GSI
+                const data = await getLeagueLeaderboard(selectedLeagueId, category, season, 100);
+                // Convert LeagueLeaderboardEntry to LeaderboardEntry format
+                const convertedEntries: LeaderboardEntry[] = data.items.map((entry: LeagueLeaderboardEntry) => ({
+                    PK: entry.PK,
+                    SK: entry.SK,
+                    entityType: entry.entityType,
+                    userId: entry.userId,
+                    category: entry.category,
+                    season: entry.season,
+                    totalPoints: entry.totalPoints,
+                    username: entry.username,
+                    numberOfRaces: entry.numberOfRaces,
+                    nationality: entry.nationality,
+                }));
+                setLeaderboardEntries(convertedEntries);
             } else {
                 // Fetch global leaderboard
                 const data = await getLeaderboard(category, season, 100);

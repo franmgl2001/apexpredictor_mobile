@@ -12,7 +12,7 @@ import {
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { CreateLeagueModal, JoinLeagueModal } from '../components/leagues';
-import { createLeague, getMyLeagues, joinLeagueByCode, type LeagueMember } from '../services/graphql/leagues';
+import { createLeague, getMyLeagues, joinLeagueByCode, getLeagueMembers, getLeagueLeaderboard, type LeagueMember, type LeagueLeaderboardEntry } from '../services/graphql/leagues';
 
 // Local League type for this screen - using LeagueMember from the service
 interface League {
@@ -39,6 +39,11 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [isCreatingLeague, setIsCreatingLeague] = useState(false);
     const [isJoiningLeague, setIsJoiningLeague] = useState(false);
+    const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
+    const [leagueMembers, setLeagueMembers] = useState<LeagueMember[]>([]);
+    const [leagueLeaderboard, setLeagueLeaderboard] = useState<LeagueLeaderboardEntry[]>([]);
+    const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+    const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
     // Constants for category and season
     const category = 'f1';
@@ -145,14 +150,64 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
         Clipboard.setString(code);
     };
 
-    const handleLeaderboard = (leagueId: string) => {
-        // TODO: Navigate to league leaderboard
-        console.log('View leaderboard for league:', leagueId);
+    const handleLeaderboard = async (leagueId: string) => {
+        if (selectedLeagueId === leagueId) {
+            // If already selected, close it
+            handleCloseDetails();
+            return;
+        }
+        setSelectedLeagueId(leagueId);
+        setIsLoadingLeaderboard(true);
+        setIsLoadingMembers(true);
+        
+        // Load both members and leaderboard
+        try {
+            const [membersResult, leaderboardResult] = await Promise.all([
+                getLeagueMembers(leagueId, 50),
+                getLeagueLeaderboard(leagueId, category, season, 50),
+            ]);
+            setLeagueMembers(membersResult.items);
+            setLeagueLeaderboard(leaderboardResult.items);
+        } catch (err: any) {
+            console.error('Error fetching league data:', err);
+            Alert.alert('Error', err.message || 'Failed to load league data');
+        } finally {
+            setIsLoadingLeaderboard(false);
+            setIsLoadingMembers(false);
+        }
     };
 
-    const handleManage = (leagueId: string) => {
-        // TODO: Navigate to league management
-        console.log('Manage league:', leagueId);
+    const handleManage = async (leagueId: string) => {
+        if (selectedLeagueId === leagueId) {
+            // If already selected, close it
+            handleCloseDetails();
+            return;
+        }
+        setSelectedLeagueId(leagueId);
+        setIsLoadingMembers(true);
+        setIsLoadingLeaderboard(true);
+        
+        // Load both members and leaderboard
+        try {
+            const [membersResult, leaderboardResult] = await Promise.all([
+                getLeagueMembers(leagueId, 50),
+                getLeagueLeaderboard(leagueId, category, season, 50),
+            ]);
+            setLeagueMembers(membersResult.items);
+            setLeagueLeaderboard(leaderboardResult.items);
+        } catch (err: any) {
+            console.error('Error fetching league data:', err);
+            Alert.alert('Error', err.message || 'Failed to load league data');
+        } finally {
+            setIsLoadingMembers(false);
+            setIsLoadingLeaderboard(false);
+        }
+    };
+
+    const handleCloseDetails = () => {
+        setSelectedLeagueId(null);
+        setLeagueMembers([]);
+        setLeagueLeaderboard([]);
     };
 
     return (
@@ -214,8 +269,21 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
                                 onCopyCode={handleCopyJoinCode}
                                 onLeaderboard={handleLeaderboard}
                                 onManage={handleManage}
+                                isSelected={selectedLeagueId === (league.league_id || league.PK)}
                             />
                         ))}
+                        {selectedLeagueId && (
+                            <LeagueDetailsCard
+                                leagueId={selectedLeagueId}
+                                members={leagueMembers}
+                                leaderboard={leagueLeaderboard}
+                                isLoadingMembers={isLoadingMembers}
+                                isLoadingLeaderboard={isLoadingLeaderboard}
+                                onClose={handleCloseDetails}
+                                category={category}
+                                season={season}
+                            />
+                        )}
                     </View>
                 )}
             </ScrollView>
@@ -242,6 +310,7 @@ interface LeagueCardProps {
     onCopyCode: (code: string) => void;
     onLeaderboard: (leagueId: string) => void;
     onManage: (leagueId: string) => void;
+    isSelected?: boolean;
 }
 
 function LeagueCard({
@@ -249,6 +318,7 @@ function LeagueCard({
     onCopyCode,
     onLeaderboard,
     onManage,
+    isSelected = false,
 }: LeagueCardProps) {
     const [copied, setCopied] = useState(false);
     const leagueId = league.league_id || league.PK;
@@ -264,7 +334,7 @@ function LeagueCard({
     };
 
     return (
-        <View style={styles.leagueCard}>
+        <View style={[styles.leagueCard, isSelected && styles.leagueCardSelected]}>
             {/* League Header */}
             <View style={styles.leagueHeader}>
                 <View style={styles.leagueHeaderLeft}>
@@ -556,4 +626,205 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
+    leagueCardSelected: {
+        borderWidth: 2,
+        borderColor: '#dc2626',
+    },
+    detailsCard: {
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 16,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    detailsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    detailsTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    closeButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f3f4f6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closeButtonText: {
+        fontSize: 18,
+        color: '#6b7280',
+        fontWeight: '600',
+    },
+    detailsSection: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: 12,
+    },
+    emptySectionText: {
+        fontSize: 14,
+        color: '#6b7280',
+        fontStyle: 'italic',
+    },
+    membersList: {
+        maxHeight: 200,
+    },
+    memberItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#f9fafb',
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    memberName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111827',
+    },
+    roleBadge: {
+        backgroundColor: '#e5e7eb',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    roleBadgeAdmin: {
+        backgroundColor: '#fef3c7',
+    },
+    roleText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#374151',
+        textTransform: 'capitalize',
+    },
+    leaderboardList: {
+        maxHeight: 300,
+    },
+    leaderboardItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: '#f9fafb',
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    rankText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#dc2626',
+        width: 40,
+    },
+    leaderboardItemContent: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    leaderboardUsername: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111827',
+    },
+    leaderboardPoints: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#dc2626',
+    },
 });
+
+interface LeagueDetailsCardProps {
+    leagueId: string;
+    members: LeagueMember[];
+    leaderboard: LeagueLeaderboardEntry[];
+    isLoadingMembers: boolean;
+    isLoadingLeaderboard: boolean;
+    onClose: () => void;
+    category: string;
+    season: string;
+}
+
+function LeagueDetailsCard({
+    members,
+    leaderboard,
+    isLoadingMembers,
+    isLoadingLeaderboard,
+    onClose,
+    category,
+    season,
+}: LeagueDetailsCardProps) {
+    return (
+        <View style={styles.detailsCard}>
+            <View style={styles.detailsHeader}>
+                <Text style={styles.detailsTitle}>League Details</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Members Section */}
+            <View style={styles.detailsSection}>
+                <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+                {isLoadingMembers ? (
+                    <ActivityIndicator size="small" color="#dc2626" />
+                ) : members.length === 0 ? (
+                    <Text style={styles.emptySectionText}>No members found</Text>
+                ) : (
+                    <ScrollView style={styles.membersList}>
+                        {members.map((member) => (
+                            <View key={member.userId} style={styles.memberItem}>
+                                <Text style={styles.memberName}>{member.username || member.userId}</Text>
+                                <View style={[styles.roleBadge, member.role === 'admin' && styles.roleBadgeAdmin]}>
+                                    <Text style={styles.roleText}>{member.role}</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
+
+            {/* Leaderboard Section */}
+            <View style={styles.detailsSection}>
+                <Text style={styles.sectionTitle}>Leaderboard ({category.toUpperCase()} {season})</Text>
+                {isLoadingLeaderboard ? (
+                    <ActivityIndicator size="small" color="#dc2626" />
+                ) : leaderboard.length === 0 ? (
+                    <Text style={styles.emptySectionText}>No leaderboard entries found</Text>
+                ) : (
+                    <ScrollView style={styles.leaderboardList}>
+                        {leaderboard.map((entry, index) => (
+                            <View key={entry.userId} style={styles.leaderboardItem}>
+                                <Text style={styles.rankText}>#{index + 1}</Text>
+                                <View style={styles.leaderboardItemContent}>
+                                    <Text style={styles.leaderboardUsername}>{entry.username || entry.userId}</Text>
+                                    <Text style={styles.leaderboardPoints}>{entry.totalPoints} pts</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
+        </View>
+    );
+}

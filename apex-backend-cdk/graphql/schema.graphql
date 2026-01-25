@@ -167,6 +167,25 @@ type LeagueMemberConnection {
   nextToken: String
 }
 
+type LeagueLeaderboardEntry {
+  PK: String!
+  SK: String!
+  entityType: String!
+  leagueId: String!
+  userId: ID!
+  category: String!
+  season: String!
+  totalPoints: Int!
+  username: String!
+  numberOfRaces: Int!
+  nationality: String
+}
+
+type LeagueLeaderboardConnection {
+  items: [LeagueLeaderboardEntry!]!
+  nextToken: String
+}
+
 input CreateLeagueInput {
   name: String!
   description: String
@@ -226,6 +245,8 @@ type Query {
   # League queries
   getMyLeagues(limit: Int, nextToken: String): LeagueMemberConnection!
   getLeagueByCode(byCode: String!): League
+  getLeagueMembers(leagueId: String!, limit: Int, nextToken: String): LeagueMemberConnection!
+  getLeagueLeaderboard(leagueId: String!, category: String!, season: String!, limit: Int, nextToken: String): LeagueLeaderboardConnection!
   # Get all leaderboard entries for a specific user across all categories/seasons
   getLeaderboardsByUserId(userId: ID!, limit: Int, nextToken: String): LeaderboardConnection!
 }

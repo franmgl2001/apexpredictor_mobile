@@ -95,6 +95,49 @@ const GET_MY_LEAGUES = /* GraphQL */ `
     }
 `;
 
+const GET_LEAGUE_MEMBERS = /* GraphQL */ `
+    query GetLeagueMembers($leagueId: String!, $limit: Int, $nextToken: String) {
+        getLeagueMembers(leagueId: $leagueId, limit: $limit, nextToken: $nextToken) {
+            items {
+                PK
+                SK
+                entityType
+                leagueId
+                userId
+                username
+                role
+                leagueName
+                code
+                description
+                createdAt
+                updatedAt
+            }
+            nextToken
+        }
+    }
+`;
+
+const GET_LEAGUE_LEADERBOARD = /* GraphQL */ `
+    query GetLeagueLeaderboard($leagueId: String!, $category: String!, $season: String!, $limit: Int, $nextToken: String) {
+        getLeagueLeaderboard(leagueId: $leagueId, category: $category, season: $season, limit: $limit, nextToken: $nextToken) {
+            items {
+                PK
+                SK
+                entityType
+                leagueId
+                userId
+                category
+                season
+                totalPoints
+                username
+                numberOfRaces
+                nationality
+            }
+            nextToken
+        }
+    }
+`;
+
 const GET_LEAGUE_BY_CODE = /* GraphQL */ `
     query GetLeagueByCode($byCode: String!) {
         getLeagueByCode(byCode: $byCode) {
@@ -124,6 +167,33 @@ interface GetLeagueByCodeResponse {
   getLeagueByCode: League | null;
 }
 
+interface GetLeagueMembersResponse {
+  getLeagueMembers: LeagueMemberConnection;
+}
+
+interface GetLeagueLeaderboardResponse {
+  getLeagueLeaderboard: LeagueLeaderboardConnection;
+}
+
+export interface LeagueLeaderboardEntry {
+  PK: string;
+  SK: string;
+  entityType: string;
+  leagueId: string;
+  userId: string;
+  category: string;
+  season: string;
+  totalPoints: number;
+  username: string;
+  numberOfRaces: number;
+  nationality?: string;
+}
+
+export interface LeagueLeaderboardConnection {
+  items: LeagueLeaderboardEntry[];
+  nextToken: string | null;
+}
+
 export interface LeagueMember {
   PK: string;
   SK: string;
@@ -137,6 +207,11 @@ export interface LeagueMember {
   description?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface LeagueMemberConnection {
+  items: LeagueMember[];
+  nextToken: string | null;
 }
 
 export interface LeagueMemberConnection {
@@ -745,6 +820,106 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
     const duration = Date.now() - startTime;
     requestLogger.logSuccess(logId, 1, duration);
     return member;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Fetches all members of a specific league
+ * @param leagueId The league ID
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns LeagueMemberConnection with items and nextToken
+ */
+export async function getLeagueMembers(
+  leagueId: string,
+  limit: number = 50,
+  nextToken?: string
+): Promise<LeagueMemberConnection> {
+  await fetchAuthSession();
+
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('getLeagueMembers', { leagueId, limit, nextToken });
+
+  try {
+    const result = await client.graphql({
+      query: GET_LEAGUE_MEMBERS,
+      variables: {
+        leagueId,
+        limit,
+        nextToken,
+      },
+    }) as GraphQLResult<GetLeagueMembersResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to fetch league members');
+    }
+
+    if (!result.data?.getLeagueMembers) {
+      throw new Error('Failed to fetch league members: No data returned');
+    }
+
+    const connection = result.data.getLeagueMembers;
+    requestLogger.logSuccess(logId, connection.items.length, duration);
+    return connection;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Fetches league leaderboard entries for a specific category and season, sorted by points
+ * @param leagueId The league ID
+ * @param category The category (e.g., "f1")
+ * @param season The season (e.g., "2026")
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns LeagueLeaderboardConnection with items and nextToken
+ */
+export async function getLeagueLeaderboard(
+  leagueId: string,
+  category: string,
+  season: string,
+  limit: number = 50,
+  nextToken?: string
+): Promise<LeagueLeaderboardConnection> {
+  await fetchAuthSession();
+
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('getLeagueLeaderboard', { leagueId, category, season, limit, nextToken });
+
+  try {
+    const result = await client.graphql({
+      query: GET_LEAGUE_LEADERBOARD,
+      variables: {
+        leagueId,
+        category,
+        season,
+        limit,
+        nextToken,
+      },
+    }) as GraphQLResult<GetLeagueLeaderboardResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to fetch league leaderboard');
+    }
+
+    if (!result.data?.getLeagueLeaderboard) {
+      throw new Error('Failed to fetch league leaderboard: No data returned');
+    }
+
+    const connection = result.data.getLeagueLeaderboard;
+    requestLogger.logSuccess(logId, connection.items.length, duration);
+    return connection;
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

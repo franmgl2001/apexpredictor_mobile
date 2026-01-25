@@ -122,8 +122,9 @@ $util.toJson({
   #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#LEADERBOARD")
   ## New stable SK structure: USER#<userId>#<category>#<season> (doesn't change when points update)
   #set($sk = "USER#" + $entry.userId.toLowerCase() + "#" + $entry.category.toLowerCase() + "#" + $entry.season)
-  ## Build GSI SK string with padded points
-  #set($byLeaderboardSK = $paddedPoints + "#USER#" + $entry.userId.toLowerCase() + "#" + $entry.category.toLowerCase() + "#" + $entry.season)
+  ## Build GSI keys - PK includes category and season for filtering (matching regular leaderboard pattern)
+  #set($byLeaderboardPK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#LEADERBOARD#" + $entry.category.toLowerCase() + "#" + $entry.season)
+  #set($byLeaderboardSK = $paddedPoints + "#USER#" + $entry.userId.toLowerCase())
   
   ## Build item map with plain values first
   #set($itemMap = {
@@ -138,7 +139,7 @@ $util.toJson({
     "category": $entry.category,
     "season": $entry.season,
     "nationality": $util.defaultIfNull($entry.nationality, ""),
-    "byLeaderboardPK": $pk,
+    "byLeaderboardPK": $byLeaderboardPK,
     "byLeaderboardSK": $byLeaderboardSK,
     "createdAt": $now,
     "updatedAt": $now
@@ -417,6 +418,97 @@ $util.toJson({
   "items": $items,
   "nextToken": $result.nextToken
 })`
+    ),
+  });
+
+  // Query.getLeagueMembers resolver
+  // Gets all members of a specific league
+  dataSource.createResolver("GetLeagueMembersResolver", {
+    typeName: "Query",
+    fieldName: "getLeagueMembers",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($leagueId = $ctx.args.leagueId)
+#set($pk = "LEAGUE#" + $leagueId.toLowerCase())
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "query": {
+    "expression": "PK = :pk AND begins_with(SK, :skPrefix)",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($pk),
+      ":skPrefix": $util.dynamodb.toDynamoDBJson("MEMBER#")
+    }
+  },
+  "filter": {
+    "expression": "entityType = :entityType",
+    "expressionValues": {
+      ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_MEMBER")
+    }
+  },
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($result = $ctx.result)
+#set($items = [])
+#foreach($item in $result.items)
+  #set($mappedItem = {
+    "PK": $item.PK,
+    "SK": $item.SK,
+    "entityType": $item.entityType,
+    "leagueId": $item.leagueId,
+    "userId": $item.userId,
+    "username": $util.defaultIfNull($item.username, ""),
+    "role": $item.role,
+    "leagueName": $item.leagueName,
+    "code": $util.defaultIfNull($item.code, ""),
+    "description": $util.defaultIfNull($item.description, ""),
+    "createdAt": $item.createdAt,
+    "updatedAt": $item.updatedAt
+  })
+  $util.qr($items.add($mappedItem))
+#end
+{
+  "items": $util.toJson($items),
+  "nextToken": $util.toJson($result.nextToken)
+}`
+    ),
+  });
+
+  // Query.getLeagueLeaderboard resolver
+  // Uses byLeaderboard GSI to get sorted league leaderboard entries (sorted by points descending)
+  dataSource.createResolver("GetLeagueLeaderboardResolver", {
+    typeName: "Query",
+    fieldName: "getLeagueLeaderboard",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($leagueId = $ctx.args.leagueId)
+#set($category = $ctx.args.category.toLowerCase())
+#set($season = $ctx.args.season)
+#set($byLeaderboardPK = "LEAGUE#" + $leagueId.toLowerCase() + "#LEADERBOARD#" + $category + "#" + $season)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byLeaderboard",
+  "query": {
+    "expression": "byLeaderboardPK = :pk",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byLeaderboardPK)
+    }
+  },
+  "filter": {
+    "expression": "entityType = :entityType",
+    "expressionValues": {
+      ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_LEADERBOARD_ENTRY")
+    }
+  },
+  "scanIndexForward": true,
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `$util.toJson($ctx.result)`
     ),
   });
 
