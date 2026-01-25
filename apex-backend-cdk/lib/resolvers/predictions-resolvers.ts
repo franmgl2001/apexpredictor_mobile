@@ -16,9 +16,26 @@ $util.unauthorized()
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
 #set($pk = "PREDICTION#" + $input.series + "#" + $input.raceId)
-#set($sk = "PTS#0000000000#" + $userId)
+## New stable SK structure: USER#<userId> (doesn't change when points update)
+#set($sk = "USER#" + $userId)
 #set($byUserPK = "USER#" + $userId)
 #set($byUserSK = "RACE#" + $input.series + "#" + $input.season + "#" + $input.raceId)
+## Calculate padded points: 1000000 - points, padded to 7 digits (for GSI sorting)
+## For new predictions, points start at 0 (points are updated separately when race results are calculated)
+#set($points = 0)
+#set($score = 1000000 - $points)
+#set($scoreStr = $score.toString())
+#set($zeros = "0000000")
+#set($scoreLen = $scoreStr.length())
+#set($padLen = 7 - $scoreLen)
+#if($padLen > 0)
+  #set($padding = $zeros.substring(0, $padLen))
+  #set($paddedPoints = $padding + $scoreStr)
+#else
+  #set($paddedPoints = $scoreStr)
+#end
+#set($byLeaderboardPK = "PREDICTION#" + $input.series + "#" + $input.raceId)
+#set($byLeaderboardSK = $paddedPoints + "#USER#" + $userId)
 #set($now = $util.time.nowISO8601())
 {
   "version": "2018-05-29",
@@ -37,6 +54,8 @@ $util.unauthorized()
     "points": $util.dynamodb.toDynamoDBJson(0),
     "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
     "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
+    "byLeaderboardPK": $util.dynamodb.toDynamoDBJson($byLeaderboardPK),
+    "byLeaderboardSK": $util.dynamodb.toDynamoDBJson($byLeaderboardSK),
     "createdAt": $util.dynamodb.toDynamoDBJson($now),
     "updatedAt": $util.dynamodb.toDynamoDBJson($now)
   }
@@ -86,6 +105,7 @@ $util.unauthorized()
   });
 
   // Query.getMyPrediction resolver
+  // Uses direct GetItem with new stable SK structure
   dataSource.createResolver("GetMyPredictionResolver", {
     typeName: "Query",
     fieldName: "getMyPrediction",
@@ -95,27 +115,22 @@ $util.unauthorized()
 $util.unauthorized()
 #end
 #set($userId = $identity.sub)
-#set($byUserPK = "USER#" + $userId)
-#set($byUserSK = "RACE#" + $ctx.args.series + "#" + $ctx.args.season + "#" + $ctx.args.raceId)
+#set($pk = "PREDICTION#" + $ctx.args.series + "#" + $ctx.args.raceId)
+#set($sk = "USER#" + $userId)
 {
   "version": "2018-05-29",
-  "operation": "Query",
-  "index": "byUser",
-  "query": {
-    "expression": "byUserPK = :pk AND byUserSK = :sk",
-    "expressionValues": {
-      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
-      ":sk": $util.dynamodb.toDynamoDBJson($byUserSK)
-    }
-  },
-  "limit": 1
+  "operation": "GetItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson($pk),
+    "SK": $util.dynamodb.toDynamoDBJson($sk)
+  }
 }`
     ),
     responseMappingTemplate: appsync.MappingTemplate.fromString(
-      `#if($ctx.result.items.size() == 0)
+      `#if($ctx.result == null || $util.isNull($ctx.result))
 $util.toJson(null)
 #else
-$util.toJson($ctx.result.items[0])
+$util.toJson($ctx.result)
 #end`
     ),
   });
