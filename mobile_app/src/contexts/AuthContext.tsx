@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { signIn as amplifySignIn, signUp as amplifySignUp, signOut as amplifySignOut, getCurrentUser, confirmSignUp as amplifyConfirmSignUp, resendSignUpCode as amplifyResendSignUpCode } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -193,11 +194,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         try {
             await amplifySignOut();
+            // Clear all AsyncStorage cache
+            await AsyncStorage.clear();
             setUser(null);
             setIsAuthenticated(false);
         } catch (error: any) {
             console.error('Sign out error:', error);
-            // Even if sign out fails, clear local state
+            // Even if sign out fails, clear local state and cache
+            try {
+                await AsyncStorage.clear();
+            } catch (clearError) {
+                console.error('Error clearing cache:', clearError);
+            }
             setUser(null);
             setIsAuthenticated(false);
             throw new Error(error.message || 'Failed to sign out. Please try again.');
