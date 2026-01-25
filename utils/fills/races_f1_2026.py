@@ -34,7 +34,7 @@ def makeRaceItem(r: dict, nowIso: str) -> dict:
         # required attributes (per your RACE card)
         "entityType": "RACE",
         "season": "2026",
-        "category": r.get("category", "F1"),  # not defined -> adjust if needed
+        "category": r.get("category", "f1"),  # not defined -> adjust if needed
         "status": r.get("status", "scheduled"),  # not defined -> adjust if needed
         "raceId": raceId,
         "raceName": r["raceName"],

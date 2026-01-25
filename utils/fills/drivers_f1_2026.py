@@ -199,7 +199,7 @@ def buildDriverItem(d, ts):
         "entityType": "DRIVER",
         "driverId": driverId,
         "season": season,
-        "category": "F1",
+        "category": "f1",
         "name": d["name"],
         "number": int(d["number"]),
         "team": team,
