@@ -59,7 +59,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchDrivers = async () => {
         try {
             setDriversError(null);
-            const category = 'F1';
+            const category = 'f1';
             const season = new Date().getFullYear().toString();
             const driversData = await getDrivers(category, season, 100);
             const mappedDrivers = driversData
@@ -81,7 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const fetchRaces = async () => {
         try {
             setRacesError(null);
-            const category = 'F1';
+            const category = 'f1';
             const season = new Date().getFullYear().toString();
             const racesData = await getRaces(category, season, 100);
 

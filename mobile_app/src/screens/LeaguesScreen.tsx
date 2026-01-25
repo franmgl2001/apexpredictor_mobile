@@ -41,7 +41,7 @@ export default function LeaguesScreen({ onProfilePress }: LeaguesScreenProps) {
     const [isJoiningLeague, setIsJoiningLeague] = useState(false);
 
     // Constants for category and season
-    const category = 'F1';
+    const category = 'f1';
     const season = new Date().getFullYear().toString();
 
     useEffect(() => {

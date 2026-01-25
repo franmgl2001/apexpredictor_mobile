@@ -43,7 +43,7 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
     const [error, setError] = useState<string | null>(null);
 
     // Constants for category and season
-    const category = 'F1';
+    const category = 'f1';
     const season = new Date().getFullYear().toString();
 
     // Ensure user has a leaderboard entry when screen loads
