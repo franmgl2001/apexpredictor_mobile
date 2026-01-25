@@ -198,6 +198,17 @@ input LeagueLeaderboardEntryInput {
   season: String!
 }
 
+input LeaguePredictionEntryInput {
+  leagueId: String!
+  userId: ID!
+  series: String!
+  season: String!
+  raceId: String!
+  prediction: AWSJSON!
+  points: Int!
+  pointsPadded: String
+}
+
 type Query {
   getMyProfile: UserProfile
   getRaces(category: String!, season: String!, limit: Int, nextToken: String): RacesResponse
@@ -228,4 +239,5 @@ type Mutation {
   createLeagueMember(input: CreateLeagueMemberInput!): LeagueMember!
   copyLeaderboardToLeague(input: CopyLeaderboardToLeagueInput!): Boolean!
   batchCreateLeagueLeaderboardEntries(entries: [LeagueLeaderboardEntryInput!]!): Boolean!
+  batchCreateLeaguePredictionEntries(entries: [LeaguePredictionEntryInput!]!): Boolean!
 }

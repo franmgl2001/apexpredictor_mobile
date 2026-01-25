@@ -164,6 +164,87 @@ $util.toJson({
     ),
   });
 
+  // Mutation.batchCreateLeaguePredictionEntries resolver
+  dataSource.createResolver("BatchCreateLeaguePredictionEntriesResolver", {
+    typeName: "Mutation",
+    fieldName: "batchCreateLeaguePredictionEntries",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($entries = $ctx.args.entries)
+#set($now = $util.time.nowISO8601())
+#set($items = [])
+
+#foreach($entry in $entries)
+  #set($points = $entry.points)
+  ## Extract padded points from source entry if available, otherwise calculate
+  #set($paddedPoints = "")
+  #if($entry.pointsPadded && $entry.pointsPadded != "")
+    ## Use the padded points from the source prediction entry
+    #set($paddedPoints = $entry.pointsPadded)
+  #else
+    ## Calculate padded points: 1000000 - points, padded to 7 digits (matching regular predictions)
+    #set($score = 1000000 - $points)
+    #set($scoreStr = $score.toString())
+    #set($zeros = "0000000")
+    #set($scoreLen = $scoreStr.length())
+    #set($padLen = 7 - $scoreLen)
+    #if($padLen > 0)
+      #set($padding = $zeros.substring(0, $padLen))
+      #set($paddedPoints = $padding + $scoreStr)
+    #else
+      #set($paddedPoints = $scoreStr)
+    #end
+  #end
+  ## PK groups all predictions for a race in a league (similar to leaderboard grouping by category/season)
+  #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.raceId)
+  ## Stable SK structure: USER#<userId> (doesn't change when points update, matches leaderboard pattern)
+  #set($sk = "USER#" + $entry.userId.toLowerCase())
+  ## byUser GSI for querying all league predictions for a user
+  #set($byUserPK = "USER#" + $entry.userId.toLowerCase())
+  #set($byUserSK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.season + "#" + $entry.raceId)
+  ## byLeaderboard GSI for querying predictions for a race sorted by points
+  #set($byLeaderboardPK = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#PREDICTION#" + $entry.series.toLowerCase() + "#" + $entry.raceId)
+  #set($byLeaderboardSK = $paddedPoints + "#USER#" + $entry.userId.toLowerCase())
+  
+  ## Build item map with plain values first
+  #set($itemMap = {
+    "PK": $pk,
+    "SK": $sk,
+    "entityType": "LEAGUE_PREDICTION_ENTRY",
+    "leagueId": $entry.leagueId,
+    "userId": $entry.userId,
+    "series": $entry.series,
+    "season": $entry.season,
+    "raceId": $entry.raceId,
+    "prediction": $entry.prediction,
+    "points": $entry.points,
+    "byUserPK": $byUserPK,
+    "byUserSK": $byUserSK,
+    "byLeaderboardPK": $byLeaderboardPK,
+    "byLeaderboardSK": $byLeaderboardSK,
+    "createdAt": $now,
+    "updatedAt": $now
+  })
+  ## Convert the entire map to DynamoDB format
+  $util.qr($items.add($util.dynamodb.toMapValues($itemMap)))
+#end
+
+{
+  "version": "2018-05-29",
+  "operation": "BatchPutItem",
+  "tables": {
+    "${tableName}": $util.toJson($items)
+  }
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#else
+  $util.toJson(true)
+#end`
+    ),
+  });
+
   // Mutation.copyLeaderboardToLeague resolver
   // This copies all leaderboard entries from total points to the league
   // Note: This is a simplified version - for production, consider using a Lambda function

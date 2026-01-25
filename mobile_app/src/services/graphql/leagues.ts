@@ -9,6 +9,7 @@ import { requestLogger } from './requestLogger';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { getLeaderboard, getLeaderboardsByUserId, type LeaderboardEntry } from './leaderboard';
 import { getMyProfile } from './users';
+import { listMyRaces } from './predictions';
 
 // Types for leagues
 export interface League {
@@ -62,6 +63,12 @@ const CREATE_LEAGUE_MEMBER = /* GraphQL */ `
 const BATCH_CREATE_LEAGUE_LEADERBOARD_ENTRIES = /* GraphQL */ `
     mutation BatchCreateLeagueLeaderboardEntries($entries: [LeagueLeaderboardEntryInput!]!) {
         batchCreateLeagueLeaderboardEntries(entries: $entries)
+    }
+`;
+
+const BATCH_CREATE_LEAGUE_PREDICTION_ENTRIES = /* GraphQL */ `
+    mutation BatchCreateLeaguePredictionEntries($entries: [LeaguePredictionEntryInput!]!) {
+        batchCreateLeaguePredictionEntries(entries: $entries)
     }
 `;
 
@@ -354,6 +361,73 @@ export async function createLeague(
       // since the league and member are already created.
     }
 
+    // Step 4: Copy all predictions to league predictions
+    try {
+      console.log('[League Creation] Copying predictions to league:', league.leagueId);
+
+      // Get all predictions for the current user
+      const userPredictions = await listMyRaces(undefined, undefined, 100);
+      console.log(`[League Creation] Found ${userPredictions.length} predictions for user`);
+
+      if (userPredictions.length > 0) {
+        const predictionEntries = userPredictions.map(prediction => {
+          // Extract padded points from byLeaderboardSK if available
+          let pointsPadded: string | undefined = undefined;
+          if ((prediction as any).byLeaderboardSK) {
+            const parts = (prediction as any).byLeaderboardSK.split('#');
+            if (parts.length > 0) {
+              pointsPadded = parts[0];
+            }
+          }
+
+          return {
+            leagueId: league.leagueId,
+            userId: prediction.userId,
+            series: prediction.series,
+            season: prediction.season,
+            raceId: prediction.raceId,
+            prediction: prediction.prediction,
+            points: prediction.points,
+            pointsPadded: pointsPadded,
+          };
+        });
+
+        console.log(`[League Creation] Prepared ${predictionEntries.length} predictions to copy to league ${league.leagueId}`);
+
+        // Batch write in chunks of 25 (DynamoDB limit)
+        let totalCopied = 0;
+        for (let i = 0; i < predictionEntries.length; i += 25) {
+          const chunk = predictionEntries.slice(i, i + 25);
+          console.log(`[League Creation] Processing prediction chunk ${Math.floor(i / 25) + 1} with ${chunk.length} entries`);
+
+          try {
+            const copyResult = await client.graphql({
+              query: BATCH_CREATE_LEAGUE_PREDICTION_ENTRIES,
+              variables: { entries: chunk },
+            }) as GraphQLResult<{ batchCreateLeaguePredictionEntries: boolean }>;
+
+            if (copyResult.errors && copyResult.errors.length > 0) {
+              console.error(`[League Creation] Error copying predictions to league:`, copyResult.errors);
+              throw new Error(copyResult.errors[0].message || 'Failed to copy prediction entries');
+            }
+
+            totalCopied += chunk.length;
+            console.log(`[League Creation] Successfully copied ${chunk.length} predictions in chunk ${Math.floor(i / 25) + 1}`);
+          } catch (copyError) {
+            console.error(`[League Creation] Error copying predictions to league:`, copyError);
+            throw copyError;
+          }
+        }
+
+        console.log(`[League Creation] Successfully copied ${totalCopied} predictions to league ${league.leagueId}`);
+      } else {
+        console.log('[League Creation] No predictions found for user, skipping copy');
+      }
+    } catch (copyError) {
+      // Log but don't fail the whole process if predictions fail to copy
+      console.warn('[League Creation] Failed to copy predictions to league (non-critical):', copyError);
+    }
+
     return league;
   } catch (error: any) {
     const duration = Date.now() - startTime;
@@ -599,6 +673,73 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
     } catch (copyError) {
       // Log but don't fail the whole process if leaderboards fail to copy
       console.warn('[League Join] Failed to copy leaderboards to league (non-critical):', copyError);
+    }
+
+    // Step 4: Copy all predictions to league predictions
+    try {
+      console.log('[League Join] Copying predictions to league:', league.leagueId);
+
+      // Get all predictions for the current user
+      const userPredictions = await listMyRaces(undefined, undefined, 100);
+      console.log(`[League Join] Found ${userPredictions.length} predictions for user`);
+
+      if (userPredictions.length > 0) {
+        const predictionEntries = userPredictions.map(prediction => {
+          // Extract padded points from byLeaderboardSK if available
+          let pointsPadded: string | undefined = undefined;
+          if ((prediction as any).byLeaderboardSK) {
+            const parts = (prediction as any).byLeaderboardSK.split('#');
+            if (parts.length > 0) {
+              pointsPadded = parts[0];
+            }
+          }
+
+          return {
+            leagueId: league.leagueId,
+            userId: prediction.userId,
+            series: prediction.series,
+            season: prediction.season,
+            raceId: prediction.raceId,
+            prediction: prediction.prediction,
+            points: prediction.points,
+            pointsPadded: pointsPadded,
+          };
+        });
+
+        console.log(`[League Join] Prepared ${predictionEntries.length} predictions to copy to league ${league.leagueId}`);
+
+        // Batch write in chunks of 25 (DynamoDB limit)
+        let totalCopied = 0;
+        for (let i = 0; i < predictionEntries.length; i += 25) {
+          const chunk = predictionEntries.slice(i, i + 25);
+          console.log(`[League Join] Processing prediction chunk ${Math.floor(i / 25) + 1} with ${chunk.length} entries`);
+
+          try {
+            const copyResult = await client.graphql({
+              query: BATCH_CREATE_LEAGUE_PREDICTION_ENTRIES,
+              variables: { entries: chunk },
+            }) as GraphQLResult<{ batchCreateLeaguePredictionEntries: boolean }>;
+
+            if (copyResult.errors && copyResult.errors.length > 0) {
+              console.error(`[League Join] Error copying predictions to league:`, copyResult.errors);
+              throw new Error(copyResult.errors[0].message || 'Failed to copy prediction entries');
+            }
+
+            totalCopied += chunk.length;
+            console.log(`[League Join] Successfully copied ${chunk.length} predictions in chunk ${Math.floor(i / 25) + 1}`);
+          } catch (copyError) {
+            console.error(`[League Join] Error copying predictions to league:`, copyError);
+            throw copyError;
+          }
+        }
+
+        console.log(`[League Join] Successfully copied ${totalCopied} predictions to league ${league.leagueId}`);
+      } else {
+        console.log('[League Join] No predictions found for user, skipping copy');
+      }
+    } catch (copyError) {
+      // Log but don't fail the whole process if predictions fail to copy
+      console.warn('[League Join] Failed to copy predictions to league (non-critical):', copyError);
     }
 
     const duration = Date.now() - startTime;
