@@ -68,7 +68,9 @@ $util.toJson($ctx.result)
     responseMappingTemplate: appsync.MappingTemplate.fromString(`
 #set($profile = $ctx.result)
 #set($username = $util.defaultIfNullOrBlank($profile.username, $ctx.identity.sub))
+#set($nationality = $util.defaultIfNullOrBlank($profile.country, ""))
 #set($ctx.stash.username = $username)
+#set($ctx.stash.nationality = $nationality)
 #set($ctx.stash.userId = $ctx.identity.sub)
 $util.toJson($profile)
     `),
@@ -81,9 +83,24 @@ $util.toJson($profile)
     requestMappingTemplate: appsync.MappingTemplate.fromString(`
 #set($userId = $ctx.stash.userId)
 #set($username = $ctx.stash.username)
+#set($nationality = $util.defaultIfNullOrBlank($ctx.stash.nationality, ""))
 #set($now = $util.time.nowISO8601())
 #set($season = "2026")
 #set($categories = ["f1", "wec", "wrc", "indycar", "motogp", "nascar", "fe"])
+## Calculate padded points: 1000000 - points (0 for initial), padded to 7 digits
+#set($points = 0)
+#set($score = 1000000 - $points)
+#set($scoreStr = $score.toString())
+#set($zeros = "0000000")
+#set($scoreLen = $scoreStr.length())
+#set($padLen = 7 - $scoreLen)
+#if($padLen > 0)
+  #set($padding = $zeros.substring(0, $padLen))
+  #set($paddedPoints = $padding + $scoreStr)
+#else
+  #set($paddedPoints = $scoreStr)
+#end
+#set($initialSk = "PTS#" + $paddedPoints + "#" + $userId)
 
 {
   "version": "2018-05-29",
@@ -96,7 +113,7 @@ $util.toJson($profile)
       "operation": "PutItem",
       "key": {
         "PK": $util.dynamodb.toDynamoDBJson("LEADERBOARD#$cat#$season"),
-        "SK": $util.dynamodb.toDynamoDBJson("PTS#0000000000#$userId")
+        "SK": $util.dynamodb.toDynamoDBJson($initialSk)
       },
       "attributeValues": {
         "entityType": $util.dynamodb.toDynamoDBJson("LeaderboardEntry"),
@@ -106,6 +123,7 @@ $util.toJson($profile)
         "totalPoints": $util.dynamodb.toDynamoDBJson(0),
         "username": $util.dynamodb.toDynamoDBJson($username),
         "numberOfRaces": $util.dynamodb.toDynamoDBJson(0),
+        "nationality": $util.dynamodb.toDynamoDBJson($nationality),
         "byUserPK": $util.dynamodb.toDynamoDBJson("USER#$userId"),
         "byUserSK": $util.dynamodb.toDynamoDBJson("LEADERBOARD#$cat#$season"),
         "createdAt": $util.dynamodb.toDynamoDBJson($now),

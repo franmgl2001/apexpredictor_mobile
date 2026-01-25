@@ -100,13 +100,36 @@ $util.toJson({
 
 #foreach($entry in $entries)
   #set($points = $entry.totalPoints)
-  ## Pad points to 10 digits for sorting (descending points: subtract from large number)
-  ## For now, use 1000000000 - points to get descending order in SK
-  #set($score = 1000000000 - $points)
-  #set($paddedPoints = $util.padStart($score.toString(), 10, "0"))
+  ## Extract padded points from source SK if available, otherwise calculate using 1000000
+  #set($paddedPoints = "")
+  #if($entry.sourceSK && $entry.sourceSK != "")
+    ## Source SK format: "PTS#<padded_points>#userId"
+    ## Extract the padded points between "PTS#" and the next "#"
+    #set($skParts = $entry.sourceSK.split("#"))
+    #if($skParts.size() >= 2)
+      #set($paddedPoints = $skParts.get(1))
+    #end
+  #end
+  ## If we couldn't extract from source SK, calculate it using 1000000
+  #if($paddedPoints == "" || $paddedPoints.length() == 0)
+    #set($score = 1000000 - $points)
+    #set($scoreStr = $score.toString())
+    #set($zeros = "0000000")
+    #set($scoreLen = $scoreStr.length())
+    #set($padLen = 7 - $scoreLen)
+    #if($padLen > 0)
+      #set($padding = $zeros.substring(0, $padLen))
+      #set($paddedPoints = $padding + $scoreStr)
+    #else
+      #set($paddedPoints = $scoreStr)
+    #end
+  #end
   #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#LEADERBOARD")
   ## Include category and season to make SK unique per leaderboard entry
-  #set($sk = "PT#" + $paddedPoints + "#" + $entry.category.toLowerCase() + "#" + $entry.season + "#" + $entry.userId.toLowerCase())
+  ## Build SK string ensuring variable is evaluated
+  #set($skPrefix = "PT#")
+  #set($skMiddle = "#" + $entry.category.toLowerCase() + "#" + $entry.season + "#" + $entry.userId.toLowerCase())
+  #set($sk = $skPrefix + $paddedPoints + $skMiddle)
   
   ## Build item map with plain values first
   #set($itemMap = {

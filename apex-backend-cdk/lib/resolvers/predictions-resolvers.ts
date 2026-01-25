@@ -16,7 +16,23 @@ $util.unauthorized()
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
 #set($pk = "PREDICTION#" + $input.series + "#" + $input.raceId)
-#set($sk = "PTS#0000000000#" + $userId)
+## Try to get existing prediction to preserve points if it exists
+## We'll use a temporary SK to query, but for upsert we need to handle this differently
+## For now, use points = 0 for new predictions (points are updated separately when race results are calculated)
+#set($points = 0)
+## Calculate padded points: 1000000 - points, padded to 7 digits
+#set($score = 1000000 - $points)
+#set($scoreStr = $score.toString())
+#set($zeros = "0000000")
+#set($scoreLen = $scoreStr.length())
+#set($padLen = 7 - $scoreLen)
+#if($padLen > 0)
+  #set($padding = $zeros.substring(0, $padLen))
+  #set($paddedPoints = $padding + $scoreStr)
+#else
+  #set($paddedPoints = $scoreStr)
+#end
+#set($sk = "PTS#" + $paddedPoints + "#" + $userId)
 #set($byUserPK = "USER#" + $userId)
 #set($byUserSK = "RACE#" + $input.series + "#" + $input.season + "#" + $input.raceId)
 #set($now = $util.time.nowISO8601())
