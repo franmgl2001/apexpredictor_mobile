@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking, ScrollView } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 
@@ -139,78 +139,84 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
                 </View>
             )}
 
-            {!profileLoading && (profile || user) && (
-                <>
-                    {/* Profile Card */}
-                    <View style={styles.profileCard}>
-                        <View style={styles.avatarSection}>
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>
-                                    {getInitials(profile?.username || user?.username, profile?.email || user?.username)}
-                                </Text>
+            <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {!profileLoading && (profile || user) && (
+                    <>
+                        {/* Profile Card */}
+                        <View style={styles.profileCard}>
+                            <View style={styles.avatarSection}>
+                                <View style={styles.avatar}>
+                                    <Text style={styles.avatarText}>
+                                        {getInitials(profile?.username || user?.username, profile?.email || user?.username)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoSection}>
+                                {(profile?.username || user?.username) && (
+                                    <Text style={styles.nameText}>
+                                        {profile?.username || user?.username}
+                                    </Text>
+                                )}
+                                {(profile?.email || user?.username) && (
+                                    <Text style={styles.emailText}>
+                                        {profile?.email || user?.username}
+                                    </Text>
+                                )}
+                                {profile?.createdAt && (
+                                    <Text style={styles.dateText}>
+                                        Member since {formatDate(profile.createdAt)}
+                                    </Text>
+                                )}
+                                {!profile && (
+                                    <View style={styles.warningBanner}>
+                                        <Text style={styles.warningText}>Profile not fully loaded</Text>
+                                    </View>
+                                )}
                             </View>
                         </View>
 
-                        <View style={styles.infoSection}>
-                            {(profile?.username || user?.username) && (
-                                <Text style={styles.nameText}>
-                                    {profile?.username || user?.username}
-                                </Text>
-                            )}
-                            {(profile?.email || user?.username) && (
-                                <Text style={styles.emailText}>
-                                    {profile?.email || user?.username}
-                                </Text>
-                            )}
-                            {profile?.createdAt && (
-                                <Text style={styles.dateText}>
-                                    Member since {formatDate(profile.createdAt)}
-                                </Text>
-                            )}
-                            {!profile && (
-                                <View style={styles.warningBanner}>
-                                    <Text style={styles.warningText}>Profile not fully loaded</Text>
-                                </View>
-                            )}
+                        {/* Contact Section */}
+                        <View style={styles.contactSection}>
+                            <Text style={styles.sectionTitle}>Need Help?</Text>
+                            <Text style={styles.sectionSubtitle}>Get in touch with us</Text>
+
+                            <TouchableOpacity
+                                style={styles.contactItem}
+                                onPress={handleEmailPress}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.contactLabel}>Email</Text>
+                                <Text style={styles.contactValue}>apexprediction@gmail.com</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.contactItem}
+                                onPress={handlePhonePress}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.contactLabel}>Phone</Text>
+                                <Text style={styles.contactValue}>+52 5576583376</Text>
+                            </TouchableOpacity>
                         </View>
-                    </View>
+                    </>
+                )}
 
-                    {/* Contact Section */}
-                    <View style={styles.contactSection}>
-                        <Text style={styles.sectionTitle}>Need Help?</Text>
-                        <Text style={styles.sectionSubtitle}>Get in touch with us</Text>
-
-                        <TouchableOpacity
-                            style={styles.contactItem}
-                            onPress={handleEmailPress}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.contactLabel}>Email</Text>
-                            <Text style={styles.contactValue}>apexprediction@gmail.com</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.contactItem}
-                            onPress={handlePhonePress}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.contactLabel}>Phone</Text>
-                            <Text style={styles.contactValue}>+52 5576583376</Text>
-                        </TouchableOpacity>
-                    </View>
-                </>
-            )}
-
-            <View style={styles.signOutContainer}>
-                <TouchableOpacity
-                    style={[styles.signOutButton, authLoading && styles.signOutButtonDisabled]}
-                    onPress={handleSignOut}
-                    disabled={authLoading}
-                    activeOpacity={0.6}
-                >
-                    <Text style={styles.signOutText}>Sign Out</Text>
-                </TouchableOpacity>
-            </View>
+                <View style={styles.signOutContainer}>
+                    <TouchableOpacity
+                        style={[styles.signOutButton, authLoading && styles.signOutButtonDisabled]}
+                        onPress={handleSignOut}
+                        disabled={authLoading}
+                        activeOpacity={0.6}
+                    >
+                        <Text style={styles.signOutText}>Sign Out</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
         </View>
     );
 }
@@ -218,9 +224,14 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#ffffff',
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
         padding: 24,
         paddingBottom: 76,
-        backgroundColor: '#ffffff',
     },
     header: {
         flexDirection: 'row',
@@ -366,7 +377,7 @@ const styles = StyleSheet.create({
         letterSpacing: -0.2,
     },
     signOutContainer: {
-        marginTop: 'auto',
+        marginTop: 32,
         paddingTop: 32,
     },
     signOutButton: {

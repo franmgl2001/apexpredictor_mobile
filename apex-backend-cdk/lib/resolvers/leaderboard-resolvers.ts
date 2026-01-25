@@ -106,4 +106,31 @@ $util.toJson($ctx.result.items[0])
 #end`
         ),
     });
+
+    // Query.getLeaderboardsByUserId resolver
+    dataSource.createResolver("GetLeaderboardsByUserIdResolver", {
+        typeName: "Query",
+        fieldName: "getLeaderboardsByUserId",
+        requestMappingTemplate: appsync.MappingTemplate.fromString(
+            `#set($userId = $ctx.args.userId)
+#set($byUserPK = "USER#" + $userId)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byUser",
+  "query": {
+    "expression": "byUserPK = :pk AND begins_with(byUserSK, :skPrefix)",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byUserPK),
+      ":skPrefix": $util.dynamodb.toDynamoDBJson("LEADERBOARD#")
+    }
+  },
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+        ),
+        responseMappingTemplate: appsync.MappingTemplate.fromString(
+            `$util.toJson($ctx.result)`
+        ),
+    });
 }

@@ -78,7 +78,7 @@ export class ApexBackendStack extends cdk.Stack {
     createLeaderboardResolvers(profileDS);
 
     // Create league resolvers (league creation and management)
-    createLeagueResolvers(profileDS);
+    createLeagueResolvers(profileDS, table.tableName);
 
 
     // =========================

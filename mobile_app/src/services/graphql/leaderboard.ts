@@ -98,6 +98,30 @@ const UPSERT_LEADERBOARD_ENTRY = /* GraphQL */ `
     }
 `;
 
+const GET_LEADERBOARDS_BY_USER_ID = /* GraphQL */ `
+    query GetLeaderboardsByUserId($userId: ID!, $limit: Int, $nextToken: String) {
+        getLeaderboardsByUserId(userId: $userId, limit: $limit, nextToken: $nextToken) {
+            items {
+                PK
+                SK
+                entityType
+                userId
+                category
+                season
+                totalPoints
+                username
+                numberOfRaces
+                nationality
+                byUserPK
+                byUserSK
+                createdAt
+                updatedAt
+            }
+            nextToken
+        }
+    }
+`;
+
 // Response types
 interface GetLeaderboardResponse {
   getLeaderboard: LeaderboardConnection;
@@ -109,6 +133,10 @@ interface GetMyLeaderboardEntryResponse {
 
 interface UpsertLeaderboardEntryResponse {
   upsertLeaderboardEntry: LeaderboardEntry;
+}
+
+interface GetLeaderboardsByUserIdResponse {
+  getLeaderboardsByUserId: LeaderboardConnection;
 }
 
 /**
@@ -285,4 +313,47 @@ export async function ensureLeaderboardEntry(
 
   // Entry doesn't exist, create a new one with 0 points and 0 races
   return await upsertLeaderboardEntry(category, season, 0, username, 0, nationality);
+}
+
+/**
+ * Fetches all leaderboard entries for a specific user across all categories and seasons
+ * @param userId The user's Cognito sub
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns LeaderboardConnection with items and nextToken
+ */
+export async function getLeaderboardsByUserId(
+  userId: string,
+  limit: number = 50,
+  nextToken?: string
+): Promise<LeaderboardConnection> {
+  await fetchAuthSession();
+
+  const startTime = Date.now();
+  const logId = requestLogger.logRequest('getLeaderboardsByUserId', { userId, limit });
+
+  try {
+    const result = await client.graphql({
+      query: GET_LEADERBOARDS_BY_USER_ID,
+      variables: {
+        userId,
+        limit,
+        nextToken,
+      },
+    }) as GraphQLResult<GetLeaderboardsByUserIdResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to fetch user leaderboards');
+    }
+
+    const data = result.data?.getLeaderboardsByUserId || { items: [], nextToken: null };
+    requestLogger.logSuccess(logId, data.items.length, duration);
+    return data;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
 }

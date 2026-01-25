@@ -48,11 +48,32 @@ $util.toJson($ctx.result)
   });
 
   // 2. Mutation.initMyLeaderboards (Standalone call to initialize all categories)
-  dataSource.createResolver("InitMyLeaderboardsResolver", {
-    typeName: "Mutation",
-    fieldName: "initMyLeaderboards",
+  // Uses pipeline resolver to first get the profile username, then create leaderboards
+  const getProfileFunction = dataSource.createFunction("InitMyLeaderboardsGetProfileFunction", {
     requestMappingTemplate: appsync.MappingTemplate.fromString(`
 #set($userId = $ctx.identity.sub)
+{
+  "version": "2018-05-29",
+  "operation": "GetItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson("USER#$userId"),
+    "SK": $util.dynamodb.toDynamoDBJson("PROFILE")
+  }
+}
+    `),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`
+#set($profile = $ctx.result)
+#set($username = $util.defaultIfNullOrBlank($profile.username, $ctx.identity.sub))
+#set($ctx.stash.username = $username)
+#set($ctx.stash.userId = $ctx.identity.sub)
+$util.toJson($profile)
+    `),
+  });
+
+  const createLeaderboardsFunction = dataSource.createFunction("InitMyLeaderboardsCreateEntriesFunction", {
+    requestMappingTemplate: appsync.MappingTemplate.fromString(`
+#set($userId = $ctx.stash.userId)
+#set($username = $ctx.stash.username)
 #set($now = $util.time.nowISO8601())
 #set($season = "2026")
 #set($categories = ["f1", "wec", "wrc", "indycar", "motogp", "nascar", "fe"])
@@ -76,7 +97,7 @@ $util.toJson($ctx.result)
         "category": $util.dynamodb.toDynamoDBJson($cat),
         "season": $util.dynamodb.toDynamoDBJson($season),
         "totalPoints": $util.dynamodb.toDynamoDBJson(0),
-        "username": $util.dynamodb.toDynamoDBJson($ctx.identity.username),
+        "username": $util.dynamodb.toDynamoDBJson($username),
         "numberOfRaces": $util.dynamodb.toDynamoDBJson(0),
         "byUserPK": $util.dynamodb.toDynamoDBJson("USER#$userId"),
         "byUserSK": $util.dynamodb.toDynamoDBJson("LEADERBOARD#$cat#$season"),
@@ -90,6 +111,20 @@ $util.toJson($ctx.result)
     #end
   ]
 }
+    `),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`
+$util.toJson(true)
+    `),
+  });
+
+  dataSource.createResolver("InitMyLeaderboardsResolver", {
+    typeName: "Mutation",
+    fieldName: "initMyLeaderboards",
+    kind: appsync.ResolverKind.PIPELINE,
+    pipelineConfig: [getProfileFunction, createLeaderboardsFunction],
+    requestMappingTemplate: appsync.MappingTemplate.fromString(`
+## Pipeline resolver - pass through
+$util.toJson({})
     `),
     responseMappingTemplate: appsync.MappingTemplate.fromString(`
 #if($ctx.error)

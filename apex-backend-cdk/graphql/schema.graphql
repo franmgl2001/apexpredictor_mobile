@@ -187,6 +187,17 @@ input CreateLeagueMemberInput {
   code: String
 }
 
+input LeagueLeaderboardEntryInput {
+  leagueId: String!
+  userId: ID!
+  username: String!
+  totalPoints: Int!
+  numberOfRaces: Int!
+  nationality: String
+  category: String!
+  season: String!
+}
+
 type Query {
   getMyProfile: UserProfile
   getRaces(category: String!, season: String!, limit: Int, nextToken: String): RacesResponse
@@ -204,6 +215,8 @@ type Query {
   # League queries
   getMyLeagues(limit: Int, nextToken: String): LeagueMemberConnection!
   getLeagueByCode(byCode: String!): League
+  # Get all leaderboard entries for a specific user across all categories/seasons
+  getLeaderboardsByUserId(userId: ID!, limit: Int, nextToken: String): LeaderboardConnection!
 }
 
 type Mutation {
@@ -214,4 +227,5 @@ type Mutation {
   createLeague(input: CreateLeagueInput!): League!
   createLeagueMember(input: CreateLeagueMemberInput!): LeagueMember!
   copyLeaderboardToLeague(input: CopyLeaderboardToLeagueInput!): Boolean!
+  batchCreateLeagueLeaderboardEntries(entries: [LeagueLeaderboardEntryInput!]!): Boolean!
 }

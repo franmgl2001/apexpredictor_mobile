@@ -9,7 +9,10 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
  * - GraphQL types: PascalCase (League, LeagueMember)
  * - DynamoDB PK/SK: UPPERCASE prefixes, lowercase values (LEAGUE#<lowercaseId>, MEMBER#<lowercaseId>)
  */
-export function createLeagueResolvers(dataSource: appsync.DynamoDbDataSource) {
+export function createLeagueResolvers(
+  dataSource: appsync.DynamoDbDataSource,
+  tableName: string
+) {
   // Mutation.createLeague resolver
   // This creates the league and adds the creator as admin member
   dataSource.createResolver("CreateLeagueResolver", {
@@ -83,6 +86,62 @@ $util.toJson({
   "byCode": $league.byCode,
   "description": $league.description
 })`
+    ),
+  });
+
+  // Mutation.batchCreateLeagueLeaderboardEntries resolver
+  dataSource.createResolver("BatchCreateLeagueLeaderboardEntriesResolver", {
+    typeName: "Mutation",
+    fieldName: "batchCreateLeagueLeaderboardEntries",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($entries = $ctx.args.entries)
+#set($now = $util.time.nowISO8601())
+#set($items = [])
+
+#foreach($entry in $entries)
+  #set($points = $entry.totalPoints)
+  ## Pad points to 10 digits for sorting (descending points: subtract from large number)
+  ## For now, use 1000000000 - points to get descending order in SK
+  #set($score = 1000000000 - $points)
+  #set($paddedPoints = $util.padStart($score.toString(), 10, "0"))
+  #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#LEADERBOARD")
+  ## Include category and season to make SK unique per leaderboard entry
+  #set($sk = "PT#" + $paddedPoints + "#" + $entry.category.toLowerCase() + "#" + $entry.season + "#" + $entry.userId.toLowerCase())
+  
+  ## Build item map with plain values first
+  #set($itemMap = {
+    "PK": $pk,
+    "SK": $sk,
+    "entityType": "LEAGUE_LEADERBOARD_ENTRY",
+    "leagueId": $entry.leagueId,
+    "userId": $entry.userId,
+    "username": $entry.username,
+    "totalPoints": $entry.totalPoints,
+    "numberOfRaces": $entry.numberOfRaces,
+    "category": $entry.category,
+    "season": $entry.season,
+    "nationality": $util.defaultIfNull($entry.nationality, ""),
+    "createdAt": $now,
+    "updatedAt": $now
+  })
+  ## Convert the entire map to DynamoDB format
+  $util.qr($items.add($util.dynamodb.toMapValues($itemMap)))
+#end
+
+{
+  "version": "2018-05-29",
+  "operation": "BatchPutItem",
+  "tables": {
+    "${tableName}": $util.toJson($items)
+  }
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#else
+  $util.toJson(true)
+#end`
     ),
   });
 

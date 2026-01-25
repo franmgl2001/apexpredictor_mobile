@@ -143,6 +143,8 @@ export async function saveUserProfile(
         const profile = result.data.upsertMyProfile;
 
         // Step 2: Initialize leaderboards for all categories
+        // Note: The username is now available from the profile we just created
+        // The backend resolver will fetch it from the profile, but we ensure it exists first
         try {
             await client.graphql({
                 query: INIT_MY_LEADERBOARDS,

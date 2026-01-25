@@ -7,7 +7,7 @@ import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { client } from './client';
 import { requestLogger } from './requestLogger';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { getLeaderboard, type LeaderboardEntry } from './leaderboard';
+import { getLeaderboard, getLeaderboardsByUserId, type LeaderboardEntry } from './leaderboard';
 import { getMyProfile } from './users';
 
 // Types for leagues
@@ -56,6 +56,12 @@ const CREATE_LEAGUE_MEMBER = /* GraphQL */ `
             createdAt
             updatedAt
         }
+    }
+`;
+
+const BATCH_CREATE_LEAGUE_LEADERBOARD_ENTRIES = /* GraphQL */ `
+    mutation BatchCreateLeagueLeaderboardEntries($entries: [LeagueLeaderboardEntryInput!]!) {
+        batchCreateLeagueLeaderboardEntries(entries: $entries)
     }
 `;
 
@@ -230,6 +236,109 @@ export async function createLeague(
       }
 
       throw new Error(`League created but failed to add you as a member: ${message}`);
+    }
+
+    // Step 3: Copy global leaderboard to league leaderboard
+    try {
+      console.log('Copying global leaderboard to league:', league.leagueId);
+
+      // Get the current user's profile to get their userId
+      const userProfile = await getMyProfile();
+      if (!userProfile) {
+        throw new Error('User profile not found');
+      }
+
+      // Get all leaderboard entries for the current user across all categories/seasons
+      const userLeaderboards = await getLeaderboardsByUserId(userProfile.userId, 100);
+      console.log(`[League Creation] Found ${userLeaderboards.items.length} leaderboard entries for user`);
+
+      if (userLeaderboards.items.length > 0) {
+        // Map entries and create a unique key for deduplication
+        // The unique key should match what will be in DynamoDB: category + season + userId + totalPoints
+        // (since SK includes points, same user with same category/season/points = duplicate)
+        const entryMap = new Map<string, typeof userLeaderboards.items[0]>();
+
+        userLeaderboards.items.forEach((entry, index) => {
+          // Normalize category to lowercase to match backend SK generation
+          const normalizedCategory = entry.category.toLowerCase();
+          // Create a unique key that matches the DynamoDB SK structure
+          // SK format: PT#<paddedPoints>#<category>#<season>#<userId>
+          // Backend converts category to lowercase, so we must too
+          const uniqueKey = `${normalizedCategory}_${entry.season}_${entry.userId}_${entry.totalPoints}`;
+          console.log(`[League Creation] Entry ${index}: category=${entry.category} (normalized: ${normalizedCategory}), season=${entry.season}, userId=${entry.userId}, points=${entry.totalPoints}, uniqueKey=${uniqueKey}`);
+
+          // Only keep the first entry if there are duplicates
+          if (!entryMap.has(uniqueKey)) {
+            entryMap.set(uniqueKey, entry);
+            console.log(`[League Creation] Added entry with key: ${uniqueKey}`);
+          } else {
+            console.log(`[League Creation] DUPLICATE DETECTED - skipping entry with key: ${uniqueKey} (original category: ${entry.category})`);
+          }
+        });
+
+        const uniqueEntries = Array.from(entryMap.values());
+        console.log(`[League Creation] After deduplication: ${uniqueEntries.length} unique entries (removed ${userLeaderboards.items.length - uniqueEntries.length} duplicates)`);
+
+        const entries = uniqueEntries.map(entry => ({
+          leagueId: league.leagueId,
+          userId: entry.userId,
+          username: entry.username,
+          totalPoints: entry.totalPoints,
+          numberOfRaces: entry.numberOfRaces,
+          nationality: entry.nationality || '',
+          category: entry.category.toLowerCase(), // Normalize to lowercase to match backend
+          season: entry.season,
+        }));
+
+        console.log(`[League Creation] Prepared ${entries.length} entries to copy to league ${league.leagueId}`);
+
+        // Batch write in chunks of 25 (DynamoDB limit)
+        // Also deduplicate within each chunk to prevent duplicate key errors
+        let totalCopied = 0;
+        for (let i = 0; i < entries.length; i += 25) {
+          const chunk = entries.slice(i, i + 25);
+          console.log(`[League Creation] Processing chunk ${Math.floor(i / 25) + 1} with ${chunk.length} entries`);
+
+          // Create a map to ensure uniqueness within this chunk using the same key format
+          const chunkMap = new Map<string, typeof entries[0]>();
+          chunk.forEach(entry => {
+            // Category is already normalized to lowercase in entries array
+            const uniqueKey = `${entry.category}_${entry.season}_${entry.userId}_${entry.totalPoints}`;
+            if (!chunkMap.has(uniqueKey)) {
+              chunkMap.set(uniqueKey, entry);
+            } else {
+              console.log(`[League Creation] DUPLICATE IN CHUNK - skipping: ${uniqueKey}`);
+            }
+          });
+          const uniqueChunk = Array.from(chunkMap.values());
+
+          console.log(`[League Creation] Chunk ${Math.floor(i / 25) + 1}: ${uniqueChunk.length} unique entries (removed ${chunk.length - uniqueChunk.length} duplicates)`);
+
+          if (uniqueChunk.length > 0) {
+            console.log(`[League Creation] Sending batch with entries:`, uniqueChunk.map(e => ({
+              category: e.category,
+              season: e.season,
+              userId: e.userId,
+              points: e.totalPoints
+            })));
+
+            await client.graphql({
+              query: BATCH_CREATE_LEAGUE_LEADERBOARD_ENTRIES,
+              variables: { entries: uniqueChunk },
+            });
+
+            totalCopied += uniqueChunk.length;
+            console.log(`[League Creation] Successfully copied chunk ${Math.floor(i / 25) + 1} (${uniqueChunk.length} entries)`);
+          }
+        }
+        console.log(`[League Creation] Successfully copied ${totalCopied} unique leaderboard entries to league ${league.leagueId}`);
+      } else {
+        console.log(`[League Creation] No leaderboard entries found for user, skipping copy`);
+      }
+    } catch (copyError) {
+      console.error('Error copying leaderboard to league:', copyError);
+      // We don't throw here to avoid failing the whole league creation
+      // since the league and member are already created.
     }
 
     return league;
