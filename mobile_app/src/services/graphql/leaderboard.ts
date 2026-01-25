@@ -22,6 +22,8 @@ export interface LeaderboardEntry {
   nationality?: string;
   byUserPK: string;
   byUserSK: string;
+  byLeaderboardPK?: string;
+  byLeaderboardSK?: string;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -279,16 +279,29 @@ export async function createLeague(
         const uniqueEntries = Array.from(entryMap.values());
         console.log(`[League Creation] After deduplication: ${uniqueEntries.length} unique entries (removed ${userLeaderboards.items.length - uniqueEntries.length} duplicates)`);
 
-        const entries = uniqueEntries.map(entry => ({
-          leagueId: league.leagueId,
-          userId: entry.userId,
-          username: entry.username,
-          totalPoints: entry.totalPoints,
-          numberOfRaces: entry.numberOfRaces,
-          nationality: entry.nationality || '',
-          category: entry.category.toLowerCase(), // Normalize to lowercase to match backend
-          season: entry.season,
-        }));
+        const entries = uniqueEntries.map(entry => {
+          // Extract padded points from byLeaderboardSK if available
+          // Format: <paddedPoints>#USER#<userId>
+          let pointsPadded: string | undefined = undefined;
+          if (entry.byLeaderboardSK) {
+            const parts = entry.byLeaderboardSK.split('#');
+            if (parts.length > 0) {
+              pointsPadded = parts[0];
+            }
+          }
+
+          return {
+            leagueId: league.leagueId,
+            userId: entry.userId,
+            username: entry.username,
+            totalPoints: entry.totalPoints,
+            numberOfRaces: entry.numberOfRaces,
+            nationality: entry.nationality || '',
+            category: entry.category.toLowerCase(), // Normalize to lowercase to match backend
+            season: entry.season,
+            pointsPadded: pointsPadded, // Pass the padded points from source entry
+          };
+        });
 
         console.log(`[League Creation] Prepared ${entries.length} entries to copy to league ${league.leagueId}`);
 
@@ -423,7 +436,7 @@ export async function getLeagueByCode(byCode: string): Promise<League | null> {
 }
 
 /**
- * Joins a league by code: first fetches metadata, then creates membership
+ * Joins a league by code: first fetches metadata, then creates membership and copies leaderboards
  * @param byCode 6-character join code
  * @returns Created LeagueMember
  */
@@ -454,8 +467,6 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
       },
     }) as GraphQLResult<CreateLeagueMemberResponse>;
 
-    const duration = Date.now() - startTime;
-
     if (result.errors && result.errors.length > 0) {
       throw new Error(result.errors[0].message || 'Failed to join league');
     }
@@ -464,8 +475,135 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
       throw new Error('Failed to join league: No data returned');
     }
 
+    const member = result.data.createLeagueMember;
+
+    // Step 3: Copy global leaderboard to league leaderboard (same as createLeague)
+    try {
+      console.log('[League Join] Copying global leaderboard to league:', league.leagueId);
+
+      // Get the current user's profile to get their userId
+      const userProfile = await getMyProfile();
+      if (!userProfile) {
+        throw new Error('User profile not found');
+      }
+
+      // Get all leaderboard entries for the current user across all categories/seasons
+      const userLeaderboards = await getLeaderboardsByUserId(userProfile.userId, 100);
+      console.log(`[League Join] Found ${userLeaderboards.items.length} leaderboard entries for user`);
+
+      if (userLeaderboards.items.length > 0) {
+        // Map entries and create a unique key for deduplication
+        const entryMap = new Map<string, typeof userLeaderboards.items[0]>();
+
+        userLeaderboards.items.forEach((entry, index) => {
+          // Normalize category to lowercase to match backend SK generation
+          const normalizedCategory = entry.category.toLowerCase();
+          // Create a unique key that matches the DynamoDB SK structure
+          const uniqueKey = `${normalizedCategory}_${entry.season}_${entry.userId}_${entry.totalPoints}`;
+          console.log(`[League Join] Entry ${index}: category=${entry.category} (normalized: ${normalizedCategory}), season=${entry.season}, userId=${entry.userId}, points=${entry.totalPoints}, uniqueKey=${uniqueKey}`);
+
+          // Only keep the first entry if there are duplicates
+          if (!entryMap.has(uniqueKey)) {
+            entryMap.set(uniqueKey, entry);
+            console.log(`[League Join] Added entry with key: ${uniqueKey}`);
+          } else {
+            console.log(`[League Join] DUPLICATE DETECTED - skipping entry with key: ${uniqueKey} (original category: ${entry.category})`);
+          }
+        });
+
+        const uniqueEntries = Array.from(entryMap.values());
+        console.log(`[League Join] After deduplication: ${uniqueEntries.length} unique entries (removed ${userLeaderboards.items.length - uniqueEntries.length} duplicates)`);
+
+        const entries = uniqueEntries.map(entry => {
+          // Extract padded points from byLeaderboardSK if available
+          // Format: <paddedPoints>#USER#<userId>
+          let pointsPadded: string | undefined = undefined;
+          if (entry.byLeaderboardSK) {
+            const parts = entry.byLeaderboardSK.split('#');
+            if (parts.length > 0) {
+              pointsPadded = parts[0];
+            }
+          }
+
+          return {
+            leagueId: league.leagueId,
+            userId: entry.userId,
+            username: entry.username,
+            totalPoints: entry.totalPoints,
+            numberOfRaces: entry.numberOfRaces,
+            nationality: entry.nationality || '',
+            category: entry.category.toLowerCase(), // Normalize to lowercase to match backend
+            season: entry.season,
+            pointsPadded: pointsPadded, // Pass the padded points from source entry
+          };
+        });
+
+        console.log(`[League Join] Prepared ${entries.length} entries to copy to league ${league.leagueId}`);
+
+        // Batch write in chunks of 25 (DynamoDB limit)
+        // Also deduplicate within each chunk to prevent duplicate key errors
+        let totalCopied = 0;
+        for (let i = 0; i < entries.length; i += 25) {
+          const chunk = entries.slice(i, i + 25);
+          console.log(`[League Join] Processing chunk ${Math.floor(i / 25) + 1} with ${chunk.length} entries`);
+
+          // Create a map to ensure uniqueness within this chunk using the same key format
+          const chunkMap = new Map<string, typeof entries[0]>();
+          chunk.forEach(entry => {
+            // Category is already normalized to lowercase in entries array
+            const uniqueKey = `${entry.category}_${entry.season}_${entry.userId}_${entry.totalPoints}`;
+            if (!chunkMap.has(uniqueKey)) {
+              chunkMap.set(uniqueKey, entry);
+            } else {
+              console.log(`[League Join] DUPLICATE IN CHUNK - skipping: ${uniqueKey}`);
+            }
+          });
+          const uniqueChunk = Array.from(chunkMap.values());
+
+          console.log(`[League Join] Chunk ${Math.floor(i / 25) + 1}: ${uniqueChunk.length} unique entries (removed ${chunk.length - uniqueChunk.length} duplicates)`);
+
+          if (uniqueChunk.length > 0) {
+            console.log(`[League Join] Sending batch with entries:`, uniqueChunk.map(e => ({
+              category: e.category,
+              season: e.season,
+              userId: e.userId,
+              points: e.totalPoints
+            })));
+
+            try {
+              const copyResult = await client.graphql({
+                query: BATCH_CREATE_LEAGUE_LEADERBOARD_ENTRIES,
+                variables: {
+                  entries: uniqueChunk,
+                },
+              }) as GraphQLResult<{ batchCreateLeagueLeaderboardEntries: boolean }>;
+
+              if (copyResult.errors && copyResult.errors.length > 0) {
+                console.error(`[League Join] Error copying leaderboard to league:`, copyResult.errors);
+                throw new Error(copyResult.errors[0].message || 'Failed to copy leaderboard entries');
+              }
+
+              totalCopied += uniqueChunk.length;
+              console.log(`[League Join] Successfully copied ${uniqueChunk.length} entries in chunk ${Math.floor(i / 25) + 1}`);
+            } catch (copyError) {
+              console.error(`[League Join] Error copying leaderboard to league:`, copyError);
+              throw copyError;
+            }
+          }
+        }
+
+        console.log(`[League Join] Successfully copied ${totalCopied} leaderboard entries to league ${league.leagueId}`);
+      } else {
+        console.log('[League Join] No leaderboard entries found for user, skipping copy');
+      }
+    } catch (copyError) {
+      // Log but don't fail the whole process if leaderboards fail to copy
+      console.warn('[League Join] Failed to copy leaderboards to league (non-critical):', copyError);
+    }
+
+    const duration = Date.now() - startTime;
     requestLogger.logSuccess(logId, 1, duration);
-    return result.data.createLeagueMember;
+    return member;
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);

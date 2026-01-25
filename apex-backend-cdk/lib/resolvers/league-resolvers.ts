@@ -100,13 +100,30 @@ $util.toJson({
 
 #foreach($entry in $entries)
   #set($points = $entry.totalPoints)
-  ## Pad points to 10 digits for sorting (descending points: subtract from large number)
-  ## For now, use 1000000000 - points to get descending order in SK
-  #set($score = 1000000000 - $points)
-  #set($paddedPoints = $util.padStart($score.toString(), 10, "0"))
+  ## Extract padded points from source entry if available, otherwise calculate
+  #set($paddedPoints = "")
+  #if($entry.pointsPadded && $entry.pointsPadded != "")
+    ## Use the padded points from the source leaderboard entry
+    #set($paddedPoints = $entry.pointsPadded)
+  #else
+    ## Calculate padded points: 1000000 - points, padded to 7 digits (matching regular leaderboards)
+    #set($score = 1000000 - $points)
+    #set($scoreStr = $score.toString())
+    #set($zeros = "0000000")
+    #set($scoreLen = $scoreStr.length())
+    #set($padLen = 7 - $scoreLen)
+    #if($padLen > 0)
+      #set($padding = $zeros.substring(0, $padLen))
+      #set($paddedPoints = $padding + $scoreStr)
+    #else
+      #set($paddedPoints = $scoreStr)
+    #end
+  #end
   #set($pk = "LEAGUE#" + $entry.leagueId.toLowerCase() + "#LEADERBOARD")
-  ## Include category and season to make SK unique per leaderboard entry
-  #set($sk = "PT#" + $paddedPoints + "#" + $entry.category.toLowerCase() + "#" + $entry.season + "#" + $entry.userId.toLowerCase())
+  ## New stable SK structure: USER#<userId>#<category>#<season> (doesn't change when points update)
+  #set($sk = "USER#" + $entry.userId.toLowerCase() + "#" + $entry.category.toLowerCase() + "#" + $entry.season)
+  ## Build GSI SK string with padded points
+  #set($byLeaderboardSK = $paddedPoints + "#USER#" + $entry.userId.toLowerCase() + "#" + $entry.category.toLowerCase() + "#" + $entry.season)
   
   ## Build item map with plain values first
   #set($itemMap = {
@@ -121,6 +138,8 @@ $util.toJson({
     "category": $entry.category,
     "season": $entry.season,
     "nationality": $util.defaultIfNull($entry.nationality, ""),
+    "byLeaderboardPK": $pk,
+    "byLeaderboardSK": $byLeaderboardSK,
     "createdAt": $now,
     "updatedAt": $now
   })
@@ -208,7 +227,6 @@ $util.unauthorized()
   "entityType": "LEAGUE_MEMBER",
   "leagueId": $input.leagueId,
   "userId": $userId,
-  "user_id": $userId,
   "byUserPK": $byUserPK,
   "byUserSK": $byUserSK,
   "role": $role,
@@ -240,7 +258,7 @@ $util.unauthorized()
   "SK": $member.SK,
   "entityType": $member.entityType,
   "leagueId": $member.leagueId,
-  "userId": $util.defaultIfNull($member.userId, $member.user_id),
+  "userId": $member.userId,
   "username": $util.defaultIfNull($member.username, ""),
   "role": $member.role,
   "leagueName": $member.leagueName,
@@ -300,7 +318,7 @@ $util.unauthorized()
     "SK": $item.SK,
     "entityType": $item.entityType,
     "leagueId": $item.leagueId,
-    "userId": $util.defaultIfNull($item.userId, $item.user_id),
+    "userId": $item.userId,
     "username": $util.defaultIfNull($item.username, ""),
     "role": $item.role,
     "leagueName": $item.leagueName,
