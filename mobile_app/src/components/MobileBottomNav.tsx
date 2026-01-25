@@ -1,19 +1,22 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TeamIcon } from './icons/TeamIcon';
+import { LeaderboardIcon } from './icons/LeaderboardIcon';
+import { LeaguesIcon } from './icons/LeaguesIcon';
 
 export type RouteKey = 'myteam' | 'leaderboard' | 'leagues';
 
 type NavItem = {
     key: RouteKey;
     label: string;
-    emoji: string;
+    icon: (props: { color: string; size: number }) => React.ReactNode;
 };
 
 const NAV_ITEMS: NavItem[] = [
-    { key: 'myteam', label: 'My Team', emoji: '🏢' },
-    { key: 'leaderboard', label: 'Leaderboard', emoji: '📊' },
-    { key: 'leagues', label: 'Leagues', emoji: '🏆' },
+    { key: 'myteam', label: 'My Team', icon: TeamIcon },
+    { key: 'leaderboard', label: 'Leaderboard', icon: LeaderboardIcon },
+    { key: 'leagues', label: 'Leagues', icon: LeaguesIcon },
 ];
 
 export default function MobileBottomNav({
@@ -32,7 +35,7 @@ export default function MobileBottomNav({
 
     return (
         <View style={[styles.container, { borderTopColor: borderColor, paddingBottom: insets.bottom }]}>
-            {NAV_ITEMS.map(({ key, label, emoji }) => {
+            {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
                 const active = currentRoute === key;
                 const color = active ? activeColor : inactiveColor;
                 return (
@@ -43,15 +46,7 @@ export default function MobileBottomNav({
                         onPress={() => onNavigate(key)}
                     >
                         <View style={[styles.iconWrap, active && styles.iconActive]}>
-                            <Text
-                                style={[
-                                    styles.emoji,
-                                    { opacity: active ? 1 : 0.6 },
-                                    Platform.OS === 'ios' ? { fontFamily: 'System' } : null, // avoid custom fonts breaking emojis
-                                ]}
-                            >
-                                {emoji}
-                            </Text>
+                            <Icon color={color} size={24} />
                         </View>
 
                         <Text style={[styles.label, { color }]}>{label}</Text>
@@ -84,17 +79,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
+        paddingTop: 10,
     },
     iconWrap: {
-        marginBottom: 4,
+        marginBottom: 2,
         transform: [{ scale: 1 }],
     },
     iconActive: {
         transform: [{ scale: 1.1 }], // matches your web "scale-110"
-    },
-    emoji: {
-        fontSize: 22, // roughly a 24x24 icon box
-        lineHeight: 24,
     },
     label: {
         fontSize: 12,
