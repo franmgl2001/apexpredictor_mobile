@@ -59,7 +59,7 @@ type Result {
   SK: String!
   entityType: String!
   raceId: String!
-  results: String
+  results: AWSJSON
   season: String!
   category: String!
   createdAt: String

@@ -50,12 +50,13 @@ def handler(event, context):
     sk = f"RESULTS#{race_id}"
     timestamp = datetime.utcnow().isoformat()
 
+    # Store the JSON data as a native DynamoDB Map ("M"), not a string
     item = {
         "PK": pk,
         "SK": sk,
         "entityType": "RESULT",
         "raceId": str(race_id),
-        "results": json.dumps(result_data),
+        "results": result_data,  # Store as Map for AWSJSON
         "season": str(season),
         "category": category,
         "createdAt": timestamp,
