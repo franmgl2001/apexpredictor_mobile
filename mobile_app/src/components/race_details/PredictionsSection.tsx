@@ -191,7 +191,7 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
             try {
                 // Use pre-fetched predictions if available, otherwise fetch individually
                 let predictionEntity: any = null;
-                
+
                 // If predictionsByRaceId is provided, use it exclusively - don't make individual requests
                 // This means predictions are being loaded centrally (e.g., in MyTeamScreen)
                 if (predictionsByRaceId !== undefined) {
@@ -228,11 +228,26 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
 
                 // Entity exists but prediction field is null/empty (normal case)
                 // Handle both 'prediction' (from CachedPrediction) and 'predictions' (legacy) field names
-                const predictionString = predictionEntity.prediction || predictionEntity.predictions;
-                console.log('[PredictionsSection] Prediction string exists:', !!predictionString);
-                console.log('[PredictionsSection] Prediction string type:', typeof predictionString);
-                if (!predictionString || (typeof predictionString === 'string' && predictionString.trim() === '')) {
-                    console.log('[PredictionsSection] Prediction string is empty, setting empty state');
+                const predictionValue = predictionEntity.prediction || predictionEntity.predictions;
+                console.log('[PredictionsSection] Prediction value exists:', !!predictionValue);
+                console.log('[PredictionsSection] Prediction value type:', typeof predictionValue);
+                console.log('[PredictionsSection] Prediction value:', predictionValue);
+
+                // AWSJSON can be a string or object - convert to string for parsing
+                let predictionString: string | null = null;
+                if (predictionValue !== null && predictionValue !== undefined) {
+                    if (typeof predictionValue === 'string') {
+                        predictionString = predictionValue;
+                    } else {
+                        // It's an object/array, stringify it
+                        predictionString = JSON.stringify(predictionValue);
+                    }
+                }
+
+                // Check if prediction string is null, undefined, empty, or the literal string "null"
+                if (!predictionString ||
+                    (typeof predictionString === 'string' && (predictionString.trim() === '' || predictionString.trim() === 'null'))) {
+                    console.log('[PredictionsSection] Prediction string is empty or null, setting empty state');
                     setEmptyState();
                     return;
                 }
@@ -240,8 +255,17 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 // Try to parse and load predictions
                 try {
                     console.log('[PredictionsSection] Parsing prediction string, length:', predictionString.length);
-                    const apiData: ApiPredictionsData = JSON.parse(predictionString);
+                    console.log('[PredictionsSection] Prediction string value:', predictionString);
+                    const apiData: ApiPredictionsData | null = JSON.parse(predictionString);
                     console.log('[PredictionsSection] Parsed API data:', apiData);
+
+                    // Handle case where prediction string is literally "null" (JSON null value)
+                    if (apiData === null) {
+                        console.log('[PredictionsSection] Parsed data is null, setting empty state');
+                        setEmptyState();
+                        return;
+                    }
+
                     const racePredictions = convertApiPredictionsToRacePredictions(apiData);
 
                     // Update local state
@@ -296,9 +320,9 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
         setOpenSprintFor(null);
         setOpenPickerFor(null);
     }, [
-        raceId, 
-        user?.userId, 
-        drivers, 
+        raceId,
+        user?.userId,
+        drivers,
         predictionsByRaceId,
         // Force re-run when map size changes or when the specific raceId becomes available
         predictionsByRaceId?.size,

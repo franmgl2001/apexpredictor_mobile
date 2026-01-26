@@ -16,34 +16,15 @@ $util.unauthorized()
 #set($userId = $identity.sub)
 #set($input = $ctx.args.input)
 #set($pk = "PREDICTION#" + $input.category + "#" + $input.raceId)
-## New stable SK structure: USER#<userId> (doesn't change when points update)
 #set($sk = "USER#" + $userId)
 #set($byUserPK = "USER#" + $userId)
 #set($byUserSK = "RACE#" + $input.category + "#" + $input.season + "#" + $input.raceId)
-## Calculate padded points: 1000000 - points, padded to 7 digits (for GSI sorting)
-## For new predictions, points start at 0 (points are updated separately when race results are calculated)
 #set($points = 0)
 #set($score = 1000000 - $points)
-#set($scoreStr = $score.toString())
-#set($zeros = "0000000")
-#set($scoreLen = $scoreStr.length())
-#set($padLen = 7 - $scoreLen)
-#if($padLen > 0)
-  #set($padding = $zeros.substring(0, $padLen))
-  #set($paddedPoints = $padding + $scoreStr)
-#else
-  #set($paddedPoints = $scoreStr)
-#end
+#set($paddedPoints = "1000000")
 #set($byLeaderboardPK = "PREDICTION#" + $input.category + "#" + $input.raceId)
 #set($byLeaderboardSK = $paddedPoints + "#USER#" + $userId)
 #set($now = $util.time.nowISO8601())
-## Ensure prediction is stored as a JSON string
-## AWSJSON type can be a string or object, so we need to stringify if it's an object
-#if($util.isString($input.prediction))
-  #set($predictionStr = $input.prediction)
-#else
-  #set($predictionStr = $util.toJson($input.prediction))
-#end
 {
   "version": "2018-05-29",
   "operation": "PutItem",
@@ -57,7 +38,7 @@ $util.unauthorized()
     "category": $util.dynamodb.toDynamoDBJson($input.category),
     "season": $util.dynamodb.toDynamoDBJson($input.season),
     "raceId": $util.dynamodb.toDynamoDBJson($input.raceId),
-    "prediction": $util.dynamodb.toDynamoDBJson($predictionStr),
+    "prediction": $util.dynamodb.toDynamoDBJson($input.prediction),
     "points": $util.dynamodb.toDynamoDBJson(0),
     "byUserPK": $util.dynamodb.toDynamoDBJson($byUserPK),
     "byUserSK": $util.dynamodb.toDynamoDBJson($byUserSK),
@@ -72,29 +53,17 @@ $util.unauthorized()
       `#if($ctx.error)
 $util.error($ctx.error.message, $ctx.error.type)
 #end
-#if($ctx.result)
-## Convert prediction from DynamoDB format to regular JSON string
-#set($predictionConverted = $util.dynamodb.fromDynamoDBJson($ctx.result.prediction))
-## If it's already a string, use it; otherwise stringify it to ensure it's a JSON string
-#if($util.isString($predictionConverted))
-  #set($predictionStr = $predictionConverted)
-#else
-  #set($predictionStr = $util.toJson($predictionConverted))
-#end
-## Create result object and set prediction as string
-#set($result = {})
-#set($result.category = $ctx.result.category)
-#set($result.season = $ctx.result.season)
-#set($result.raceId = $ctx.result.raceId)
-#set($result.userId = $ctx.result.userId)
-#set($result.prediction = $predictionStr)
-#set($result.points = $ctx.result.points)
-#set($result.createdAt = $ctx.result.createdAt)
-#set($result.updatedAt = $ctx.result.updatedAt)
-$util.toJson($result)
-#else
-null
-#end`
+#set($input = $ctx.args.input)
+{
+  "category": $util.toJson($input.category),
+  "season": $util.toJson($input.season),
+  "raceId": $util.toJson($input.raceId),
+  "userId": $util.toJson($ctx.identity.sub),
+  "prediction": $util.toJson($input.prediction),
+  "points": 0,
+  "createdAt": $util.toJson($ctx.result.createdAt),
+  "updatedAt": $util.toJson($ctx.result.updatedAt)
+}`
     ),
   });
 
@@ -135,44 +104,28 @@ $util.unauthorized()
       `#if($ctx.error)
 $util.error($ctx.error.message, $ctx.error.type)
 #end
-#if($ctx.result && $ctx.result.items)
 #set($items = [])
 #foreach($item in $ctx.result.items)
-  ## Convert prediction from DynamoDB format to regular JSON string
-  #set($predictionConverted = $util.dynamodb.fromDynamoDBJson($item.prediction))
-  ## If it's already a string, use it; otherwise stringify it to ensure it's a JSON string
-  #if($util.isString($predictionConverted))
-    #set($predictionStr = $predictionConverted)
-  #else
-    #set($predictionStr = $util.toJson($predictionConverted))
-  #end
-  ## Create item object and set prediction as string
-  #set($itemObj = {})
-  #set($itemObj.category = $item.category)
-  #set($itemObj.season = $item.season)
-  #set($itemObj.raceId = $item.raceId)
-  #set($itemObj.userId = $item.userId)
-  #set($itemObj.prediction = $predictionStr)
-  #set($itemObj.points = $item.points)
-  #set($itemObj.createdAt = $item.createdAt)
-  #set($itemObj.updatedAt = $item.updatedAt)
-  $util.qr($items.add($itemObj))
+#set($obj = {
+  "category": $item.category,
+  "season": $item.season,
+  "raceId": $item.raceId,
+  "userId": $item.userId,
+  "prediction": $util.defaultIfNull($item.prediction, {}),
+  "points": $item.points,
+  "createdAt": $item.createdAt,
+  "updatedAt": $item.updatedAt
+})
+$util.qr($items.add($obj))
 #end
-#set($result = {})
-#set($result.items = $items)
-#set($result.nextToken = $ctx.result.nextToken)
-$util.toJson($result)
-#else
 {
-  "items": [],
-  "nextToken": null
-}
-#end`
+  "items": $util.toJson($items),
+  "nextToken": $util.toJson($ctx.result.nextToken)
+}`
     ),
   });
 
   // Query.getMyPrediction resolver
-  // Uses direct GetItem with new stable SK structure
   dataSource.createResolver("GetMyPredictionResolver", {
     typeName: "Query",
     fieldName: "getMyPrediction",
@@ -198,25 +151,16 @@ $util.unauthorized()
 $util.error($ctx.error.message, $ctx.error.type)
 #end
 #if($ctx.result)
-## Convert prediction from DynamoDB format to regular JSON string
-#set($predictionConverted = $util.dynamodb.fromDynamoDBJson($ctx.result.prediction))
-## If it's already a string, use it; otherwise stringify it to ensure it's a JSON string
-#if($util.isString($predictionConverted))
-  #set($predictionStr = $predictionConverted)
-#else
-  #set($predictionStr = $util.toJson($predictionConverted))
-#end
-## Create result object and set prediction as string
-#set($result = {})
-#set($result.category = $ctx.result.category)
-#set($result.season = $ctx.result.season)
-#set($result.raceId = $ctx.result.raceId)
-#set($result.userId = $ctx.result.userId)
-#set($result.prediction = $predictionStr)
-#set($result.points = $ctx.result.points)
-#set($result.createdAt = $ctx.result.createdAt)
-#set($result.updatedAt = $ctx.result.updatedAt)
-$util.toJson($result)
+{
+  "category": $util.toJson($ctx.result.category),
+  "season": $util.toJson($ctx.result.season),
+  "raceId": $util.toJson($ctx.result.raceId),
+  "userId": $util.toJson($ctx.result.userId),
+  "prediction": $util.toJson($util.defaultIfNull($ctx.result.prediction, {})),
+  "points": $util.toJson($ctx.result.points),
+  "createdAt": $util.toJson($ctx.result.createdAt),
+  "updatedAt": $util.toJson($ctx.result.updatedAt)
+}
 #else
 null
 #end`
@@ -259,39 +203,24 @@ $util.unauthorized()
       `#if($ctx.error)
 $util.error($ctx.error.message, $ctx.error.type)
 #end
-#if($ctx.result && $ctx.result.items)
 #set($items = [])
 #foreach($item in $ctx.result.items)
-  ## Convert prediction from DynamoDB format to regular JSON string
-  #set($predictionConverted = $util.dynamodb.fromDynamoDBJson($item.prediction))
-  ## If it's already a string, use it; otherwise stringify it to ensure it's a JSON string
-  #if($util.isString($predictionConverted))
-    #set($predictionStr = $predictionConverted)
-  #else
-    #set($predictionStr = $util.toJson($predictionConverted))
-  #end
-  ## Create item object and set prediction as string
-  #set($itemObj = {})
-  #set($itemObj.category = $item.category)
-  #set($itemObj.season = $item.season)
-  #set($itemObj.raceId = $item.raceId)
-  #set($itemObj.userId = $item.userId)
-  #set($itemObj.prediction = $predictionStr)
-  #set($itemObj.points = $item.points)
-  #set($itemObj.createdAt = $item.createdAt)
-  #set($itemObj.updatedAt = $item.updatedAt)
-  $util.qr($items.add($itemObj))
+#set($obj = {
+  "category": $item.category,
+  "season": $item.season,
+  "raceId": $item.raceId,
+  "userId": $item.userId,
+  "prediction": $util.defaultIfNull($item.prediction, {}),
+  "points": $item.points,
+  "createdAt": $item.createdAt,
+  "updatedAt": $item.updatedAt
+})
+$util.qr($items.add($obj))
 #end
-#set($result = {})
-#set($result.items = $items)
-#set($result.nextToken = $ctx.result.nextToken)
-$util.toJson($result)
-#else
 {
-  "items": [],
-  "nextToken": null
-}
-#end`
+  "items": $util.toJson($items),
+  "nextToken": $util.toJson($ctx.result.nextToken)
+}`
     ),
   });
 }

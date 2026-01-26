@@ -91,7 +91,7 @@ export async function upsertPrediction(
     const startTime = Date.now();
 
     // Validate and normalize the JSON string
-    // Storing as String type (simpler than AWSJSON)
+    // AWSJSON must be sent as a JSON string from the client
     let predictionJson: string;
     try {
         // Parse to validate, then stringify to ensure clean JSON
@@ -109,7 +109,8 @@ export async function upsertPrediction(
     });
 
     try {
-        // Pass prediction as a JSON string - String type in schema
+        // Pass prediction as JSON string for AWSJSON type
+        // AWSJSON scalar accepts JSON string from client, resolver handles conversion
         const result = await client.graphql({
             query: UPSERT_PREDICTION,
             variables: {
@@ -117,7 +118,7 @@ export async function upsertPrediction(
                     category,
                     season,
                     raceId,
-                    prediction: predictionJson, // JSON string
+                    prediction: predictionJson, // Send as JSON string for AWSJSON
                 },
             },
         }) as GraphQLResult<UpsertPredictionResponse>;

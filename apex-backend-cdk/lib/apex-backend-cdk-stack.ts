@@ -34,6 +34,7 @@ export class ApexBackendStack extends cdk.Stack {
       indexName: "byUser",
       partitionKey: { name: "byUserPK", type: dynamodb.AttributeType.STRING },
       sortKey: { name: "byUserSK", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
     // Add GSI2: LEAGUE#<code>

@@ -11,7 +11,7 @@ import { upsertPrediction, listMyPredictions } from '../services/graphql';
 
 // Local type for cached predictions
 interface CachedPrediction {
-    prediction?: string;
+    prediction?: string | null;
     points?: number;
 }
 
@@ -58,10 +58,22 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
 
                 predictions.forEach((pred) => {
                     console.log('[MyTeamScreen] Setting prediction for raceId:', pred.raceId);
+                    console.log('[MyTeamScreen] Prediction value:', pred.prediction);
+                    console.log('[MyTeamScreen] Prediction type:', typeof pred.prediction);
+
+                    // AWSJSON can be a string or object - convert to string for storage
+                    let predictionString: string | null = null;
+                    if (pred.prediction !== null && pred.prediction !== undefined) {
+                        if (typeof pred.prediction === 'string') {
+                            predictionString = pred.prediction;
+                        } else {
+                            // It's an object/array, stringify it
+                            predictionString = JSON.stringify(pred.prediction);
+                        }
+                    }
+
                     predictionsMap.set(pred.raceId, {
-                        prediction: typeof pred.prediction === 'string'
-                            ? pred.prediction
-                            : JSON.stringify(pred.prediction),
+                        prediction: predictionString,
                         points: pred.points,
                     });
                 });
