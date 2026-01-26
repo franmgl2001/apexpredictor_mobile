@@ -17,6 +17,7 @@ import {
     type LeaderboardEntry,
 } from '../services/graphql/leaderboard';
 import { getMyLeagues, getLeagueLeaderboard, type LeagueMember, type LeagueLeaderboardEntry } from '../services/graphql/leagues';
+import { getRaceLeaderboard } from '../services/graphql/predictions';
 
 type LeaderboardScreenProps = {
     onProfilePress: () => void;
@@ -134,8 +135,44 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             setIsLoading(true);
             setError(null);
 
-            // TODO: Implement race-specific leaderboard
-            setRaceLeaderboard([]);
+            // Fetch race leaderboard - all predictions for this race (sorted by points descending)
+            const predictions = await getRaceLeaderboard(category, raceId, 100);
+
+            // Fetch season leaderboard to get usernames for userIds
+            // Create a userId -> username map
+            const seasonLeaderboard = await getLeaderboard(category, season, 100);
+            const userIdToUsername = new Map<string, string>();
+            const userIdToNationality = new Map<string, string | undefined>();
+            
+            seasonLeaderboard.items.forEach((entry) => {
+                userIdToUsername.set(entry.userId, entry.username);
+                userIdToNationality.set(entry.userId, entry.nationality);
+            });
+
+            // Map predictions to leaderboard entries
+            const raceEntries: LeaderboardEntryData[] = predictions.map((pred, index) => {
+                const username = userIdToUsername.get(pred.userId) || 'Unknown';
+                const nationality = userIdToNationality.get(pred.userId);
+                
+                // Convert prediction to JSON string for the modal
+                let predictionJson: string | null = null;
+                if (pred.prediction) {
+                    if (typeof pred.prediction === 'string') {
+                        predictionJson = pred.prediction;
+                    } else {
+                        predictionJson = JSON.stringify(pred.prediction);
+                    }
+                }
+
+                return {
+                    username,
+                    points: pred.points,
+                    nationality,
+                    predictions: predictionJson,
+                };
+            });
+
+            setRaceLeaderboard(raceEntries);
         } catch (err: any) {
             console.error('Error fetching race leaderboard:', err);
             const errorMessage = err?.message || err?.errors?.[0]?.message || 'Failed to load race leaderboard';

@@ -1,15 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useData, Driver as ContextDriver } from '../../contexts/DataContext';
-import { getSeasonData } from '../../services/graphql';
 import { calculateDriverPoints, calculateBonusPoints, type RaceResultsData, type PredictionData as PointsPredictionData, type BonusPoints } from '../../utils/pointsCalculator';
-
-// Local type for race results from season data
-interface RaceResultEntity {
-    raceId?: string;
-    SK?: string;
-    results?: string | RaceResultsData;
-}
 
 type PredictionData = {
     gridOrder: Array<{ position: number; driverNumber: number | null }>;
@@ -45,7 +37,7 @@ function getDriverByNumber(drivers: Driver[], number: number | null): Driver | n
 }
 
 export default function PredictionsModal({ visible, onClose, username, predictionsJson, raceId }: PredictionsModalProps) {
-    const { drivers: contextDrivers, races } = useData();
+    const { drivers: contextDrivers, races, raceResultsByRaceId } = useData();
     const [raceResults, setRaceResults] = useState<RaceResultsData | null>(null);
     const [pointsData, setPointsData] = useState<Map<number, { points: number; breakdown: any }>>(new Map());
     const [totalPoints, setTotalPoints] = useState<number>(0);
@@ -91,78 +83,29 @@ export default function PredictionsModal({ visible, onClose, username, predictio
         }
     }, [predictionsJson]);
 
-    // Fetch race results when modal opens and raceId is available
+    // Get race results from DataContext when modal opens and raceId is available
     useEffect(() => {
         if (!visible || !raceId) {
             setRaceResults(null);
             setPointsData(new Map());
             setTotalPoints(0);
             setBonusPoints(null);
+            setIsLoadingResults(false);
             return;
         }
 
-        const fetchResults = async () => {
-            setIsLoadingResults(true);
-            try {
-                // Use getSeasonData to fetch all data in one query (more efficient)
-                const seasonData = await getSeasonData();
-                // Find the result for this specific race
-                const raceResult = seasonData.results.find((result: RaceResultEntity) => {
-                    // Use raceId field directly (more reliable than parsing SK)
-                    return result.raceId === raceId;
-                });
+        // Use race results from DataContext (already fetched when app started)
+        const results = raceResultsByRaceId.get(raceId);
 
-                if (!raceResult) {
-                    console.log('[PredictionsModal] No race results found for raceId:', raceId);
-                    setRaceResults(null);
-                    return;
-                }
-
-                if (!raceResult.results) {
-                    console.warn(`[PredictionsModal] Race result missing results field for raceId: ${raceId}`);
-                    setRaceResults(null);
-                    return;
-                }
-
-                try {
-                    // Handle case where results might be a string or already an object
-                    let parsedResults: RaceResultsData;
-                    if (typeof raceResult.results === 'string') {
-                        parsedResults = JSON.parse(raceResult.results) as RaceResultsData;
-                    } else if (typeof raceResult.results === 'object' && raceResult.results !== null) {
-                        // Already parsed
-                        parsedResults = raceResult.results as RaceResultsData;
-                    } else {
-                        console.error(`[PredictionsModal] Race results is not a valid format for raceId: ${raceId}`, typeof raceResult.results);
-                        setRaceResults(null);
-                        return;
-                    }
-
-                    // Validate parsed results structure
-                    if (!parsedResults || typeof parsedResults !== 'object') {
-                        console.error(`[PredictionsModal] Parsed results is not an object for raceId: ${raceId}`, parsedResults);
-                        setRaceResults(null);
-                        return;
-                    }
-
-                    setRaceResults(parsedResults);
-                } catch (error) {
-                    console.error('[PredictionsModal] Error parsing race results JSON:', error);
-                    console.error('[PredictionsModal] Raw results (first 200 chars):',
-                        typeof raceResult.results === 'string' ? raceResult.results.substring(0, 200) : raceResult.results
-                    );
-                    setRaceResults(null);
-                }
-            } catch (error) {
-                console.error('[PredictionsModal] Error fetching race results:', error);
-                setRaceResults(null);
-            } finally {
-                setIsLoadingResults(false);
-            }
-        };
-
-        fetchResults();
-    }, [visible, raceId]);
+        if (results) {
+            setRaceResults(results);
+            setIsLoadingResults(false);
+        } else {
+            // No results available for this race
+            setRaceResults(null);
+            setIsLoadingResults(false);
+        }
+    }, [visible, raceId, raceResultsByRaceId]);
 
     // Calculate points when predictions and race results are available
     useEffect(() => {

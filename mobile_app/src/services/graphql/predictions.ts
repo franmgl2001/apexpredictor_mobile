@@ -206,3 +206,86 @@ export async function listMyPredictions(
         throw error;
     }
 }
+
+const GET_RACE_LEADERBOARD = /* GraphQL */ `
+    query GetRaceLeaderboard($category: String!, $raceId: String!, $limit: Int, $nextToken: String) {
+        getRaceLeaderboard(category: $category, raceId: $raceId, limit: $limit, nextToken: $nextToken) {
+            items {
+                category
+                season
+                raceId
+                userId
+                prediction
+                points
+                createdAt
+                updatedAt
+            }
+            nextToken
+        }
+    }
+`;
+
+interface GetRaceLeaderboardResponse {
+    getRaceLeaderboard: {
+        items: RacePrediction[];
+        nextToken: string | null;
+    };
+}
+
+/**
+ * Fetches race leaderboard - all predictions for a specific race, sorted by points (descending)
+ * Uses the byLeaderboard GSI to query predictions for a race
+ * @param category The racing category (e.g., "F1", "MotoGP")
+ * @param raceId The race ID (e.g., "australia2026")
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns Array of race predictions sorted by points
+ */
+export async function getRaceLeaderboard(
+    category: string,
+    raceId: string,
+    limit: number = 50,
+    nextToken?: string
+): Promise<RacePrediction[]> {
+    await fetchAuthSession();
+
+    const startTime = Date.now();
+
+    const variables: {
+        category: string;
+        raceId: string;
+        limit: number;
+        nextToken?: string;
+    } = {
+        category,
+        raceId,
+        limit,
+    };
+
+    if (nextToken) {
+        variables.nextToken = nextToken;
+    }
+
+    const logId = requestLogger.logRequest('getRaceLeaderboard', variables);
+
+    try {
+        const result = await client.graphql({
+            query: GET_RACE_LEADERBOARD,
+            variables,
+        }) as GraphQLResult<GetRaceLeaderboardResponse>;
+
+        const duration = Date.now() - startTime;
+
+        if (result.errors && result.errors.length > 0) {
+            throw new Error(result.errors[0].message || 'Failed to fetch race leaderboard');
+        }
+
+        const items = result.data?.getRaceLeaderboard.items || [];
+        requestLogger.logSuccess(logId, items.length, duration);
+        return items;
+    } catch (error: any) {
+        const duration = Date.now() - startTime;
+        requestLogger.logError(logId, error, duration);
+        throw error;
+    }
+}

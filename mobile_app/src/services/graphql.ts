@@ -23,4 +23,4 @@ export {
 } from './graphql/leaderboard';
 
 // Re-export prediction queries and mutations
-export { upsertPrediction, listMyPredictions } from './graphql/predictions';
+export { upsertPrediction, listMyPredictions, getRaceLeaderboard } from './graphql/predictions';
