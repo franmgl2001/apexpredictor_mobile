@@ -102,7 +102,6 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
         // If predictionsByRaceId is provided but empty, wait for it to be populated
         // But only wait if we haven't checked for this raceId yet
         if (predictionsByRaceId !== undefined && predictionsByRaceId.size === 0) {
-            console.log('[PredictionsSection] Predictions map is empty, waiting for predictions to load...');
             // Don't return early - let it try to fetch, it will set empty state if not found
         }
 
@@ -195,12 +194,9 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 // If predictionsByRaceId is provided, use it exclusively - don't make individual requests
                 // This means predictions are being loaded centrally (e.g., in MyTeamScreen)
                 if (predictionsByRaceId !== undefined) {
-                    console.log('[PredictionsSection] Looking for raceId:', raceId);
-                    console.log('[PredictionsSection] Available keys:', Array.from(predictionsByRaceId.keys()));
                     // Check if prediction exists in the map
                     if (predictionsByRaceId.has(raceId)) {
                         predictionEntity = predictionsByRaceId.get(raceId);
-                        console.log('[PredictionsSection] Found prediction entity:', predictionEntity ? 'exists' : 'null');
                         // If null, it means no prediction exists (expected case)
                         if (!predictionEntity) {
                             setEmptyState();
@@ -208,7 +204,6 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                         }
                     } else {
                         // RaceId not in map - no prediction exists for this race
-                        console.log('[PredictionsSection] RaceId not found in map');
                         // Don't make individual request, just set empty state
                         setEmptyState();
                         return;
@@ -229,9 +224,6 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 // Entity exists but prediction field is null/empty (normal case)
                 // Handle both 'prediction' (from CachedPrediction) and 'predictions' (legacy) field names
                 const predictionValue = predictionEntity.prediction || predictionEntity.predictions;
-                console.log('[PredictionsSection] Prediction value exists:', !!predictionValue);
-                console.log('[PredictionsSection] Prediction value type:', typeof predictionValue);
-                console.log('[PredictionsSection] Prediction value:', predictionValue);
 
                 // AWSJSON can be a string or object - convert to string for parsing
                 let predictionString: string | null = null;
@@ -247,21 +239,16 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                 // Check if prediction string is null, undefined, empty, or the literal string "null"
                 if (!predictionString ||
                     (typeof predictionString === 'string' && (predictionString.trim() === '' || predictionString.trim() === 'null'))) {
-                    console.log('[PredictionsSection] Prediction string is empty or null, setting empty state');
                     setEmptyState();
                     return;
                 }
 
                 // Try to parse and load predictions
                 try {
-                    console.log('[PredictionsSection] Parsing prediction string, length:', predictionString.length);
-                    console.log('[PredictionsSection] Prediction string value:', predictionString);
                     const apiData: ApiPredictionsData | null = JSON.parse(predictionString);
-                    console.log('[PredictionsSection] Parsed API data:', apiData);
 
                     // Handle case where prediction string is literally "null" (JSON null value)
                     if (apiData === null) {
-                        console.log('[PredictionsSection] Parsed data is null, setting empty state');
                         setEmptyState();
                         return;
                     }
@@ -282,8 +269,7 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
                         return next;
                     });
                 } catch (parseError) {
-                    // JSON parsing failed - log as error but use empty state
-                    console.error('Error parsing predictions JSON:', parseError);
+                    // JSON parsing failed - use empty state
                     setEmptyState();
                 }
             } catch (error: any) {
@@ -456,7 +442,6 @@ export default function PredictionsSection({ raceId, timeLeft, isClosed, hasSpri
             setTotalPoints(total);
             setBonusPoints({ total: bonus.total, earned: bonus.total > 0 });
         } catch (error) {
-            console.error('[PredictionsSection] Error calculating points:', error);
             setTotalPoints(0);
             setBonusPoints({ total: 0, earned: false });
         }

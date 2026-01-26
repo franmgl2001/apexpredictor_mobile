@@ -49,18 +49,11 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
             try {
                 // Fetch all predictions using the byUser GSI
                 const predictions = await listMyPredictions(undefined, undefined, 100);
-                console.log('[MyTeamScreen] Fetched predictions:', predictions.length);
-                console.log('[MyTeamScreen] Prediction raceIds:', predictions.map(p => p.raceId));
-                console.log('[MyTeamScreen] Local race raceIds:', localRaces.map(r => r.raceId));
 
                 // Convert predictions array to a Map keyed by raceId
                 const predictionsMap = new Map<string, CachedPrediction | null>();
 
                 predictions.forEach((pred) => {
-                    console.log('[MyTeamScreen] Setting prediction for raceId:', pred.raceId);
-                    console.log('[MyTeamScreen] Prediction value:', pred.prediction);
-                    console.log('[MyTeamScreen] Prediction type:', typeof pred.prediction);
-
                     // AWSJSON can be a string or object - convert to string for storage
                     let predictionString: string | null = null;
                     if (pred.prediction !== null && pred.prediction !== undefined) {
@@ -85,7 +78,6 @@ export default function MyTeamScreen({ onProfilePress }: MyTeamScreenProps) {
                     }
                 });
 
-                console.log('[MyTeamScreen] Final predictionsMap keys:', Array.from(predictionsMap.keys()));
                 setPredictionsByRaceId(predictionsMap);
             } catch (error) {
                 console.error('Failed to fetch predictions:', error);
