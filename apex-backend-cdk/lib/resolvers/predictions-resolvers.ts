@@ -218,6 +218,53 @@ $util.error($ctx.error.message, $ctx.error.type)
 $util.qr($items.add($obj))
 #end
 {
+      "items": $util.toJson($items),
+      "nextToken": $util.toJson($ctx.result.nextToken)
+}`
+    ),
+  });
+
+  // Query.getRaceLeaderboard resolver
+  // Uses byLeaderboard GSI to get all predictions for a race, sorted by points (descending)
+  dataSource.createResolver("GetRaceLeaderboardResolver", {
+    typeName: "Query",
+    fieldName: "getRaceLeaderboard",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($byLeaderboardPK = "PREDICTION#" + $ctx.args.category + "#" + $ctx.args.raceId)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byLeaderboard",
+  "query": {
+    "expression": "byLeaderboardPK = :pk",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byLeaderboardPK)
+    }
+  },
+  "scanIndexForward": true,
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#if($ctx.error)
+$util.error($ctx.error.message, $ctx.error.type)
+#end
+#set($items = [])
+#foreach($item in $ctx.result.items)
+#set($obj = {
+  "category": $item.category,
+  "season": $item.season,
+  "raceId": $item.raceId,
+  "userId": $item.userId,
+  "prediction": $util.defaultIfNull($item.prediction, {}),
+  "points": $item.points,
+  "createdAt": $item.createdAt,
+  "updatedAt": $item.updatedAt
+})
+$util.qr($items.add($obj))
+#end
+{
   "items": $util.toJson($items),
   "nextToken": $util.toJson($ctx.result.nextToken)
 }`

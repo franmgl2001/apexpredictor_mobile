@@ -249,6 +249,8 @@ type Query {
   getLeagueLeaderboard(leagueId: String!, category: String!, season: String!, limit: Int, nextToken: String): LeagueLeaderboardConnection!
   # Get all leaderboard entries for a specific user across all categories/seasons
   getLeaderboardsByUserId(userId: ID!, limit: Int, nextToken: String): LeaderboardConnection!
+  # Get race leaderboard - all predictions for a specific race (sorted by points)
+  getRaceLeaderboard(category: String!, raceId: String!, limit: Int, nextToken: String): RacePredictionConnection!
 }
 
 type Mutation {
