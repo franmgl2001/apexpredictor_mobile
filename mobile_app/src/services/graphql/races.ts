@@ -172,3 +172,163 @@ export async function getRaces(
     throw error;
   }
 }
+
+/**
+ * Result type matching the GraphQL Result schema
+ */
+export type Result = {
+  PK: string;
+  SK: string;
+  entityType: string;
+  raceId: string;
+  results?: any; // AWSJSON - can be string or object
+  season: string;
+  category: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+const GET_RESULTS = `
+  query GetResults($category: String!, $season: String!, $limit: Int, $nextToken: String) {
+    getResults(category: $category, season: $season, limit: $limit, nextToken: $nextToken) {
+      items {
+        PK
+        SK
+        entityType
+        raceId
+        results
+        season
+        category
+        createdAt
+        updatedAt
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
+interface GetResultsResponse {
+  getResults: {
+    items: Result[];
+    nextToken: string | null;
+    __typename: string;
+  };
+}
+
+/**
+ * Fetches race results for a specific category and season
+ * Automatically normalizes the category input to a valid category prefix
+ * @param category Category name (e.g., "F1", "Formula 1", "MotoGP", etc.) - will be normalized
+ * @param season Season year (e.g., "2026")
+ * @param limit Optional limit (default: 100)
+ * @param nextToken Optional pagination token
+ * @returns Array of result entities
+ */
+export async function getResults(
+  category: string,
+  season: string,
+  limit: number = 100,
+  nextToken?: string
+): Promise<Result[]> {
+  const startTime = Date.now();
+
+  // Normalize category to ensure it's one of the valid prefixes
+  const normalizedCategory = normalizeCategory(category);
+  const currentSeason = season || new Date().getFullYear().toString();
+
+  const variables: {
+    category: string;
+    season: string;
+    limit: number;
+    nextToken?: string;
+  } = {
+    category: normalizedCategory,
+    season: currentSeason,
+    limit,
+  };
+
+  if (nextToken) {
+    variables.nextToken = nextToken;
+  }
+
+  const logId = requestLogger.logRequest('getResults', variables);
+
+  try {
+    const result = await client.graphql({
+      query: GET_RESULTS,
+      variables,
+    }) as GraphQLResult<GetResultsResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      const errorMessage = result.errors[0].message || 'Failed to fetch results';
+      requestLogger.logError(logId, new Error(errorMessage), duration);
+      throw new Error(errorMessage);
+    }
+
+    const items = result.data?.getResults.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Season data type containing races, drivers, and results
+ */
+export type SeasonData = {
+  races: Race[];
+  drivers: any[]; // Driver type from drivers.ts
+  results: Result[];
+};
+
+/**
+ * Fetches all season data (races, drivers, and results) in parallel
+ * @param category Category name (e.g., "F1", "Formula 1", "MotoGP", etc.) - will be normalized
+ * @param season Season year (e.g., "2026")
+ * @returns Combined season data
+ */
+export async function getSeasonData(
+  category: string = 'f1',
+  season?: string
+): Promise<SeasonData> {
+  const normalizedCategory = normalizeCategory(category);
+  const currentSeason = season || new Date().getFullYear().toString();
+
+  // Import getDrivers dynamically to avoid circular dependencies
+  const { getDrivers } = await import('./drivers');
+
+  // Fetch all data in parallel
+  const [races, drivers, results] = await Promise.all([
+    getRaces(normalizedCategory, currentSeason, 100),
+    getDrivers(normalizedCategory, currentSeason, 100),
+    getResults(normalizedCategory, currentSeason, 100),
+  ]);
+
+  return {
+    races,
+    drivers,
+    results,
+  };
+}
+
+/**
+ * Fetches race results for a specific race
+ * @param category Category name (e.g., "F1", "Formula 1", "MotoGP", etc.) - will be normalized
+ * @param season Season year (e.g., "2026")
+ * @param raceId Race ID (e.g., "australia2026")
+ * @returns Race result or null if not found
+ */
+export async function getRaceResults(
+  category: string,
+  season: string,
+  raceId: string
+): Promise<Result | null> {
+  const results = await getResults(category, season, 100);
+  return results.find((r) => r.raceId === raceId) || null;
+}

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getRaces, getDrivers, getMyProfile, type UserProfile, type Race, type Driver as GraphQLDriver } from '../services/graphql';
+import { getRaces, getDrivers, getResults, getMyProfile, type UserProfile, type Race, type Driver as GraphQLDriver, type Result } from '../services/graphql';
 import { RaceEntity } from '../components/race_details/RaceDetailsCard';
 import { useAuth } from './AuthContext';
 import { RaceResultsData } from '../utils/pointsCalculator';
@@ -83,7 +83,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setRacesError(null);
             const category = 'f1';
             const season = new Date().getFullYear().toString();
-            const racesData = await getRaces(category, season, 100);
+
+            // Fetch races and results in parallel
+            // Handle getResults errors gracefully - if it fails, just use empty results
+            let racesData: Race[] = [];
+            let resultsData: Result[] = [];
+
+            try {
+                [racesData, resultsData] = await Promise.all([
+                    getRaces(category, season, 100),
+                    getResults(category, season, 100).catch((err) => {
+                        console.warn('[DataContext] Error fetching results, continuing without results:', err);
+                        return []; // Return empty array if results fail
+                    }),
+                ]);
+            } catch (err: any) {
+                // If getRaces fails, that's a critical error
+                throw err;
+            }
 
             // Map all race data to RaceEntity format
             const allRaceEntities: RaceEntity[] = racesData
@@ -104,12 +121,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 .sort((a, b) => Date.parse(a.qualyDate) - Date.parse(b.qualyDate));
 
             setRaces(allRaceEntities);
-            // For now, set racesWithResults to empty - can be updated later if needed
-            setRacesWithResults([]);
+
+            // Process results and create raceResultsByRaceId map
+            const resultsMap = new Map<string, RaceResultsData>();
+            const raceIdsWithResults = new Set<string>();
+
+            resultsData
+                .filter((item): item is Result => item.entityType === 'RESULT' && !!item.results)
+                .forEach((result) => {
+                    try {
+                        // AWSJSON can be a string or object - normalize to object
+                        // Handle it the same way predictions are handled
+                        let parsedResults: RaceResultsData | null = null;
+
+                        if (result.results === null || result.results === undefined) {
+                            return; // Skip null/undefined results
+                        }
+
+                        if (typeof result.results === 'string') {
+                            // It's a JSON string, parse it
+                            // Check if it's already a valid JSON string or needs parsing
+                            const trimmed = result.results.trim();
+                            if (trimmed === '' || trimmed === 'null') {
+                                return; // Skip empty or null strings
+                            }
+                            // Check if it looks like JSON (starts with { or [)
+                            if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+                                console.error(`[DataContext] Results string doesn't look like JSON for raceId ${result.raceId}. First 100 chars:`, trimmed.substring(0, 100));
+                                return;
+                            }
+                            try {
+                                parsedResults = JSON.parse(result.results) as RaceResultsData;
+                            } catch (parseError) {
+                                // If parsing fails, log the actual value for debugging
+                                console.error(`[DataContext] Error parsing results string for raceId ${result.raceId}:`, parseError);
+                                console.error(`[DataContext] Results string (first 200 chars):`, result.results.substring(0, 200));
+                                return;
+                            }
+                        } else if (typeof result.results === 'object' && result.results !== null) {
+                            // It's already an object, use it directly (AWSJSON from DynamoDB Map)
+                            // This is the expected case when stored as Map in DynamoDB
+                            parsedResults = result.results as RaceResultsData;
+                        } else {
+                            // Invalid type
+                            console.error(`[DataContext] Invalid results type for raceId ${result.raceId}:`, typeof result.results, 'Value:', result.results);
+                            return;
+                        }
+
+                        // Validate the structure - must have gridOrder array (same format as predictions)
+                        if (parsedResults &&
+                            parsedResults.gridOrder &&
+                            Array.isArray(parsedResults.gridOrder) &&
+                            parsedResults.gridOrder.length > 0) {
+                            resultsMap.set(result.raceId, parsedResults);
+                            raceIdsWithResults.add(result.raceId);
+                        } else {
+                            console.warn(`[DataContext] Results for raceId ${result.raceId} missing gridOrder or invalid structure. Parsed:`, parsedResults);
+                        }
+                    } catch (parseError) {
+                        // Skip invalid results
+                        console.error(`[DataContext] Error processing results for raceId ${result.raceId}:`, parseError);
+                        console.error(`[DataContext] Results type:`, typeof result.results);
+                        console.error(`[DataContext] Results value (first 500 chars):`,
+                            typeof result.results === 'string'
+                                ? result.results.substring(0, 500)
+                                : JSON.stringify(result.results).substring(0, 500));
+                    }
+                });
+
+            setRaceResultsByRaceId(resultsMap);
+
+            // Filter races that have results
+            const racesWithResultsList = allRaceEntities.filter((race) =>
+                raceIdsWithResults.has(race.raceId)
+            );
+            setRacesWithResults(racesWithResultsList);
         } catch (err: any) {
             setRacesError(err.message || 'Failed to load races');
             setRaces([]);
             setRacesWithResults([]);
+            setRaceResultsByRaceId(new Map());
         }
     };
 
@@ -138,12 +229,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (isAuthenticated) {
             setIsLoading(true);
             // Fetch drivers and races in parallel
-            Promise.all([fetchDrivers(), fetchRaces()]).finally(() => {
-                setIsLoading(false);
-            });
+            // Wrap in try-catch to prevent errors from breaking the provider
+            Promise.all([fetchDrivers(), fetchRaces()])
+                .catch((error) => {
+                    console.error('[DataContext] Error fetching data:', error);
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
             // Fetch profile if userId is available
             if (user?.userId) {
-                fetchProfile();
+                fetchProfile().catch((error) => {
+                    console.error('[DataContext] Error fetching profile:', error);
+                });
             }
         } else {
             // Clear data when not authenticated

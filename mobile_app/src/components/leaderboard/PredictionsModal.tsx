@@ -108,8 +108,8 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                 const seasonData = await getSeasonData();
                 // Find the result for this specific race
                 const raceResult = seasonData.results.find((result: RaceResultEntity) => {
-                    const resultRaceId = result.raceId || (result.SK?.startsWith('results#') ? result.SK.replace('results#', '') : null);
-                    return resultRaceId === raceId;
+                    // Use raceId field directly (more reliable than parsing SK)
+                    return result.raceId === raceId;
                 });
 
                 if (!raceResult) {

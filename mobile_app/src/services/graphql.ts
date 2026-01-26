@@ -7,7 +7,7 @@
 export { getMyProfile, saveUserProfile, type UserProfile } from './graphql/users';
 
 // Re-export race queries
-export { getRaceResults, getSeasonData, getRaces, getResults, normalizeCategory, type SeasonData, type Race } from './graphql/races';
+export { getRaceResults, getSeasonData, getRaces, getResults, normalizeCategory, type SeasonData, type Race, type Result } from './graphql/races';
 
 // Re-export driver queries and types
 export { getDrivers, type Driver } from './graphql/drivers';
