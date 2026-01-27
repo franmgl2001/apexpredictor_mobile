@@ -194,7 +194,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                     {predictions.gridOrder.map((item) => {
                                         const driver = getDriverByNumber(drivers, item.driverNumber);
                                         const driverPoints = item.driverNumber ? pointsData.get(item.driverNumber) : null;
-                                        const gridPoints = driverPoints?.breakdown?.gridPosition || 0;
+                                        const gridPoints = driverPoints?.breakdown?.gridPosition ?? 0;
                                         return (
                                             <View key={item.position} style={styles.gridRow}>
                                                 <View
@@ -247,11 +247,9 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                                             : 'Not selected'}
                                                     </Text>
                                                 )}
-                                                {gridPoints > 0 && (
-                                                    <View style={styles.pointsBadge}>
-                                                        <Text style={styles.pointsText}>+{gridPoints}</Text>
-                                                    </View>
-                                                )}
+                                                <View style={styles.pointsBadge}>
+                                                    <Text style={styles.pointsText}>+{gridPoints}</Text>
+                                                </View>
                                             </View>
                                         );
                                     })}
@@ -264,7 +262,7 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                         {predictions.sprintPositions.map((item, idx: number) => {
                                             const driver = getDriverByNumber(drivers, item.driverNumber);
                                             const driverPoints = item.driverNumber ? pointsData.get(item.driverNumber) : null;
-                                            const sprintPoints = driverPoints?.breakdown?.sprintPosition || 0;
+                                            const sprintPoints = driverPoints?.breakdown?.sprintPosition ?? 0;
                                             return (
                                                 <View key={idx} style={styles.gridRow}>
                                                     <View style={[styles.positionBadge, { backgroundColor: '#e5e7eb' }]}>
@@ -293,11 +291,9 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                                             {item.driverNumber ? `Driver #${item.driverNumber}` : 'Not selected'}
                                                         </Text>
                                                     )}
-                                                    {sprintPoints > 0 && (
-                                                        <View style={styles.pointsBadge}>
-                                                            <Text style={styles.pointsText}>+{sprintPoints}</Text>
-                                                        </View>
-                                                    )}
+                                                    <View style={styles.pointsBadge}>
+                                                        <Text style={styles.pointsText}>+{sprintPoints}</Text>
+                                                    </View>
                                                 </View>
                                             );
                                         })}
