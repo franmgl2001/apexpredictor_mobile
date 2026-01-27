@@ -29,6 +29,8 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import VerificationCodeScreen from './src/screens/VerificationCodeScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import UsernamePromptModal from './src/components/UsernamePromptModal';
 
 function App() {
@@ -46,10 +48,20 @@ function App() {
   );
 }
 
-type AuthScreen = 'signin' | 'signup' | 'verification';
+type AuthScreen = 'signin' | 'signup' | 'verification' | 'forgot' | 'reset';
 
 function AppContent() {
-  const { isAuthenticated, isLoading, signIn, signUp, confirmSignUp, resendSignUpCode, user } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    signIn,
+    signUp,
+    confirmSignUp,
+    resendSignUpCode,
+    resetPassword,
+    confirmResetPassword,
+    user,
+  } = useAuth();
   const { profile, profileLoading, profileError, refetchProfile } = useData();
   const [route, setRoute] = useState<RouteKey>('myteam');
   const [authScreen, setAuthScreen] = useState<AuthScreen>('signin');
@@ -155,6 +167,48 @@ function AppContent() {
 
   // Show authentication screens if not authenticated
   if (!isAuthenticated) {
+    if (authScreen === 'forgot') {
+      return (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+          <ForgotPasswordScreen
+            onSubmitEmail={async (email) => {
+              setPendingEmail(email);
+              try {
+                await resetPassword(email);
+                // After successfully starting reset, go to reset screen
+                setAuthScreen('reset');
+              } catch (error: any) {
+                // Let the screen handle showing the error
+                throw error;
+              }
+            }}
+            onNavigateBackToSignIn={() => setAuthScreen('signin')}
+            isLoading={isLoading}
+          />
+        </SafeAreaView>
+      );
+    }
+
+    if (authScreen === 'reset') {
+      return (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+          <ResetPasswordScreen
+            email={pendingEmail}
+            onSubmitNewPassword={async (code, newPassword) => {
+              try {
+                await confirmResetPassword(pendingEmail, code, newPassword);
+              } catch (error: any) {
+                // Let the screen handle showing the error
+                throw error;
+              }
+            }}
+            onNavigateBackToSignIn={() => setAuthScreen('signin')}
+            isLoading={isLoading}
+          />
+        </SafeAreaView>
+      );
+    }
+
     if (authScreen === 'verification') {
       return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -226,6 +280,7 @@ function AppContent() {
             }
           }}
           onNavigateToSignUp={() => setAuthScreen('signup')}
+          onForgotPassword={() => setAuthScreen('forgot')}
           isLoading={isSigningIn}
         />
       </SafeAreaView>
