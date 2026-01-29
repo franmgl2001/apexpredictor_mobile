@@ -512,6 +512,74 @@ $util.toJson({
     ),
   });
 
+  // Query.getLeagueRaceLeaderboard resolver
+  // Uses byLeaderboard GSI to get all predictions for a race in a league, sorted by points (descending)
+  dataSource.createResolver("GetLeagueRaceLeaderboardResolver", {
+    typeName: "Query",
+    fieldName: "getLeagueRaceLeaderboard",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(
+      `#set($leagueId = $ctx.args.leagueId)
+#set($category = $ctx.args.category.toLowerCase())
+#set($raceId = $ctx.args.raceId)
+#set($byLeaderboardPK = "LEAGUE#" + $leagueId.toLowerCase() + "#PREDICTION#" + $category + "#" + $raceId)
+{
+  "version": "2018-05-29",
+  "operation": "Query",
+  "index": "byLeaderboard",
+  "query": {
+    "expression": "byLeaderboardPK = :pk",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson($byLeaderboardPK)
+    }
+  },
+  "filter": {
+    "expression": "entityType = :entityType",
+    "expressionValues": {
+      ":entityType": $util.dynamodb.toDynamoDBJson("LEAGUE_PREDICTION_ENTRY")
+    }
+  },
+  "scanIndexForward": true,
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null))
+}`
+    ),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(
+      `#if($ctx.error)
+$util.error($ctx.error.message, $ctx.error.type)
+#end
+#set($items = [])
+#set($categoryArg = $ctx.args.category)
+#set($raceIdArg = $ctx.args.raceId)
+#foreach($item in $ctx.result.items)
+## Always use query args for category and raceId since we're querying by those exact values
+## This ensures we never return null for these required fields
+#set($category = $categoryArg)
+#set($raceId = $raceIdArg)
+## Use season from item if available and not null, otherwise use default
+#if(!$util.isNull($item.season) && $item.season != "")
+  #set($season = $item.season)
+#else
+  #set($season = "2026")
+#end
+#set($obj = {
+  "category": $category,
+  "season": $season,
+  "raceId": $raceId,
+  "userId": $item.userId,
+  "prediction": $util.defaultIfNull($item.prediction, {}),
+  "points": $util.defaultIfNull($item.points, 0),
+  "createdAt": $util.defaultIfNull($item.createdAt, $util.time.nowISO8601()),
+  "updatedAt": $util.defaultIfNull($item.updatedAt, $util.time.nowISO8601())
+})
+$util.qr($items.add($obj))
+#end
+{
+  "items": $util.toJson($items),
+  "nextToken": $util.toJson($ctx.result.nextToken)
+}`
+    ),
+  });
+
   // Query.getLeagueByCode resolver
   // Finds a league by its join code using the byCode GSI
   dataSource.createResolver("GetLeagueByCodeResolver", {

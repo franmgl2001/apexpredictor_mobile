@@ -54,7 +54,7 @@ const LIST_MY_RACES = /* GraphQL */ `
     }
 `;
 
-interface RacePrediction {
+export interface RacePrediction {
     category: string;
     season: string;
     raceId: string;

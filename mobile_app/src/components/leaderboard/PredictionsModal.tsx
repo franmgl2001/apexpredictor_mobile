@@ -74,8 +74,17 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                 gridOrderLength: parsed.gridOrder?.length || 0,
                 hasAdditional: !!parsed.additionalPredictions,
                 hasSprint: !!parsed.sprintPositions && parsed.sprintPositions.length > 0,
+                fullStructure: Object.keys(parsed),
             });
-            return parsed;
+            
+            // Ensure gridOrder is always an array, even if missing
+            const normalized: PredictionData = {
+                gridOrder: Array.isArray(parsed.gridOrder) ? parsed.gridOrder : [],
+                sprintPositions: Array.isArray(parsed.sprintPositions) ? parsed.sprintPositions : [],
+                additionalPredictions: parsed.additionalPredictions || {},
+            };
+            
+            return normalized;
         } catch (error) {
             console.error('[PredictionsModal] Error parsing predictions JSON:', error);
             console.error('[PredictionsModal] Raw predictionsJson:', predictionsJson);
@@ -189,9 +198,10 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                         {predictions ? (
                             <>
                                 {/* Grid Order */}
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Predicted Grid Order</Text>
-                                    {predictions.gridOrder.map((item) => {
+                                {predictions.gridOrder && predictions.gridOrder.length > 0 ? (
+                                    <View style={styles.section}>
+                                        <Text style={styles.sectionTitle}>Predicted Grid Order</Text>
+                                        {predictions.gridOrder.map((item) => {
                                         const driver = getDriverByNumber(drivers, item.driverNumber);
                                         const driverPoints = item.driverNumber ? pointsData.get(item.driverNumber) : null;
                                         const gridPoints = driverPoints?.breakdown?.gridPosition ?? 0;
@@ -252,8 +262,14 @@ export default function PredictionsModal({ visible, onClose, username, predictio
                                                 </View>
                                             </View>
                                         );
-                                    })}
-                                </View>
+                                        })}
+                                    </View>
+                                ) : (
+                                    <View style={styles.section}>
+                                        <Text style={styles.sectionTitle}>Predicted Grid Order</Text>
+                                        <Text style={styles.emptyText}>No grid order predictions available</Text>
+                                    </View>
+                                )}
 
                                 {/* Sprint Positions */}
                                 {predictions.sprintPositions && predictions.sprintPositions.length > 0 && (

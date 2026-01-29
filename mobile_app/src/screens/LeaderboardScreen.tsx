@@ -16,7 +16,7 @@ import {
     ensureLeaderboardEntry,
     type LeaderboardEntry,
 } from '../services/graphql/leaderboard';
-import { getMyLeagues, getLeagueLeaderboard, type LeagueMember, type LeagueLeaderboardEntry } from '../services/graphql/leagues';
+import { getMyLeagues, getLeagueLeaderboard, getLeagueRaceLeaderboard, type LeagueMember, type LeagueLeaderboardEntry } from '../services/graphql/leagues';
 import { getRaceLeaderboard } from '../services/graphql/predictions';
 
 type LeaderboardScreenProps = {
@@ -135,25 +135,37 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
             setIsLoading(true);
             setError(null);
 
-            // Fetch race leaderboard - all predictions for this race (sorted by points descending)
-            const predictions = await getRaceLeaderboard(category, raceId, 100);
+            let predictions;
+            let userIdToUsername = new Map<string, string>();
+            let userIdToNationality = new Map<string, string | undefined>();
 
-            // Fetch season leaderboard to get usernames for userIds
-            // Create a userId -> username map
-            const seasonLeaderboard = await getLeaderboard(category, season, 100);
-            const userIdToUsername = new Map<string, string>();
-            const userIdToNationality = new Map<string, string | undefined>();
-            
-            seasonLeaderboard.items.forEach((entry) => {
-                userIdToUsername.set(entry.userId, entry.username);
-                userIdToNationality.set(entry.userId, entry.nationality);
-            });
+            if (filterType === 'league' && selectedLeagueId) {
+                // Fetch league race leaderboard
+                predictions = await getLeagueRaceLeaderboard(selectedLeagueId, category, raceId, 100);
+
+                // Fetch league season leaderboard to get usernames for userIds
+                const leagueSeasonLeaderboard = await getLeagueLeaderboard(selectedLeagueId, category, season, 100);
+                leagueSeasonLeaderboard.items.forEach((entry) => {
+                    userIdToUsername.set(entry.userId, entry.username);
+                    userIdToNationality.set(entry.userId, entry.nationality);
+                });
+            } else {
+                // Fetch global race leaderboard
+                predictions = await getRaceLeaderboard(category, raceId, 100);
+
+                // Fetch season leaderboard to get usernames for userIds
+                const seasonLeaderboard = await getLeaderboard(category, season, 100);
+                seasonLeaderboard.items.forEach((entry) => {
+                    userIdToUsername.set(entry.userId, entry.username);
+                    userIdToNationality.set(entry.userId, entry.nationality);
+                });
+            }
 
             // Map predictions to leaderboard entries
             const raceEntries: LeaderboardEntryData[] = predictions.map((pred, index) => {
                 const username = userIdToUsername.get(pred.userId) || 'Unknown';
                 const nationality = userIdToNationality.get(pred.userId);
-                
+
                 // Convert prediction to JSON string for the modal
                 let predictionJson: string | null = null;
                 if (pred.prediction) {
@@ -162,6 +174,8 @@ export default function LeaderboardScreen({ onProfilePress }: LeaderboardScreenP
                     } else {
                         predictionJson = JSON.stringify(pred.prediction);
                     }
+                } else {
+                    console.log(`[LeaderboardScreen] No prediction data for user ${username} (userId: ${pred.userId})`);
                 }
 
                 return {

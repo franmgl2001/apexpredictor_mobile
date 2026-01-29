@@ -247,6 +247,8 @@ type Query {
   getLeagueByCode(byCode: String!): League
   getLeagueMembers(leagueId: String!, limit: Int, nextToken: String): LeagueMemberConnection!
   getLeagueLeaderboard(leagueId: String!, category: String!, season: String!, limit: Int, nextToken: String): LeagueLeaderboardConnection!
+  # Get league race leaderboard - all predictions for a specific race in a league (sorted by points)
+  getLeagueRaceLeaderboard(leagueId: String!, category: String!, raceId: String!, limit: Int, nextToken: String): RacePredictionConnection!
   # Get all leaderboard entries for a specific user across all categories/seasons
   getLeaderboardsByUserId(userId: ID!, limit: Int, nextToken: String): LeaderboardConnection!
   # Get race leaderboard - all predictions for a specific race (sorted by points)

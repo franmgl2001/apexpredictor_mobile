@@ -9,7 +9,7 @@ import { requestLogger } from './requestLogger';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { getLeaderboard, getLeaderboardsByUserId, type LeaderboardEntry } from './leaderboard';
 import { getMyProfile } from './users';
-import { listMyPredictions } from './predictions';
+import { listMyPredictions, type RacePrediction } from './predictions';
 
 // Types for leagues
 export interface League {
@@ -138,6 +138,24 @@ const GET_LEAGUE_LEADERBOARD = /* GraphQL */ `
     }
 `;
 
+const GET_LEAGUE_RACE_LEADERBOARD = /* GraphQL */ `
+    query GetLeagueRaceLeaderboard($leagueId: String!, $category: String!, $raceId: String!, $limit: Int, $nextToken: String) {
+        getLeagueRaceLeaderboard(leagueId: $leagueId, category: $category, raceId: $raceId, limit: $limit, nextToken: $nextToken) {
+            items {
+                category
+                season
+                raceId
+                userId
+                prediction
+                points
+                createdAt
+                updatedAt
+            }
+            nextToken
+        }
+    }
+`;
+
 const GET_LEAGUE_BY_CODE = /* GraphQL */ `
     query GetLeagueByCode($byCode: String!) {
         getLeagueByCode(byCode: $byCode) {
@@ -173,6 +191,13 @@ interface GetLeagueMembersResponse {
 
 interface GetLeagueLeaderboardResponse {
   getLeagueLeaderboard: LeagueLeaderboardConnection;
+}
+
+interface GetLeagueRaceLeaderboardResponse {
+  getLeagueRaceLeaderboard: {
+    items: RacePrediction[];
+    nextToken: string | null;
+  };
 }
 
 export interface LeagueLeaderboardEntry {
@@ -920,6 +945,68 @@ export async function getLeagueLeaderboard(
     const connection = result.data.getLeagueLeaderboard;
     requestLogger.logSuccess(logId, connection.items.length, duration);
     return connection;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    requestLogger.logError(logId, error, duration);
+    throw error;
+  }
+}
+
+/**
+ * Fetches league race leaderboard - all predictions for a specific race in a league, sorted by points (descending)
+ * Uses the byLeaderboard GSI to query predictions for a race in a league
+ * @param leagueId The league ID
+ * @param category The racing category (e.g., "f1")
+ * @param raceId The race ID (e.g., "australia2026")
+ * @param limit Optional limit (default: 50)
+ * @param nextToken Optional pagination token
+ * @returns Array of race predictions sorted by points
+ */
+export async function getLeagueRaceLeaderboard(
+  leagueId: string,
+  category: string,
+  raceId: string,
+  limit: number = 50,
+  nextToken?: string
+): Promise<RacePrediction[]> {
+  await fetchAuthSession();
+
+  const startTime = Date.now();
+
+  const variables: {
+    leagueId: string;
+    category: string;
+    raceId: string;
+    limit: number;
+    nextToken?: string;
+  } = {
+    leagueId,
+    category,
+    raceId,
+    limit,
+  };
+
+  if (nextToken) {
+    variables.nextToken = nextToken;
+  }
+
+  const logId = requestLogger.logRequest('getLeagueRaceLeaderboard', variables);
+
+  try {
+    const result = await client.graphql({
+      query: GET_LEAGUE_RACE_LEADERBOARD,
+      variables,
+    }) as GraphQLResult<GetLeagueRaceLeaderboardResponse>;
+
+    const duration = Date.now() - startTime;
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Failed to fetch league race leaderboard');
+    }
+
+    const items = result.data?.getLeagueRaceLeaderboard.items || [];
+    requestLogger.logSuccess(logId, items.length, duration);
+    return items;
   } catch (error: any) {
     const duration = Date.now() - startTime;
     requestLogger.logError(logId, error, duration);
