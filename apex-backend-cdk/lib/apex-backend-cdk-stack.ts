@@ -14,12 +14,25 @@ export class ApexBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 1) Import existing User Pool (kept as-is)
-    const userPool = cognito.UserPool.fromUserPoolId(
-      this,
-      "ExistingUserPool",
-      "us-east-2_O43Zxwqdm"
-    );
+    // 1) Create a new User Pool
+    const userPool = new cognito.UserPool(this, "ApexUserPool", {
+      userPoolName: "ApexUserPool",
+      selfSignUpEnabled: true,
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      standardAttributes: {
+        email: { required: true, mutable: true },
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireUppercase: true,
+        requireDigits: true,
+        requireSymbols: true,
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // 2) DynamoDB table (single-table style)
     const table = new dynamodb.Table(this, "ApexEntityTable", {
@@ -91,28 +104,23 @@ export class ApexBackendStack extends cdk.Stack {
 
 
     // =========================
-    // (Optional) App Client
+    // ✅ App Client
     // =========================
-    const userPoolClient = new cognito.CfnUserPoolClient(
-      this,
-      "MobileAppClient",
-      {
-        userPoolId: "us-east-2_O43Zxwqdm",
-        clientName: "apex-react-native",
-        generateSecret: false,
-        explicitAuthFlows: [
-          "ALLOW_USER_PASSWORD_AUTH",
-          "ALLOW_USER_SRP_AUTH",
-          "ALLOW_REFRESH_TOKEN_AUTH",
-        ],
-        preventUserExistenceErrors: "ENABLED",
-      }
-    );
+    const userPoolClient = userPool.addClient("MobileAppClient", {
+      userPoolClientName: "apex-react-native",
+      authFlows: {
+        userSrp: true,
+        userPassword: true,
+      },
+      preventUserExistenceErrors: true,
+    });
 
     // 4) Outputs (what frontend needs)
     new cdk.CfnOutput(this, "Region", { value: this.region });
-    new cdk.CfnOutput(this, "UserPoolId", { value: "us-east-2_O43Zxwqdm" });
-    new cdk.CfnOutput(this, "UserPoolClientId", { value: userPoolClient.ref });
+    new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
+    new cdk.CfnOutput(this, "UserPoolClientId", {
+      value: userPoolClient.userPoolClientId,
+    });
     new cdk.CfnOutput(this, "GraphqlUrl", { value: api.graphqlUrl });
     new cdk.CfnOutput(this, "DynamoTableName", { value: table.tableName });
   }
