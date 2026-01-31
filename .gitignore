@@ -103,3 +103,7 @@ build/
 amplify_outputs.json
 amplify_outputs_dev.json
 amplify_config.json
+
+*.jks
+*.keystore
+key.properties
