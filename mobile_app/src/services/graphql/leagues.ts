@@ -480,13 +480,31 @@ export async function createLeague(
             }
           }
 
+          // Convert prediction to JSON string if it's an object (AWSJSON requires string)
+          let predictionJson: string;
+          if (prediction.prediction === null || prediction.prediction === undefined) {
+            predictionJson = JSON.stringify({});
+          } else if (typeof prediction.prediction === 'string') {
+            // Already a string, validate it's valid JSON
+            try {
+              JSON.parse(prediction.prediction);
+              predictionJson = prediction.prediction;
+            } catch (e) {
+              // If it's not valid JSON, wrap it
+              predictionJson = JSON.stringify(prediction.prediction);
+            }
+          } else {
+            // It's an object, stringify it
+            predictionJson = JSON.stringify(prediction.prediction);
+          }
+
           return {
             leagueId: league.leagueId,
             userId: prediction.userId,
-            category: prediction.category,
+            category: prediction.category.toLowerCase(), // Normalize to lowercase to match backend
             season: prediction.season,
             raceId: prediction.raceId,
-            prediction: prediction.prediction,
+            prediction: predictionJson, // Send as JSON string for AWSJSON type
             points: prediction.points,
             pointsPadded: pointsPadded,
           };
@@ -794,13 +812,31 @@ export async function joinLeagueByCode(byCode: string): Promise<LeagueMember> {
             }
           }
 
+          // Convert prediction to JSON string if it's an object (AWSJSON requires string)
+          let predictionJson: string;
+          if (prediction.prediction === null || prediction.prediction === undefined) {
+            predictionJson = JSON.stringify({});
+          } else if (typeof prediction.prediction === 'string') {
+            // Already a string, validate it's valid JSON
+            try {
+              JSON.parse(prediction.prediction);
+              predictionJson = prediction.prediction;
+            } catch (e) {
+              // If it's not valid JSON, wrap it
+              predictionJson = JSON.stringify(prediction.prediction);
+            }
+          } else {
+            // It's an object, stringify it
+            predictionJson = JSON.stringify(prediction.prediction);
+          }
+
           return {
             leagueId: league.leagueId,
             userId: prediction.userId,
-            category: prediction.category,
+            category: prediction.category.toLowerCase(), // Normalize to lowercase to match backend
             season: prediction.season,
             raceId: prediction.raceId,
-            prediction: prediction.prediction,
+            prediction: predictionJson, // Send as JSON string for AWSJSON type
             points: prediction.points,
             pointsPadded: pointsPadded,
           };
