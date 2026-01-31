@@ -21,7 +21,7 @@
                                 <color key="color" red="0.86274509803921573" green="0.14901960784313725" blue="0.14901960784313725" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </activityIndicatorView>
                         </subviews>
-                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="1.0" green="1.0" blue="1.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="loading-indicator" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="loading-center-x"/>
                             <constraint firstItem="loading-indicator" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="loading-center-y"/>

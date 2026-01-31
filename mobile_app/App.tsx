@@ -332,13 +332,13 @@ const styles = StyleSheet.create({
   },
   loadingScreenContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
   },
   logoContainer: {
     marginBottom: 32,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingText: {
-    color: '#ffffff',
+    color: '#000000',
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 1,
