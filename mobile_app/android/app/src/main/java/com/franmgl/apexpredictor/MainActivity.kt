@@ -1,4 +1,4 @@
-package com.apex_predictor
+package com.franmgl.apexpredictor
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity
