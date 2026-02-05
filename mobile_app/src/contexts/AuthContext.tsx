@@ -132,7 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else if (error.message) {
                 errorMessage = error.message;
             }
-            throw new Error(errorMessage);
+            // Preserve the original error name for detection in App.tsx
+            const newError: any = new Error(errorMessage);
+            newError.originalName = error.name;
+            throw newError;
         } finally {
             setIsLoading(false);
         }

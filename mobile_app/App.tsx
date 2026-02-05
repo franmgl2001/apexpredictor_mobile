@@ -17,6 +17,7 @@ import amplifyconfig from './amplify_config.json';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { DataProvider, useData } from './src/contexts/DataContext';
 import { saveUserProfile } from './src/services/graphql/users';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure Amplify with the outputs
 // @aws-amplify/react-native automatically sets up AsyncStorage for React Native
@@ -72,6 +73,85 @@ function AppContent() {
   const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [initialAuthCheckComplete, setInitialAuthCheckComplete] = useState(false);
+  const [isRestoringState, setIsRestoringState] = useState(true);
+
+  // Keys for AsyncStorage
+  const AUTH_SCREEN_KEY = '@auth_screen';
+  const PENDING_EMAIL_KEY = '@pending_email';
+  const PENDING_PASSWORD_KEY = '@pending_password';
+
+  // Restore auth screen state on app startup (after auth check completes)
+  useEffect(() => {
+    // Wait for initial auth check to complete before restoring
+    if (!initialAuthCheckComplete) return;
+
+    const restoreAuthState = async () => {
+      try {
+        const savedAuthScreen = await AsyncStorage.getItem(AUTH_SCREEN_KEY);
+        const savedEmail = await AsyncStorage.getItem(PENDING_EMAIL_KEY);
+        const savedPassword = await AsyncStorage.getItem(PENDING_PASSWORD_KEY);
+
+        // Only restore if user is not authenticated and we have saved state
+        if (!isAuthenticated && savedAuthScreen && savedEmail) {
+          // Only restore verification or reset screens
+          if (savedAuthScreen === 'verification' || savedAuthScreen === 'reset') {
+            setAuthScreen(savedAuthScreen as AuthScreen);
+            setPendingEmail(savedEmail);
+            if (savedPassword && savedAuthScreen === 'verification') {
+              setPendingPassword(savedPassword);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring auth state:', error);
+      } finally {
+        setIsRestoringState(false);
+      }
+    };
+
+    restoreAuthState();
+  }, [initialAuthCheckComplete, isAuthenticated]);
+
+  // Save auth screen state when it changes (only for verification/reset)
+  useEffect(() => {
+    const saveAuthState = async () => {
+      if (isRestoringState) return; // Don't save during initial restore
+
+      try {
+        if (authScreen === 'verification' || authScreen === 'reset') {
+          await AsyncStorage.setItem(AUTH_SCREEN_KEY, authScreen);
+          if (pendingEmail) {
+            await AsyncStorage.setItem(PENDING_EMAIL_KEY, pendingEmail);
+          }
+          if (pendingPassword && authScreen === 'verification') {
+            await AsyncStorage.setItem(PENDING_PASSWORD_KEY, pendingPassword);
+          }
+        } else {
+          // Clear saved state when navigating away from verification/reset
+          await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+        }
+      } catch (error) {
+        console.error('Error saving auth state:', error);
+      }
+    };
+
+    saveAuthState();
+  }, [authScreen, pendingEmail, pendingPassword, isRestoringState]);
+
+  // Clear saved state when user becomes authenticated
+  useEffect(() => {
+    const clearAuthState = async () => {
+      if (isAuthenticated) {
+        try {
+          await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+        } catch (error) {
+          console.error('Error clearing auth state:', error);
+        }
+      }
+    };
+
+    clearAuthState();
+  }, [isAuthenticated]);
 
   // Track when initial auth check is complete
   useEffect(() => {
@@ -146,8 +226,8 @@ function AppContent() {
     }
   };
 
-  // Show loading spinner only during initial auth check (not during sign-in attempts)
-  if (!initialAuthCheckComplete && isLoading && !isAuthenticated) {
+  // Show loading spinner during initial auth check or state restoration
+  if ((!initialAuthCheckComplete && isLoading && !isAuthenticated) || isRestoringState) {
     return (
       <SafeAreaView style={styles.loadingScreenContainer} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
@@ -172,6 +252,7 @@ function AppContent() {
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
           <ForgotPasswordScreen
             onSubmitEmail={async (email) => {
+              // State will be saved automatically via useEffect
               setPendingEmail(email);
               try {
                 await resetPassword(email);
@@ -197,6 +278,12 @@ function AppContent() {
             onSubmitNewPassword={async (code, newPassword) => {
               try {
                 await confirmResetPassword(pendingEmail, code, newPassword);
+                // After successful password reset, clear saved state
+                try {
+                  await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+                } catch (error) {
+                  console.error('Error clearing auth state:', error);
+                }
               } catch (error: any) {
                 // Let the screen handle showing the error
                 throw error;
@@ -218,6 +305,12 @@ function AppContent() {
             onVerify={async (email, code, password) => {
               try {
                 await confirmSignUp(email, code, password);
+                // After successful verification, clear saved state
+                try {
+                  await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+                } catch (error) {
+                  console.error('Error clearing auth state:', error);
+                }
                 // After successful verification, user will be automatically signed in
                 // The auth state will update and show the main app
               } catch (error: any) {
@@ -233,7 +326,15 @@ function AppContent() {
                 throw error;
               }
             }}
-            onNavigateToSignIn={() => setAuthScreen('signin')}
+            onNavigateToSignIn={async () => {
+              // Clear saved state when navigating back to sign in
+              try {
+                await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+              } catch (error) {
+                console.error('Error clearing auth state:', error);
+              }
+              setAuthScreen('signin');
+            }}
             isLoading={isLoading}
           />
         </SafeAreaView>
@@ -248,15 +349,54 @@ function AppContent() {
               try {
                 await signUp(email, password);
                 // After successful signup, navigate to verification screen
+                // State will be saved automatically via useEffect
                 setPendingEmail(email);
                 setPendingPassword(password);
                 setAuthScreen('verification');
               } catch (error: any) {
-                // Error handling is done in the screen component
+                // If account already exists, resend code and go to verification
+                // Check original error name (preserved from AuthContext) or message
+                const isExistingAccount =
+                  error.originalName === 'UsernameExistsException' ||
+                  error.name === 'UsernameExistsException' ||
+                  (error.message && (
+                    error.message.includes('already exists') ||
+                    error.message.includes('An account with this email already exists')
+                  ));
+
+                if (isExistingAccount) {
+                  try {
+                    // Resend the verification code
+                    await resendSignUpCode(email);
+                    // Navigate to verification screen
+                    setPendingEmail(email);
+                    setPendingPassword(password);
+                    setAuthScreen('verification');
+                    // Show success message
+                    Alert.alert(
+                      'Verification Code Sent',
+                      'An account with this email already exists. We\'ve sent a new verification code to your email.',
+                      [{ text: 'OK' }]
+                    );
+                    return; // Don't throw error, we handled it
+                  } catch (resendError: any) {
+                    // If resend fails, throw the original error
+                    throw error;
+                  }
+                }
+                // For other errors, let the screen component handle it
                 throw error;
               }
             }}
-            onNavigateToSignIn={() => setAuthScreen('signin')}
+            onNavigateToSignIn={async () => {
+              // Clear saved state when navigating back to sign in
+              try {
+                await AsyncStorage.multiRemove([AUTH_SCREEN_KEY, PENDING_EMAIL_KEY, PENDING_PASSWORD_KEY]);
+              } catch (error) {
+                console.error('Error clearing auth state:', error);
+              }
+              setAuthScreen('signin');
+            }}
             isLoading={isLoading}
           />
         </SafeAreaView>
