@@ -27,6 +27,31 @@ export default function SignUpScreen({
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [emailConsent, setEmailConsent] = useState(false);
+    const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+
+    // Password validation function
+    const validatePassword = (pwd: string): string[] => {
+        const errors: string[] = [];
+        if (pwd.length < 8) {
+            errors.push('At least 8 characters');
+        }
+        if (!/[A-Z]/.test(pwd)) {
+            errors.push('At least one uppercase letter');
+        }
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) {
+            errors.push('At least one special character');
+        }
+        return errors;
+    };
+
+    const handlePasswordChange = (text: string) => {
+        setPassword(text);
+        if (text.length > 0) {
+            setPasswordErrors(validatePassword(text));
+        } else {
+            setPasswordErrors([]);
+        }
+    };
 
     const handleSignUp = async () => {
         if (!email.trim()) {
@@ -45,8 +70,9 @@ export default function SignUpScreen({
             return;
         }
 
-        if (password.length < 8) {
-            Alert.alert('Error', 'Password must be at least 8 characters long');
+        const validationErrors = validatePassword(password);
+        if (validationErrors.length > 0) {
+            Alert.alert('Error', `Password requirements:\n• ${validationErrors.join('\n• ')}`);
             return;
         }
 
@@ -120,17 +146,35 @@ export default function SignUpScreen({
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>Password</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[
+                                    styles.input,
+                                    password.length > 0 && passwordErrors.length > 0 && styles.inputError
+                                ]}
                                 placeholder="Create a password"
                                 placeholderTextColor="#9ca3af"
                                 value={password}
-                                onChangeText={setPassword}
+                                onChangeText={handlePasswordChange}
                                 secureTextEntry
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 textContentType="none"
+                                autoComplete="off"
+                                passwordRules=""
                                 editable={!isLoading}
                             />
+                            {password.length > 0 && passwordErrors.length > 0 && (
+                                <View style={styles.errorContainer}>
+                                    <Text style={styles.errorText}>Password must contain:</Text>
+                                    {passwordErrors.map((error, index) => (
+                                        <Text key={index} style={styles.errorItem}>
+                                            • {error}
+                                        </Text>
+                                    ))}
+                                </View>
+                            )}
+                            {password.length > 0 && passwordErrors.length === 0 && (
+                                <Text style={styles.successText}>✓ Password meets all requirements</Text>
+                            )}
                         </View>
 
                         {/* Confirm Password Field */}
@@ -146,6 +190,8 @@ export default function SignUpScreen({
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 textContentType="none"
+                                autoComplete="off"
+                                passwordRules=""
                                 editable={!isLoading}
                             />
                         </View>
@@ -315,5 +361,34 @@ const styles = StyleSheet.create({
         color: '#374151',
         flex: 1,
         lineHeight: 20,
+    },
+    inputError: {
+        borderColor: '#ef4444',
+    },
+    errorContainer: {
+        marginTop: 8,
+        padding: 12,
+        backgroundColor: '#fef2f2',
+        borderRadius: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#ef4444',
+    },
+    errorText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#dc2626',
+        marginBottom: 4,
+    },
+    errorItem: {
+        fontSize: 12,
+        color: '#991b1b',
+        marginLeft: 8,
+        marginTop: 2,
+    },
+    successText: {
+        fontSize: 12,
+        color: '#16a34a',
+        marginTop: 8,
+        fontWeight: '500',
     },
 });
