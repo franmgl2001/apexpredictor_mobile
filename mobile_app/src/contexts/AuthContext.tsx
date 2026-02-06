@@ -11,6 +11,7 @@ import {
 } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { deleteMyAccount } from '../services/graphql/account';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -23,6 +24,7 @@ interface AuthContextType {
     resetPassword: (email: string) => Promise<void>;
     confirmResetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
     signOut: () => Promise<void>;
+    deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -275,6 +277,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const deleteAccount = async () => {
+        setIsLoading(true);
+        try {
+            // Call the backend to delete all user data + Cognito user
+            await deleteMyAccount();
+
+            // Clear all local state and cache
+            try {
+                await AsyncStorage.clear();
+            } catch (clearError) {
+                console.error('Error clearing cache:', clearError);
+            }
+
+            // Sign out locally (Cognito user is already deleted on backend)
+            try {
+                await amplifySignOut();
+            } catch (signOutError) {
+                // Cognito user is already deleted, so sign out may fail — that's OK
+                console.log('Sign out after account deletion (expected if user already deleted):', signOutError);
+            }
+
+            setUser(null);
+            setIsAuthenticated(false);
+        } catch (error: any) {
+            console.error('Delete account error:', error);
+            let errorMessage = 'Failed to delete account. Please try again.';
+            if (error.message) {
+                errorMessage = error.message;
+            }
+            throw new Error(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -288,6 +325,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 resetPassword,
                 confirmResetPassword,
                 signOut,
+                deleteAccount,
             }}
         >
             {children}

@@ -24,3 +24,6 @@ export {
 
 // Re-export prediction queries and mutations
 export { upsertPrediction, listMyPredictions, getRaceLeaderboard } from './graphql/predictions';
+
+// Re-export account management
+export { deleteMyAccount } from './graphql/account';

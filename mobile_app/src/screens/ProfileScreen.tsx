@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking, ScrollView } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 
@@ -65,8 +65,9 @@ function formatDate(dateString?: string): string {
 }
 
 export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
-    const { signOut, isLoading: authLoading, user } = useAuth();
+    const { signOut, deleteAccount, isLoading: authLoading, user } = useAuth();
     const { profile, isLoading: profileLoading, profileError, refetchProfile } = useData();
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
     const handleSignOut = async () => {
         Alert.alert(
@@ -92,6 +93,65 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
                                 [{ text: 'OK' }]
                             );
                         }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'Are you sure you want to permanently delete your account? This will remove all your data including predictions, leaderboard entries, and league memberships. This action cannot be undone.',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Delete Account',
+                    style: 'destructive',
+                    onPress: () => {
+                        // Second confirmation: ask user to type DELETE
+                        Alert.prompt(
+                            'Confirm Deletion',
+                            'Type DELETE to permanently delete your account.',
+                            [
+                                {
+                                    text: 'Cancel',
+                                    style: 'cancel',
+                                },
+                                {
+                                    text: 'Confirm',
+                                    style: 'destructive',
+                                    onPress: async (text) => {
+                                        if (text?.toUpperCase() !== 'DELETE') {
+                                            Alert.alert('Error', 'Please type DELETE to confirm account deletion.');
+                                            return;
+                                        }
+
+                                        setIsDeletingAccount(true);
+                                        try {
+                                            await deleteAccount();
+                                            // Account deleted — user will be redirected to sign-in screen
+                                        } catch (error: any) {
+                                            console.error('Delete account error:', error);
+                                            Alert.alert(
+                                                'Error',
+                                                error.message || 'Failed to delete account. Please try again.',
+                                                [{ text: 'OK' }]
+                                            );
+                                        } finally {
+                                            setIsDeletingAccount(false);
+                                        }
+                                    },
+                                },
+                            ],
+                            'plain-text',
+                            '',
+                            'default'
+                        );
                     },
                 },
             ],
@@ -210,11 +270,30 @@ export default function ProfileScreen({ onClose }: ProfileScreenProps = {}) {
                     <TouchableOpacity
                         style={[styles.signOutButton, authLoading && styles.signOutButtonDisabled]}
                         onPress={handleSignOut}
-                        disabled={authLoading}
+                        disabled={authLoading || isDeletingAccount}
                         activeOpacity={0.6}
                     >
                         <Text style={styles.signOutText}>Sign Out</Text>
                     </TouchableOpacity>
+                </View>
+
+                {/* Delete Account */}
+                <View style={styles.deleteAccountContainer}>
+                    <TouchableOpacity
+                        style={[styles.deleteAccountButton, (authLoading || isDeletingAccount) && styles.deleteAccountButtonDisabled]}
+                        onPress={handleDeleteAccount}
+                        disabled={authLoading || isDeletingAccount}
+                        activeOpacity={0.6}
+                    >
+                        {isDeletingAccount ? (
+                            <ActivityIndicator size="small" color="#991b1b" />
+                        ) : (
+                            <Text style={styles.deleteAccountText}>Delete Account</Text>
+                        )}
+                    </TouchableOpacity>
+                    <Text style={styles.deleteAccountWarning}>
+                        This will permanently delete your account and all associated data.
+                    </Text>
                 </View>
             </ScrollView>
         </View>
@@ -397,6 +476,36 @@ const styles = StyleSheet.create({
         fontWeight: '400',
         fontSize: 17,
         letterSpacing: -0.2,
+    },
+    deleteAccountContainer: {
+        marginTop: 24,
+        paddingTop: 24,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: '#f3f4f6',
+        alignItems: 'center',
+    },
+    deleteAccountButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    deleteAccountButtonDisabled: {
+        opacity: 0.4,
+    },
+    deleteAccountText: {
+        color: '#991b1b',
+        fontWeight: '400',
+        fontSize: 14,
+        letterSpacing: -0.1,
+        textDecorationLine: 'underline',
+    },
+    deleteAccountWarning: {
+        fontSize: 12,
+        color: '#9ca3af',
+        textAlign: 'center',
+        marginTop: 8,
+        lineHeight: 16,
     },
 });
 

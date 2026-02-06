@@ -3,6 +3,8 @@ import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as appsync from "aws-cdk-lib/aws-appsync";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import path from "path";
 import { createProfileResolvers } from "./resolvers/profile-resolvers";
 import { createAssetsResolvers } from "./resolvers/assets-resolvers";
@@ -102,6 +104,43 @@ export class ApexBackendStack extends cdk.Stack {
     // Create league resolvers (league creation and management)
     createLeagueResolvers(profileDS, table.tableName);
 
+    // =========================
+    // ✅ DELETE ACCOUNT (Lambda)
+    // =========================
+    const deleteAccountFn = new lambda.Function(this, "DeleteAccountFunction", {
+      functionName: "ApexDeleteAccountFunction",
+      runtime: lambda.Runtime.PYTHON_3_12,
+      handler: "deleteAccount.handler",
+      code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: table.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+      },
+    });
+
+    // Grant Lambda permissions to read/write DynamoDB
+    table.grantReadWriteData(deleteAccountFn);
+
+    // Grant Lambda permissions to delete Cognito users
+    deleteAccountFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:AdminDeleteUser"],
+        resources: [userPool.userPoolArn],
+      })
+    );
+
+    // Create AppSync Lambda data source and resolver
+    const deleteAccountDS = api.addLambdaDataSource(
+      "DeleteAccountDS",
+      deleteAccountFn
+    );
+
+    deleteAccountDS.createResolver("DeleteMyAccountResolver", {
+      typeName: "Mutation",
+      fieldName: "deleteMyAccount",
+    });
 
     // =========================
     // ✅ App Client

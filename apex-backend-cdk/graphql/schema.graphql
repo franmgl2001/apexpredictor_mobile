@@ -265,4 +265,5 @@ type Mutation {
   copyLeaderboardToLeague(input: CopyLeaderboardToLeagueInput!): Boolean!
   batchCreateLeagueLeaderboardEntries(entries: [LeagueLeaderboardEntryInput!]!): Boolean!
   batchCreateLeaguePredictionEntries(entries: [LeaguePredictionEntryInput!]!): Boolean!
+  deleteMyAccount: Boolean!
 }
